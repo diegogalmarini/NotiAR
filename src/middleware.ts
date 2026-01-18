@@ -22,6 +22,15 @@ const PUBLIC_ROUTE_PATTERNS = [
     /^\/ficha\/.+$/,  // Allow /ficha/[any-token]
 ];
 
+// Admin-only routes (super admin email required)
+const ADMIN_ROUTES = [
+    '/admin',
+];
+
+const ADMIN_ROUTE_PATTERNS = [
+    /^\/admin\/.+$/,  // All /admin/* routes
+];
+
 export async function middleware(req: NextRequest) {
     let response = NextResponse.next({
         request: {
@@ -85,6 +94,10 @@ export async function middleware(req: NextRequest) {
         return response;
     }
 
+    // Check if route is admin-only
+    const isAdminRoute = ADMIN_ROUTES.includes(pathname) ||
+        ADMIN_ROUTE_PATTERNS.some(pattern => pattern.test(pathname));
+
     // Check authentication
     const {
         data: { session },
@@ -96,6 +109,21 @@ export async function middleware(req: NextRequest) {
         redirectUrl.pathname = '/login';
         redirectUrl.searchParams.set('redirectTo', pathname);
         return NextResponse.redirect(redirectUrl);
+    }
+
+    // Check if admin route and verify super admin access
+    if (isAdminRoute) {
+        const userEmail = session.user.email || '';
+        const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
+
+        if (!SUPER_ADMIN_EMAILS.includes(userEmail)) {
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = '/unauthorized';
+            return NextResponse.redirect(redirectUrl);
+        }
+
+        // Admin is authenticated and authorized, allow access
+        return response;
     }
 
     // Check user approval status from database
