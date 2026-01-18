@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const searchParams = useSearchParams();
+    const redirectTo = searchParams.get("redirectTo") || "/dashboard";
     const error = searchParams.get('error');
 
     useEffect(() => {
@@ -62,7 +62,7 @@ function LoginForm() {
                 <CardDescription>Sistema de Gestión Notarial</CardDescription>
             </CardHeader>
             <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleEmailLogin} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>
                         <Input
