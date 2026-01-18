@@ -6,22 +6,25 @@ import type { CookieOptions } from '@supabase/ssr';
 export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
 
-    // Get all possible auth params
+    // Get query params
     const code = requestUrl.searchParams.get('code');
     const error = requestUrl.searchParams.get('error');
     const error_description = requestUrl.searchParams.get('error_description');
     const redirectTo = requestUrl.searchParams.get('redirectTo') || '/dashboard';
 
     const origin = requestUrl.origin;
-    const response = NextResponse.redirect(`${origin}${redirectTo}`);
 
+    // Handle OAuth errors
     if (error) {
         console.error('[CALLBACK] OAuth error:', error, error_description);
         return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error_description || error)}`);
     }
 
+    // Handle PKCE flow (code-based)
     if (code) {
-        console.log('[CALLBACK] Exchanging code for session...');
+        console.log('[CALLBACK] PKCE flow - exchanging code for session...');
+
+        const response = NextResponse.redirect(`${origin}${redirectTo}`);
 
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,11 +66,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(exchangeError.message)}`);
         }
 
-        console.log('[CALLBACK] Session established for user:', data.user?.email);
+        console.log('[CALLBACK] PKCE session established for user:', data.user?.email);
         return response;
     }
 
-    // No code or error found
-    console.log('[CALLBACK] No code found, redirecting to login');
-    return NextResponse.redirect(`${origin}/login`);
+    // No code = Implicit flow (hash-based tokens)
+    // Redirect to client-side page that will handle hash params
+    console.log('[CALLBACK] No code found - redirecting to client handler for implicit flow');
+    return NextResponse.redirect(`${origin}/auth/callback-client?redirectTo=${encodeURIComponent(redirectTo)}`);
 }
