@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createBrowserClient } from "@supabase/ssr";
 import { toast } from "sonner";
 
-export default function CallbackClientPage() {
+function CallbackClientContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get('redirectTo') || '/dashboard';
@@ -74,5 +74,20 @@ export default function CallbackClientPage() {
                 <p className="mt-4 text-gray-600">Procesando autenticación...</p>
             </div>
         </div>
+    );
+}
+
+export default function CallbackClientPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+                    <p className="mt-4 text-gray-600">Cargando...</p>
+                </div>
+            </div>
+        }>
+            <CallbackClientContent />
+        </Suspense>
     );
 }
