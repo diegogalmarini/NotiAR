@@ -13,6 +13,8 @@ const PUBLIC_ROUTES = [
     '/login',
     '/auth/callback',
     '/api/ingest',
+    '/pending-approval',
+    '/unauthorized',
 ];
 
 // Routes that match patterns (like /ficha/[token])
@@ -96,14 +98,28 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(redirectUrl);
     }
 
-    // Email whitelist check
-    const userEmail = session.user.email || '';
-    const isAllowedEmail = SUPER_ADMIN_EMAILS.includes(userEmail) ||
-        ALLOWED_DOMAINS.some(domain => userEmail.endsWith(domain));
+    // Check user approval status from database
+    const { data: profile, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('approval_status')
+        .eq('id', session.user.id)
+        .single();
 
-    if (!isAllowedEmail) {
+    // If profile doesn't exist or error, redirect to pending page
+    if (profileError || !profile) {
         const redirectUrl = req.nextUrl.clone();
-        redirectUrl.pathname = '/unauthorized';
+        redirectUrl.pathname = '/pending-approval';
+        return NextResponse.redirect(redirectUrl);
+    }
+
+    // Check approval status
+    if (profile.approval_status !== 'approved') {
+        const redirectUrl = req.nextUrl.clone();
+        if (profile.approval_status === 'rejected') {
+            redirectUrl.pathname = '/unauthorized';
+        } else {
+            redirectUrl.pathname = '/pending-approval';
+        }
         return NextResponse.redirect(redirectUrl);
     }
 
