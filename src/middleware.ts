@@ -119,6 +119,20 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(redirectUrl);
     }
 
+    const userEmail = session.user.email || '';
+    const SUPER_ADMIN_EMAILS_CHECK = ['diegogalmarini@gmail.com'];
+
+    // Super admins bypass ALL approval checks
+    if (SUPER_ADMIN_EMAILS_CHECK.includes(userEmail)) {
+        console.log('[MIDDLEWARE] Super admin detected, bypassing all checks');
+        if (isAdminRoute) {
+            console.log('[MIDDLEWARE] Super admin accessing admin route');
+            return response;
+        }
+        // Allow super admin to access any non-public route
+        return response;
+    }
+
     // Check if admin route and verify super admin access
     if (isAdminRoute) {
         const userEmail = session.user.email || '';
