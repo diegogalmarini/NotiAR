@@ -12,9 +12,30 @@ export default function AuthCallbackPage() {
     useEffect(() => {
         const handleCallback = async () => {
             try {
+                // Create browser client with cookie storage
                 const supabase = createBrowserClient(
                     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                    {
+                        cookies: {
+                            get(name) {
+                                const cookies = document.cookie.split(';');
+                                const cookie = cookies.find(c => c.trim().startsWith(`${name}=`));
+                                return cookie?.split('=')[1];
+                            },
+                            set(name, value, options) {
+                                let cookie = `${name}=${value}`;
+                                if (options?.maxAge) cookie += `; max-age=${options.maxAge}`;
+                                if (options?.domain) cookie += `; domain=${options.domain}`;
+                                if (options?.path) cookie += `; path=${options.path}`;
+                                if (options?.sameSite) cookie += `; samesite=${options.sameSite}`;
+                                document.cookie = cookie;
+                            },
+                            remove(name, options) {
+                                this.set(name, '', { ...options, maxAge: 0 });
+                            },
+                        },
+                    }
                 );
 
                 // Get hash params (implicit flow)
@@ -37,7 +58,7 @@ export default function AuthCallbackPage() {
                 // Handle implicit flow (hash-based)
                 if (accessToken && refreshToken) {
                     console.log('Setting session from implicit flow...');
-                    const { error: sessionError } = await supabase.auth.setSession({
+                    const { data, error: sessionError } = await supabase.auth.setSession({
                         access_token: accessToken,
                         refresh_token: refreshToken,
                     });
@@ -49,13 +70,14 @@ export default function AuthCallbackPage() {
                         return;
                     }
 
-                    console.log('Session established successfully');
+                    console.log('Session established successfully', data);
                     toast.success("Sesión iniciada correctamente");
 
-                    // Wait a bit for cookies to be set
-                    await new Promise(resolve => setTimeout(resolve, 500));
+                    // Wait for cookies to be set
+                    await new Promise(resolve => setTimeout(resolve, 1000));
 
-                    router.push(redirectTo);
+                    // Force a hard redirect to ensure cookies are sent
+                    window.location.href = redirectTo;
                     return;
                 }
 
@@ -70,8 +92,8 @@ export default function AuthCallbackPage() {
                     }
 
                     toast.success("Sesión iniciada correctamente");
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    router.push(redirectTo);
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    window.location.href = redirectTo;
                     return;
                 }
 
