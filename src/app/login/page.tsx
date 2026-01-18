@@ -15,13 +15,20 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
-    const redirectTo = searchParams.get("redirectTo") || "/dashboard";
+    const searchParams = useSearchParams();
+    const error = searchParams.get('error');
 
-    const handleLogin = async (e: React.FormEvent) => {
+    useEffect(() => {
+        if (error) {
+            toast.error(decodeURIComponent(error));
+        }
+    }, [error]);
+
+    const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
@@ -30,13 +37,8 @@ function LoginForm() {
 
         if (error) {
             toast.error(error.message);
-            return;
         }
-
-        if (data.session) {
-            toast.success("Inicio de sesión exitoso");
-            router.push(redirectTo);
-        }
+        // The actual redirection will be handled by the auth/callback route or a listener
     };
 
     const handleGoogleLogin = async () => {

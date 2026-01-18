@@ -5,7 +5,15 @@ import type { NextRequest } from 'next/server';
 export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
     const code = requestUrl.searchParams.get('code');
+    const error = requestUrl.searchParams.get('error');
+    const error_description = requestUrl.searchParams.get('error_description');
     const redirectTo = requestUrl.searchParams.get('redirectTo') || '/dashboard';
+
+    // Handle OAuth errors
+    if (error) {
+        console.error('OAuth error:', error, error_description);
+        return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(error_description || error)}`, request.url));
+    }
 
     if (code) {
         const response = NextResponse.redirect(new URL(redirectTo, request.url));
@@ -46,10 +54,16 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        await supabase.auth.exchangeCodeForSession(code);
+        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (exchangeError) {
+            console.error('Error exchanging code for session:', exchangeError);
+            return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(exchangeError.message)}`, request.url));
+        }
 
         return response;
     }
 
+    // If no code and no error, redirect to login
     return NextResponse.redirect(new URL('/login', request.url));
 }
