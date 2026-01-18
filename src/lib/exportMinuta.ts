@@ -128,9 +128,13 @@ export async function exportMinutaToDocx(data: any) {
                     }),
 
                     new Paragraph({
-                        text: "Firma del Titular del Registro Notarial",
                         alignment: AlignmentType.CENTER,
-                        italics: true,
+                        children: [
+                            new TextRun({
+                                text: "Firma del Titular del Registro Notarial",
+                                italics: true,
+                            }),
+                        ],
                     }),
                 ],
             },
