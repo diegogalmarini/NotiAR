@@ -13,6 +13,7 @@ import { DeedEditor } from "./DeedEditor";
 import { StatusStepper } from "./StatusStepper";
 import { MinutaGenerator } from "./MinutaGenerator";
 import { AMLCompliance } from "./AMLCompliance";
+import { InscriptionTracker } from "./InscriptionTracker";
 import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed } from "@/app/actions/carpeta";
 import { ClientOutreach } from "./ClientOutreach";
 import { toast } from "sonner";
@@ -80,7 +81,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     return (
         <Tabs defaultValue="mesa" className="w-full">
             <div className="flex justify-between items-center mb-6">
-                <TabsList className="grid w-[400px] grid-cols-2">
+                <TabsList className={`grid w-fit ${carpeta.estado === 'FIRMADA' || carpeta.estado === 'INSCRIPTA' ? 'grid-cols-4' : 'grid-cols-3'}`}>
                     <TabsTrigger value="mesa" className="flex items-center gap-2">
                         <Activity className="h-4 w-4" />
                         Mesa de Trabajo
@@ -91,8 +92,14 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     </TabsTrigger>
                     <TabsTrigger value="compliance" className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
-                        Minutas & Compliance
+                        Minutas
                     </TabsTrigger>
+                    {(carpeta.estado === 'FIRMADA' || carpeta.estado === 'INSCRIPTA') && (
+                        <TabsTrigger value="inscription" className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Inscripción
+                        </TabsTrigger>
+                    )}
                 </TabsList>
                 <div className="flex items-center gap-3">
                     <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
@@ -259,6 +266,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     <MinutaGenerator data={currentEscritura} />
                     <AMLCompliance escrituraId={activeDeedId!} />
                 </div>
+            </TabsContent>
+            <TabsContent value="inscription">
+                <InscriptionTracker data={currentEscritura} />
             </TabsContent>
         </Tabs>
     );

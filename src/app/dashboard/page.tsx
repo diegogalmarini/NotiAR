@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { PlusCircle, FileText } from "lucide-react";
 import { createFolder } from "@/app/actions/carpeta";
 import { revalidatePath } from "next/cache";
+import { ExpiringDeedsAlert } from "@/components/ExpiringDeedsAlert";
 
 export default async function DashboardPage() {
     const { data: carpetas, error } = await supabase
@@ -40,6 +41,9 @@ export default async function DashboardPage() {
                     </Button>
                 </form>
             </div>
+
+            {/* Expiring Deeds Alert */}
+            <ExpiringDeedsAlert />
 
             <div className="border rounded-lg bg-card">
                 <Table>
