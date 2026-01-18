@@ -103,8 +103,16 @@ export async function middleware(req: NextRequest) {
         data: { session },
     } = await supabase.auth.getSession();
 
+    console.log('[MIDDLEWARE] Path:', pathname);
+    console.log('[MIDDLEWARE] Has session:', !!session);
+    if (session) {
+        console.log('[MIDDLEWARE] User ID:', session.user.id);
+        console.log('[MIDDLEWARE] User email:', session.user.email);
+    }
+
     // Redirect to login if not authenticated
     if (!session) {
+        console.log('[MIDDLEWARE] No session, redirecting to login');
         const redirectUrl = req.nextUrl.clone();
         redirectUrl.pathname = '/login';
         redirectUrl.searchParams.set('redirectTo', pathname);
@@ -117,31 +125,40 @@ export async function middleware(req: NextRequest) {
         const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 
         if (!SUPER_ADMIN_EMAILS.includes(userEmail)) {
+            console.log('[MIDDLEWARE] Not super admin, blocking admin route');
             const redirectUrl = req.nextUrl.clone();
             redirectUrl.pathname = '/unauthorized';
             return NextResponse.redirect(redirectUrl);
         }
 
+        console.log('[MIDDLEWARE] Super admin confirmed, allowing admin route');
         // Admin is authenticated and authorized, allow access
         return response;
     }
 
     // Check user approval status from database
+    console.log('[MIDDLEWARE] Checking approval status for user:', session.user.id);
     const { data: profile, error: profileError } = await supabase
         .from('user_profiles')
         .select('approval_status')
         .eq('id', session.user.id)
         .single();
 
+    console.log('[MIDDLEWARE] Profile query result:', { profile, error: profileError });
+
     // If profile doesn't exist or error, redirect to pending page
     if (profileError || !profile) {
+        console.log('[MIDDLEWARE] Profile not found or error, redirecting to pending');
         const redirectUrl = req.nextUrl.clone();
         redirectUrl.pathname = '/pending-approval';
         return NextResponse.redirect(redirectUrl);
     }
 
+    console.log('[MIDDLEWARE] Profile approval_status:', profile.approval_status);
+
     // Check approval status
     if (profile.approval_status !== 'approved') {
+        console.log('[MIDDLEWARE] User not approved, status:', profile.approval_status);
         const redirectUrl = req.nextUrl.clone();
         if (profile.approval_status === 'rejected') {
             redirectUrl.pathname = '/unauthorized';
@@ -151,6 +168,7 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(redirectUrl);
     }
 
+    console.log('[MIDDLEWARE] User approved, allowing access');
     return response;
 }
 
