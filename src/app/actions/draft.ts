@@ -2,12 +2,15 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getLatestModel } from "@/lib/aiConfig";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export async function generateDeedDraft(escrituraId: string) {
     try {
+        const modelName = await getLatestModel();
+        const model = genAI.getGenerativeModel({ model: modelName });
+
         // 1. Fetch Deep Data
         const { data: escritura, error } = await supabase
             .from("escrituras")
