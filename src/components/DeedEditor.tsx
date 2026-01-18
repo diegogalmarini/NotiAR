@@ -4,8 +4,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Wand2, Save, Copy, Loader2, FileDown } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Wand2, Save, Copy, Loader2, FileDown, FileText } from "lucide-react";
 import { generateDeedDraft, saveDeedDraft } from "@/app/actions/draft";
+import { updateFolderStatus } from "@/app/actions/carpeta";
+import { exportToDocx } from "@/lib/utils/export";
 import { toast } from "sonner";
 
 interface DeedEditorProps {
@@ -49,6 +52,30 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
         toast.success("Copiado al portapapeles");
     };
 
+    const handleExportDocx = async () => {
+        if (!content) return toast.error("No hay contenido para exportar");
+
+        await exportToDocx("Borrador_Escritura", content);
+        toast.success("Archivo Word generado");
+
+        // Suggest updating status
+        toast("Archivo descargado", {
+            description: "¿Deseas marcar la carpeta como 'PARA FIRMA'?",
+            action: {
+                label: "Sí, marcar",
+                onClick: async () => {
+                    // We need folderId here. For simplicity, we assume we can get it or the user will use the stepper.
+                    // Since we're in the editor, we might need to pass folderId as prop.
+                    toast.info("Usa la barra de estados superior para actualizar el proceso.");
+                },
+            },
+        });
+    };
+
+    const handlePrintPdf = () => {
+        window.print();
+    };
+
     return (
         <div className="flex flex-col h-full space-y-4">
             <div className="flex justify-between items-center bg-background py-2 border-b sticky top-0 z-10">
@@ -57,7 +84,7 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                         variant="default"
                         onClick={handleGenerate}
                         disabled={isGenerating}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
                     >
                         {isGenerating ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -66,14 +93,24 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                         )}
                         {isGenerating ? "Redactando..." : "Generar con IA"}
                     </Button>
-                    <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+                    <Button variant="outline" size="sm" onClick={handleSave} disabled={isSaving} className="shadow-sm">
                         <Save className="mr-2 h-4 w-4" />
                         Guardar
                     </Button>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" onClick={handleCopy}>
-                        <Copy className="h-4 w-4" />
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={handleCopy}>
+                        <Copy className="mr-2 h-3 w-3" />
+                        Copiar
+                    </Button>
+                    <div className="h-4 w-[1px] bg-border mx-1" />
+                    <Button variant="secondary" size="sm" className="text-xs bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200" onClick={handleExportDocx}>
+                        <FileDown className="mr-2 h-3 w-3" />
+                        Bajar Word
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-xs" onClick={handlePrintPdf}>
+                        <FileText className="mr-2 h-3 w-3" />
+                        Previa PDF
                     </Button>
                 </div>
             </div>

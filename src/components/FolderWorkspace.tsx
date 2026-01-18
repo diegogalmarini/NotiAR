@@ -10,6 +10,7 @@ import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, File
 import { PersonSearch } from "./PersonSearch";
 import { AssetSearch } from "./AssetSearch";
 import { DeedEditor } from "./DeedEditor";
+import { StatusStepper } from "./StatusStepper";
 import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed } from "@/app/actions/carpeta";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -86,13 +87,11 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         Redacción
                     </TabsTrigger>
                 </TabsList>
-                <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="px-3 py-1">
-                        Carpeta: {carpeta.caratula}
+                <div className="flex items-center gap-3">
+                    <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
+                        ID: {carpeta.id.slice(0, 8)}
                     </Badge>
-                    <Badge variant="secondary">
-                        {carpeta.estado}
-                    </Badge>
+                    <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
                 </div>
             </div>
 

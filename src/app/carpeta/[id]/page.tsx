@@ -6,8 +6,8 @@ import { Separator } from "@/components/ui/separator";
 import { Folder, FileText, Activity, Users, Home, UserPlus } from "lucide-react";
 import FolderWorkspace from "@/components/FolderWorkspace";
 
-export default async function CarpetaDetailPage({ params }: { params: { id: string } }) {
-    const { id } = params;
+export default async function CarpetaDetailPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
 
     // Fetch full hierarchy
     const { data: carpeta, error } = await supabase

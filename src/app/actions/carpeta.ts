@@ -90,3 +90,21 @@ export async function linkAssetToDeed(escrituraId: string, inmuebleId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function updateFolderStatus(folderId: string, newStatus: string) {
+    try {
+        const { data, error } = await supabase
+            .from('carpetas')
+            .update({ estado: newStatus })
+            .eq('id', folderId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        revalidatePath('/dashboard');
+        revalidatePath(`/carpeta/${folderId}`);
+        return { success: true, data };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

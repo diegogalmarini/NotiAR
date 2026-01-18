@@ -1,15 +1,12 @@
 "use server";
 
-import { createServerComponentClient } from "@supabase/auth-helpers-nextjs";
-import { cookies } from "next/headers";
+import { supabase } from "@/lib/supabaseClient";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export async function generateDeedDraft(escrituraId: string) {
-    const supabase = createServerComponentClient({ cookies });
-
     try {
         // 1. Fetch Deep Data
         const { data: escritura, error } = await supabase
@@ -87,7 +84,6 @@ export async function generateDeedDraft(escrituraId: string) {
 }
 
 export async function saveDeedDraft(escrituraId: string, content: string) {
-    const supabase = createServerComponentClient({ cookies });
     const { error } = await supabase
         .from("escrituras")
         .update({ contenido_borrador: content })
