@@ -47,6 +47,11 @@ function LoginForm() {
             provider: "google",
             options: {
                 redirectTo: `${siteUrl}/auth/callback?redirectTo=${redirectTo}`,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
+                skipBrowserRedirect: false,
             },
         });
 
