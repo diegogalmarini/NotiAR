@@ -1,16 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabaseClient";
+import { createBrowserClient } from "@supabase/ssr";
 import { toast } from "sonner";
 
 export default function AuthCallbackPage() {
     const router = useRouter();
+    const [processing, setProcessing] = useState(true);
 
     useEffect(() => {
         const handleCallback = async () => {
             try {
+                const supabase = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+                );
+
                 // Get hash params (implicit flow)
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
                 const accessToken = hashParams.get('access_token');
@@ -30,18 +36,25 @@ export default function AuthCallbackPage() {
 
                 // Handle implicit flow (hash-based)
                 if (accessToken && refreshToken) {
+                    console.log('Setting session from implicit flow...');
                     const { error: sessionError } = await supabase.auth.setSession({
                         access_token: accessToken,
                         refresh_token: refreshToken,
                     });
 
                     if (sessionError) {
+                        console.error('Session error:', sessionError);
                         toast.error(sessionError.message);
                         router.push('/login');
                         return;
                     }
 
+                    console.log('Session established successfully');
                     toast.success("Sesión iniciada correctamente");
+
+                    // Wait a bit for cookies to be set
+                    await new Promise(resolve => setTimeout(resolve, 500));
+
                     router.push(redirectTo);
                     return;
                 }
@@ -57,16 +70,20 @@ export default function AuthCallbackPage() {
                     }
 
                     toast.success("Sesión iniciada correctamente");
+                    await new Promise(resolve => setTimeout(resolve, 500));
                     router.push(redirectTo);
                     return;
                 }
 
                 // No valid OAuth response
+                console.log('No valid OAuth tokens found');
                 router.push('/login');
             } catch (err: any) {
                 console.error('Auth callback error:', err);
                 toast.error(err.message || "Error en la autenticación");
                 router.push('/login');
+            } finally {
+                setProcessing(false);
             }
         };
 
