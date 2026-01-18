@@ -131,8 +131,15 @@ function LoginForm() {
                     Google
                 </Button>
 
-                <p className="text-xs text-center text-muted-foreground mt-6">
+                <p className="mt-4 text-center text-sm text-muted-foreground">
                     Solo usuarios autorizados pueden acceder
+                </p>
+
+                <p className="mt-2 text-center text-sm">
+                    ¿No tenés cuenta?{" "}
+                    <a href="/signup" className="font-medium text-primary hover:underline">
+                        Crear cuenta
+                    </a>
                 </p>
             </CardContent>
         </Card>
@@ -143,12 +150,12 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
             <Suspense fallback={
-                <Card className="max-w-md w-full">
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-3xl font-bold">NotiAr</CardTitle>
-                        <CardDescription>Cargando...</CardDescription>
-                    </CardHeader>
-                </Card>
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto"></div>
+                        <p className="mt-4 text-gray-600">Cargando...</p>
+                    </div>
+                </div>
             }>
                 <LoginForm />
             </Suspense>
