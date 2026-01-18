@@ -11,7 +11,9 @@ const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
     '/login',
+    '/signup',
     '/auth/callback',
+    '/auth/callback-client',
     '/api/ingest',
     '/pending-approval',
     '/unauthorized',
