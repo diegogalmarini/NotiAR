@@ -6,12 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
 import { AssetSearch } from "./AssetSearch";
 import { DeedEditor } from "./DeedEditor";
 import { StatusStepper } from "./StatusStepper";
+import { MinutaGenerator } from "./MinutaGenerator";
+import { AMLCompliance } from "./AMLCompliance";
 import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed } from "@/app/actions/carpeta";
+import { ClientOutreach } from "./ClientOutreach";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
@@ -85,6 +88,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     <TabsTrigger value="draft" className="flex items-center gap-2">
                         <FileSignature className="h-4 w-4" />
                         Redacción
+                    </TabsTrigger>
+                    <TabsTrigger value="compliance" className="flex items-center gap-2">
+                        <ClipboardCheck className="h-4 w-4" />
+                        Minutas & Compliance
                     </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-3">
@@ -192,6 +199,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <span className="text-sm font-semibold">{p.personas.nombre_completo}</span>
                                                                 <span className="text-[10px] text-muted-foreground">CUIL: {p.persona_id}</span>
                                                             </div>
+                                                            <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
                                                         </div>
                                                     ))}
                                                 {op.participantes_operacion?.filter((p: any) => p.rol === "VENDEDOR").length === 0 && (
@@ -215,6 +223,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <span className="text-sm font-semibold">{p.personas.nombre_completo}</span>
                                                                 <span className="text-[10px] text-muted-foreground">CUIL: {p.persona_id}</span>
                                                             </div>
+                                                            <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
                                                         </div>
                                                     ))}
                                                 {op.participantes_operacion?.filter((p: any) => p.rol === "COMPRADOR").length === 0 && (
@@ -244,6 +253,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         <p className="text-muted-foreground">Seleccione una escritura para redactar</p>
                     </div>
                 )}
+            </TabsContent>
+            <TabsContent value="compliance">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <MinutaGenerator data={currentEscritura} />
+                    <AMLCompliance escrituraId={activeDeedId!} />
+                </div>
             </TabsContent>
         </Tabs>
     );
