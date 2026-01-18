@@ -5,6 +5,9 @@ import type { NextRequest } from 'next/server';
 // Define allowed email domains for whitelist
 const ALLOWED_DOMAINS = ['@galmarini.com'];
 
+// Super admin emails (full email addresses)
+const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
+
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
     '/login',
@@ -95,7 +98,8 @@ export async function middleware(req: NextRequest) {
 
     // Email whitelist check
     const userEmail = session.user.email || '';
-    const isAllowedEmail = ALLOWED_DOMAINS.some(domain => userEmail.endsWith(domain));
+    const isAllowedEmail = SUPER_ADMIN_EMAILS.includes(userEmail) ||
+        ALLOWED_DOMAINS.some(domain => userEmail.endsWith(domain));
 
     if (!isAllowedEmail) {
         const redirectUrl = req.nextUrl.clone();
