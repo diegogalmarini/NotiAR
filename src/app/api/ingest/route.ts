@@ -7,8 +7,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
 async function getPdfParser() {
-    // @ts-ignore
-    const pdf = await import("pdf-parse");
+    // pdf-parse uses a legacy export structure that confuses TS with dynamic imports
+    const pdf = await import("pdf-parse") as any;
     return pdf.default || pdf;
 }
 
