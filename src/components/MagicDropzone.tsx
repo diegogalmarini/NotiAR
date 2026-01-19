@@ -44,19 +44,20 @@ export function MagicDropzone() {
         const toastId = toast.loading(`Iniciando 'Magia'... procesando ${file.name}`);
 
         try {
+            const formData = new FormData();
+            formData.append('file', file);
+
             const response = await fetch("/api/ingest", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    tax_id: "20-12345678-9",
-                    nombre_completo: "CLIENTE EXTRAIDO POR IA",
-                    origen_dato: "IA_OCR",
-                    create_folder: true,
-                    folder_name: `Carpeta Magica - ${file.name}`
-                })
+                body: formData
+                // Note: Don't set Content-Type header when using FormData, 
+                // the browser will set it with the correct boundary
             });
 
-            if (!response.ok) throw new Error("Error en la ingesta");
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Error en la ingesta");
+            }
 
             const result = await response.json();
 
@@ -68,9 +69,9 @@ export function MagicDropzone() {
                 router.push("/dashboard");
             }
 
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            toast.error("Hubo un error al procesar el archivo.", { id: toastId });
+            toast.error(error.message || "Hubo un error al procesar el archivo.", { id: toastId });
         } finally {
             setIsUploading(false);
         }

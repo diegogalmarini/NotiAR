@@ -1,23 +1,95 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import pdf from "pdf-parse";
+import mammoth from "mammoth";
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+async function extractTextFromFile(file: File): Promise<string> {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const fileName = file.name.toLowerCase();
+
+    if (fileName.endsWith('.pdf')) {
+        const data = await pdf(buffer);
+        return data.text;
+    } else if (fileName.endsWith('.docx')) {
+        const result = await mammoth.extractRawText({ buffer });
+        return result.value;
+    } else if (fileName.endsWith('.doc')) {
+        throw new Error("El formato .doc (antiguo) no es compatible. Por favor, guarde el archivo como .docx o .pdf e intente nuevamente.");
+    } else {
+        throw new Error("Formato de archivo no compatible. Use PDF o DOCX.");
+    }
+}
+
+async function askGeminiForData(text: string) {
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `
+    Eres un experto en lectura de documentos notariales argentinos (escrituras, minutas, etc).
+    Extrae la siguiente información del texto proporcionado en formato JSON puro, sin markdown:
+    
+    - Persona principal (comprador/vendedor): { "tax_id": "CUIT/CUIL", "nombre_completo": "Nombre", "nacionalidad": "...", "fecha_nacimiento": "YYYY-MM-DD" }
+    - Inmueble: { "partido_id": "Número de partido (ej: 079)", "nro_partida": "Número de partida", "nomenclatura_catastral": { "circ": "...", "secc": "...", "manzana": "...", "parcela": "..." } }
+    - Operación: { "tipo_acto": "COMPRAVENTA / DONACION / etc", "rol": "VENDEDOR / COMPRADOR / CEDENTE" }
+
+    Si no encuentras un dato, deja el valor como null.
+    TEXTO DEL DOCUMENTO:
+    ${text.substring(0, 10000)} // Limit text to avoid token limits in flash
+    `;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+    // Clean up potential markdown formatting if Gemini includes it
+    const cleanJson = responseText.replace(/```json|```/g, "").trim();
+    return JSON.parse(cleanJson);
+}
 
 export async function POST(request: Request) {
     try {
-        const body = await request.json();
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
 
-        // 1. Ingest Persona
+        if (!file) {
+            return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 });
+        }
+
+        // 1. Extract Text
+        let extractedText = "";
+        try {
+            extractedText = await extractTextFromFile(file);
+        } catch (err: any) {
+            return NextResponse.json({ error: err.message }, { status: 400 });
+        }
+
+        // 2. AI Extraction
+        let aiData;
+        try {
+            aiData = await askGeminiForData(extractedText);
+        } catch (err: any) {
+            console.error("AI Extraction error:", err);
+            // Fallback to basic data if AI fails, using filename
+            aiData = {
+                persona: null,
+                inmueble: null,
+                operacion: { tipo_acto: 'COMPRAVENTA', rol: 'VENDEDOR' }
+            };
+        }
+
+        const { persona, inmueble, operacion } = aiData;
+
+        // 3. Ingest Persona
         let personData = null;
-        if (body.tax_id && body.nombre_completo) {
+        if (persona?.tax_id && persona?.nombre_completo) {
             const normalizedPerson = {
-                tax_id: normalizeID(body.tax_id),
-                nombre_completo: toTitleCase(body.nombre_completo),
-                nacionalidad: body.nacionalidad ? toTitleCase(body.nacionalidad) : null,
-                fecha_nacimiento: body.fecha_nacimiento,
-                estado_civil_detallado: body.estado_civil_detallado || {},
-                domicilio_real: body.domicilio_real || {},
-                contacto: body.contacto || {},
-                origen_dato: body.origen_dato || 'IA_OCR',
+                tax_id: normalizeID(persona.tax_id),
+                nombre_completo: toTitleCase(persona.nombre_completo),
+                nacionalidad: persona.nacionalidad ? toTitleCase(persona.nacionalidad) : null,
+                fecha_nacimiento: persona.fecha_nacimiento,
+                origen_dato: 'IA_OCR',
                 updated_at: new Date().toISOString(),
             };
 
@@ -27,19 +99,16 @@ export async function POST(request: Request) {
                 .select()
                 .single();
 
-            if (error) throw error;
-            personData = data;
+            if (!error) personData = data;
         }
 
-        // 2. Ingest Inmueble (Optional)
+        // 4. Ingest Inmueble
         let propertyData = null;
-        if (body.partido_id && body.nro_partida) {
+        if (inmueble?.partido_id && inmueble?.nro_partida) {
             const normalizedProperty = {
-                partido_id: body.partido_id,
-                nro_partida: body.nro_partida,
-                nomenclatura_catastral: body.nomenclatura_catastral || {},
-                valuacion_fiscal: body.valuacion_fiscal || {},
-                datos_inscripcion: body.datos_inscripcion || {},
+                partido_id: inmueble.partido_id,
+                nro_partida: inmueble.nro_partida,
+                nomenclatura_catastral: inmueble.nomenclatura_catastral || {},
                 updated_at: new Date().toISOString(),
             };
 
@@ -49,62 +118,57 @@ export async function POST(request: Request) {
                 .select()
                 .single();
 
-            if (error) throw error;
-            propertyData = data;
+            if (!error) propertyData = data;
         }
 
-        // 3. Create Folder and Link (The "Magic")
-        let folderId = null;
-        if (body.create_folder) {
-            // Create Folder
-            const { data: carpeta, error: carpetaError } = await supabase
-                .from('carpetas')
-                .insert([{ caratula: body.folder_name || 'Nueva Carpeta Ingesta', estado: 'ABIERTA' }])
-                .select()
-                .single();
-            if (carpetaError) throw carpetaError;
-            folderId = carpeta.id;
+        // 5. Create Folder and Link
+        // Create Folder
+        const { data: carpeta, error: carpetaError } = await supabase
+            .from('carpetas')
+            .insert([{ caratula: `Ingesta: ${file.name}`, estado: 'ABIERTA' }])
+            .select()
+            .single();
 
-            // Create Deed
-            const { data: escritura, error: escrituraError } = await supabase
-                .from('escrituras')
+        if (carpetaError) throw carpetaError;
+        const folderId = carpeta.id;
+
+        // Create Deed
+        const { data: escritura, error: escrituraError } = await supabase
+            .from('escrituras')
+            .insert([{
+                carpeta_id: folderId,
+                inmueble_princ_id: propertyData?.id || null
+            }])
+            .select()
+            .single();
+        if (escrituraError) throw escrituraError;
+
+        // Create Operation
+        const { data: opRow, error: opError } = await supabase
+            .from('operaciones')
+            .insert([{
+                escritura_id: escritura.id,
+                tipo_acto: operacion?.tipo_acto || 'COMPRAVENTA'
+            }])
+            .select()
+            .single();
+        if (opError) throw opError;
+
+        // Link Person
+        if (personData) {
+            await supabase
+                .from('participantes_operacion')
                 .insert([{
-                    carpeta_id: folderId,
-                    inmueble_princ_id: propertyData?.id || null
-                }])
-                .select()
-                .single();
-            if (escrituraError) throw escrituraError;
-
-            // Create Operation
-            const { data: operacion, error: operacionError } = await supabase
-                .from('operaciones')
-                .insert([{
-                    escritura_id: escritura.id,
-                    tipo_acto: body.tipo_acto || 'COMPRAVENTA'
-                }])
-                .select()
-                .single();
-            if (operacionError) throw operacionError;
-
-            // Link Person as Participant (Default role: VENDEDOR for magic)
-            if (personData) {
-                const { error: linkError } = await supabase
-                    .from('participantes_operacion')
-                    .insert([{
-                        operacion_id: operacion.id,
-                        persona_id: personData.tax_id,
-                        rol: body.rol || 'VENDEDOR'
-                    }]);
-                if (linkError) throw linkError;
-            }
+                    operacion_id: opRow.id,
+                    persona_id: personData.tax_id,
+                    rol: operacion?.rol || 'VENDEDOR'
+                }]);
         }
 
         return NextResponse.json({
             message: 'Magic ingestion complete',
             folderId,
-            person: personData,
-            property: propertyData
+            extracted: { persona, inmueble }
         });
 
     } catch (error: any) {
