@@ -33,7 +33,7 @@ const ADMIN_ROUTE_PATTERNS = [
     /^\/admin\/.+$/,  // All /admin/* routes
 ];
 
-export async function proxy(req: NextRequest) {
+export default async function proxy(req: NextRequest) {
     let response = NextResponse.next({
         request: {
             headers: req.headers,
@@ -86,19 +86,22 @@ export async function proxy(req: NextRequest) {
         }
     );
 
-    const { pathname } = req.nextUrl;
+    const pathname = req.nextUrl.pathname;
+    const normalizedPath = pathname.endsWith('/') && pathname.length > 1
+        ? pathname.slice(0, -1)
+        : pathname;
 
     // Check if route is public
-    const isPublicRoute = PUBLIC_ROUTES.includes(pathname) ||
-        PUBLIC_ROUTE_PATTERNS.some(pattern => pattern.test(pathname));
+    const isPublicRoute = PUBLIC_ROUTES.includes(normalizedPath) ||
+        PUBLIC_ROUTE_PATTERNS.some(pattern => pattern.test(normalizedPath));
 
     if (isPublicRoute) {
         return response;
     }
 
     // Check if route is admin-only
-    const isAdminRoute = ADMIN_ROUTES.includes(pathname) ||
-        ADMIN_ROUTE_PATTERNS.some(pattern => pattern.test(pathname));
+    const isAdminRoute = ADMIN_ROUTES.includes(normalizedPath) ||
+        ADMIN_ROUTE_PATTERNS.some(pattern => pattern.test(normalizedPath));
 
     // Check authentication
     const {
