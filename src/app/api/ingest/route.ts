@@ -2,10 +2,19 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { PDFParse } from "pdf-parse";
-import * as mammoth from "mammoth";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+
+// Dynamic imports for Node.js modules to prevent evaluation errors in some environments
+async function getPdfParser() {
+    // @ts-ignore
+    const pdf = await import("pdf-parse");
+    return pdf.default || pdf;
+}
+
+async function getMammoth() {
+    return await import("mammoth");
+}
 
 async function extractTextFromFile(file: File): Promise<string> {
     const bytes = await file.arrayBuffer();
@@ -13,11 +22,16 @@ async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.pdf')) {
-        const parser = new PDFParse({ data: buffer });
-        const result = await parser.getText();
-        await parser.destroy(); // Cleanup pdfjs-dist resources
-        return result.text;
+        try {
+            const pdfParser = await getPdfParser();
+            const data = await pdfParser(buffer);
+            return data.text;
+        } catch (err: any) {
+            console.error("Error parsing PDF:", err);
+            throw new Error(`Error al leer el PDF: ${err.message}`);
+        }
     } else if (fileName.endsWith('.docx')) {
+        const mammoth = await getMammoth();
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
     } else if (fileName.endsWith('.doc')) {
@@ -45,7 +59,6 @@ async function askGeminiForData(text: string) {
     return JSON.parse(cleanJson);
 }
 
-// 0. Preflight / Debug handlers
 export async function GET() {
     return NextResponse.json({
         status: "alive",
@@ -65,7 +78,14 @@ export async function OPTIONS() {
 }
 
 export async function POST(request: Request) {
-    console.log(`[INGEST] POST Request received`);
+    console.log(`[INGEST] POST Request received at ${new Date().toISOString()}`);
+
+    // Explicitly handle content type check
+    const contentType = request.headers.get("content-type") || "";
+    if (!contentType.includes("multipart/form-data")) {
+        return NextResponse.json({ error: "Content-Type must be multipart/form-data" }, { status: 415 });
+    }
+
     try {
         const formData = await request.formData();
         const file = formData.get('file') as File;
@@ -74,8 +94,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "No se proporcionó ningún archivo" }, { status: 400 });
         }
 
+        console.log(`[INGEST] Processing file: ${file.name} (${file.size} bytes)`);
+
         // 1. Extract Text
         let extractedText = await extractTextFromFile(file);
+
+        if (!extractedText || extractedText.trim().length === 0) {
+            throw new Error("No se pudo extraer texto del archivo.");
+        }
 
         // 2. AI Extraction
         let aiData;
@@ -91,7 +117,7 @@ export async function POST(request: Request) {
         // 3. Ingest Persona
         let personData = null;
         if (persona?.tax_id && persona?.nombre_completo) {
-            const { data } = await supabase
+            const { data, error: pError } = await supabase
                 .from('personas')
                 .upsert({
                     tax_id: normalizeID(persona.tax_id),
@@ -102,13 +128,18 @@ export async function POST(request: Request) {
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'tax_id' })
                 .select().single();
-            personData = data;
+
+            if (pError) {
+                console.error("Persona upsert error:", pError);
+            } else {
+                personData = data;
+            }
         }
 
         // 4. Ingest Inmueble
         let propertyData = null;
         if (inmueble?.partido_id && inmueble?.nro_partida) {
-            const { data } = await supabase
+            const { data, error: iError } = await supabase
                 .from('inmuebles')
                 .upsert({
                     partido_id: inmueble.partido_id,
@@ -117,7 +148,12 @@ export async function POST(request: Request) {
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'partido_id,nro_partida' })
                 .select().single();
-            propertyData = data;
+
+            if (iError) {
+                console.error("Inmueble upsert error:", iError);
+            } else {
+                propertyData = data;
+            }
         }
 
         // 5. Create Folder and Link
@@ -125,26 +161,46 @@ export async function POST(request: Request) {
             .from('carpetas')
             .insert([{ caratula: `Ingesta: ${file.name}`, estado: 'ABIERTA' }])
             .select().single();
-        if (cError) throw cError;
 
-        const { data: escritura } = await supabase
+        if (cError) {
+            console.error("Carpeta creation error:", cError);
+            throw cError;
+        }
+
+        // Create Escritura
+        const { data: escritura, error: eError } = await supabase
             .from('escrituras')
-            .insert([{ carpeta_id: carpeta.id, inmueble_princ_id: propertyData?.id || null }])
+            .insert([{
+                carpeta_id: carpeta.id,
+                inmueble_princ_id: propertyData?.id || null
+            }])
             .select().single();
 
-        const { data: operacionRow } = await supabase
-            .from('operaciones')
-            .insert([{ escritura_id: escritura.id, tipo_acto: operacion?.tipo_acto || 'COMPRAVENTA' }])
-            .select().single();
+        if (eError) {
+            console.error("Escritura creation error:", eError);
+        }
 
-        if (personData) {
-            await supabase
-                .from('participantes_operacion')
+        // Create Operacion
+        if (escritura) {
+            const { data: operacionRow, error: oError } = await supabase
+                .from('operaciones')
                 .insert([{
-                    operacion_id: operacionRow.id,
-                    persona_id: personData.tax_id,
-                    rol: operacion?.rol || 'VENDEDOR'
-                }]);
+                    escritura_id: escritura.id,
+                    tipo_acto: operacion?.tipo_acto || 'COMPRAVENTA'
+                }])
+                .select().single();
+
+            if (oError) {
+                console.error("Operacion creation error:", oError);
+            } else if (personData && operacionRow) {
+                await supabase
+                    .from('participantes_operacion')
+                    .insert([{
+                        operacion_id: operacionRow.id,
+                        persona_id: personData.tax_id,
+                        rol: operacion?.rol || 'VENDEDOR'
+                    }]);
+            }
         }
 
         return NextResponse.json({
