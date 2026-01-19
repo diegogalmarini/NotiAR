@@ -56,7 +56,10 @@ export function MagicDropzone() {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || "Error en la ingesta");
+                const errorMessage = errorData.details
+                    ? `${errorData.error}: ${errorData.details}`
+                    : (errorData.error || "Error en la ingesta");
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
