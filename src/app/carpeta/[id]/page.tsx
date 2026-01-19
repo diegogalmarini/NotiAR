@@ -21,7 +21,7 @@ export default async function CarpetaDetailPage({ params }: { params: Promise<{ 
           *,
           participantes_operacion (
             *,
-            personas (*)
+            persona:personas (*)
           )
         )
       )

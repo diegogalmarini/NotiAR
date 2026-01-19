@@ -233,30 +233,33 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 setActiveDeedId(escritura.id);
                                                 setIsAssetSearchOpen(true);
                                             }}>
-                                                <LinkIcon className="h-3 w-3" />
+                                                <Plus className="h-3 w-3" />
                                             </Button>
                                         </div>
                                         {escritura.inmuebles?.transcripcion_literal && (
                                             <Dialog>
                                                 <DialogTrigger asChild>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="outline"
                                                         size="sm"
-                                                        className="w-full text-[10px] h-6 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-bold uppercase text-indigo-700"
+                                                        className="w-full text-[10px] h-7 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-bold uppercase text-indigo-700 shadow-sm"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
                                                         <FileText className="h-3 w-3" />
-                                                        Ver Transcripción Completa
+                                                        📜 Ver Transcripción
                                                     </Button>
                                                 </DialogTrigger>
-                                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                                <DialogContent className="max-w-2xl max-h-[80vh]">
                                                     <DialogHeader>
-                                                        <DialogTitle className="text-xl font-bold text-indigo-900">Transcripción Literal</DialogTitle>
+                                                        <DialogTitle className="text-xl font-bold text-indigo-900 flex items-center gap-2">
+                                                            <Home className="h-5 w-5" />
+                                                            Descripción Técnica Inmueble
+                                                        </DialogTitle>
                                                         <DialogDescription>
-                                                            Copia fiel del bloque de descripción del inmueble extraída por IA (Documentos largos).
+                                                            Bloque de texto literal extraído del documento original.
                                                         </DialogDescription>
                                                     </DialogHeader>
-                                                    <ScrollArea className="mt-4 h-[60vh] rounded-xl border border-indigo-100 bg-slate-50 p-5 shadow-inner">
+                                                    <ScrollArea className="mt-4 h-[50vh] rounded-xl border border-indigo-100 bg-slate-50 p-5 shadow-inner">
                                                         <div className="font-serif text-sm leading-relaxed whitespace-pre-line text-slate-800">
                                                             {escritura.inmuebles.transcripcion_literal}
                                                         </div>
@@ -307,67 +310,79 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         <span className="text-[10px] font-black uppercase tracking-widest">{p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}</span>
                                                         <Badge variant="outline" className="text-[9px] bg-white border-current">{p.persona_id}</Badge>
                                                     </div>
-                                                    <CardContent className="p-4 space-y-3">
+                                                    <CardContent className="p-4 space-y-4">
                                                         <div className="flex justify-between items-start">
                                                             <div className="space-y-1">
-                                                                <p className="text-base font-bold text-slate-900 leading-tight">{p.personas.nombre_completo}</p>
-                                                                <div className="flex gap-2">
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-6 w-6 text-slate-400 hover:text-indigo-600"
-                                                                        onClick={() => setEditingPerson(p.personas)}
-                                                                    >
-                                                                        <Pencil className="h-3 w-3" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-6 w-6 text-slate-400 hover:text-red-600"
-                                                                        onClick={() => handleUnlinkPerson(p.id)}
-                                                                    >
-                                                                        <UserMinus className="h-3 w-3" />
-                                                                    </Button>
+                                                                <p className="text-lg font-bold text-slate-900 leading-tight">{p.persona.nombre_completo}</p>
+                                                                <div className="flex gap-2 items-center">
+                                                                    <Badge variant="secondary" className="text-[10px] font-bold py-0 h-5">
+                                                                        {p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}
+                                                                    </Badge>
+                                                                    <span className="text-[10px] font-mono text-slate-400">{p.persona_id}</span>
                                                                 </div>
                                                             </div>
-                                                            <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
+                                                            <div className="flex gap-1">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                                    onClick={() => setEditingPerson(p.persona)}
+                                                                >
+                                                                    <Pencil className="h-4 w-4" />
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                                    onClick={() => handleUnlinkPerson(p.id)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </div>
                                                         </div>
 
-                                                        <div className="grid grid-cols-1 gap-2.5 pt-2 border-t border-slate-100">
-                                                            <div className="flex items-start gap-2">
-                                                                <Home className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                        <div className="grid grid-cols-1 gap-3 pt-3 border-t border-slate-100">
+                                                            <div className="flex items-start gap-3">
+                                                                <Home className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                 <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Domicilio Real</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.domicilio_real?.literal || "No consta"}</p>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-start gap-2">
-                                                                <FileSignature className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
-                                                                <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Estado Civil / Cónyuge</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">
-                                                                        {p.personas.estado_civil_detalle || p.personas.estado_civil_detallado?.estado || "No consta"}
-                                                                        {p.personas.datos_conyuge?.nombre ? ` (con ${p.personas.datos_conyuge.nombre})` : ""}
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Domicilio Real</p>
+                                                                    <p className="text-xs text-slate-700 font-medium leading-tight">
+                                                                        {p.persona.domicilio_real?.literal || "No consta en el documento"}
                                                                     </p>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-start gap-2">
-                                                                <Users className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                            <div className="flex items-start gap-3">
+                                                                <FileSignature className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                 <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Filiación (Padres)</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium italic leading-tight">{p.personas.nombres_padres || p.personas.estado_civil_detallado?.padres || "No consta"}</p>
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Estado Civil / Cónyuge</p>
+                                                                    <p className="text-xs text-slate-700 font-medium leading-tight">
+                                                                        {p.persona.estado_civil_detalle || p.persona.estado_civil_detallado?.estado || "No consta"}
+                                                                        {p.persona.datos_conyuge?.nombre ? ` — Cónyuge: ${p.persona.datos_conyuge.nombre}` : ""}
+                                                                    </p>
                                                                 </div>
                                                             </div>
 
-                                                            <div className="flex items-start gap-2">
-                                                                <Activity className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                            <div className="flex items-start gap-3">
+                                                                <Users className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                 <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Nacionalidad</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.nacionalidad || "No consta"}</p>
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Filiación (Padres)</p>
+                                                                    <p className="text-xs text-slate-700 font-medium italic leading-tight">
+                                                                        {p.persona.nombres_padres || p.persona.estado_civil_detallado?.padres || "Filiación no informada"}
+                                                                    </p>
                                                                 </div>
                                                             </div>
+
+                                                            <div className="flex items-start gap-3">
+                                                                <Activity className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Nacionalidad</p>
+                                                                    <p className="text-xs text-slate-700 font-medium leading-tight">{p.persona.nacionalidad || "No consta"}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="pt-2 border-t border-slate-50 flex justify-end">
+                                                            <ClientOutreach personId={p.persona_id} personName={p.persona.nombre_completo} />
                                                         </div>
                                                     </CardContent>
                                                 </Card>

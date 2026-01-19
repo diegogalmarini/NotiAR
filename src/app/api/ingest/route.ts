@@ -184,7 +184,8 @@ export async function POST(request: Request) {
                 partido_id: i.partido || null,
                 nro_partida: i.partida_inmobiliaria || null,
                 nomenclatura_catastral: { literal: i.nomenclatura },
-                transcripcion_literal: i.transcripcion_literal || null,
+                transcripcion_literal: i.transcripcion_literal || i.descripcion_tecnica || null,
+                valuacion_fiscal: i.valuacion_fiscal || 0,
                 updated_at: new Date().toISOString(),
             }, { onConflict: 'partido_id,nro_partida' }).select().single();
             if (!error && data) propertyIds.push(data.id);
