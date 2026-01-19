@@ -17,7 +17,10 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
+import { PersonForm } from "./PersonForm";
+import { Plus } from "lucide-react";
 
 interface Person {
     tax_id: string;
@@ -57,6 +60,8 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
         return () => clearTimeout(timer);
     }, [query]);
 
+    const [isCreating, setIsCreating] = useState(false);
+
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogContent className="sm:max-w-[425px]">
@@ -71,8 +76,19 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
                     />
                     <CommandList>
                         {loading && <div className="p-4 text-center text-sm text-muted-foreground">Buscando...</div>}
-                        <CommandEmpty>No se encontraron personas.</CommandEmpty>
-                        <CommandGroup>
+                        <CommandEmpty>
+                            <div className="p-4 space-y-4">
+                                <p className="text-sm">No se encontraron personas con ese nombre o DNI.</p>
+                                <Button
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                                    onClick={() => setIsCreating(true)}
+                                >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    Crear Nueva Persona
+                                </Button>
+                            </div>
+                        </CommandEmpty>
+                        <CommandGroup heading="Resultados">
                             {results.map((person) => (
                                 <CommandItem
                                     key={person.tax_id}
@@ -90,8 +106,37 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
                                 </CommandItem>
                             ))}
                         </CommandGroup>
+                        {query.length >= 2 && (
+                            <CommandGroup heading="Opciones">
+                                <CommandItem onSelect={() => setIsCreating(true)}>
+                                    <Plus className="mr-2 h-4 w-4 text-indigo-600" />
+                                    <span className="text-indigo-600 font-bold">Crear nueva: {query}</span>
+                                </CommandItem>
+                            </CommandGroup>
+                        )}
                     </CommandList>
                 </Command>
+
+                {/* Nested Dialog for Creation */}
+                <Dialog open={isCreating} onOpenChange={setIsCreating}>
+                    <DialogContent className="sm:max-w-[600px]">
+                        <DialogHeader>
+                            <DialogTitle>Nueva Persona</DialogTitle>
+                            <DialogDescription>
+                                Completa los datos para dar de alta en el sistema y vincular a la escritura.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <PersonForm
+                            initialData={{ nombre_completo: query }}
+                            onSuccess={(person) => {
+                                onSelect(person.tax_id);
+                                setIsCreating(false);
+                                setOpen(false);
+                            }}
+                            onCancel={() => setIsCreating(false)}
+                        />
+                    </DialogContent>
+                </Dialog>
             </DialogContent>
         </Dialog>
     );

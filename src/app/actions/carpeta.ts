@@ -143,3 +143,35 @@ export async function deleteCarpeta(carpetaId: string) {
         return { success: false, error: error.message };
     }
 }
+
+export async function unlinkPersonFromOperation(participanteId: string) {
+    try {
+        const { error } = await supabase
+            .from('participantes_operacion')
+            .delete()
+            .eq('id', participanteId);
+
+        if (error) throw error;
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function upsertPerson(data: any) {
+    try {
+        const { data: persona, error } = await supabase
+            .from('personas')
+            .upsert({
+                ...data,
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'tax_id' })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return { success: true, data: persona };
+    } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}

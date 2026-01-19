@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2 } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
+import { PersonForm } from "./PersonForm";
 import { AssetSearch } from "./AssetSearch";
 import { DeedEditor } from "./DeedEditor";
 import { StatusStepper } from "./StatusStepper";
 import { MinutaGenerator } from "./MinutaGenerator";
 import { AMLCompliance } from "./AMLCompliance";
 import { InscriptionTracker } from "./InscriptionTracker";
-import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed, deleteCarpeta } from "@/app/actions/carpeta";
+import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed, deleteCarpeta, unlinkPersonFromOperation } from "@/app/actions/carpeta";
 import { ClientOutreach } from "./ClientOutreach";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
@@ -48,6 +49,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
     const [isPending, startTransition] = useTransition();
     const [isDeleting, setIsDeleting] = useState(false);
+    const [editingPerson, setEditingPerson] = useState<any>(null);
     const router = useRouter();
 
     // Optimistic participants
@@ -108,6 +110,16 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
             router.push("/dashboard");
         } else {
             toast.error(res.error || "Error al eliminar la carpeta");
+        }
+    };
+
+    const handleUnlinkPerson = async (participanteId: string) => {
+        const res = await unlinkPersonFromOperation(participanteId);
+        if (res.success) {
+            toast.success("Participante desvinculado");
+            router.refresh();
+        } else {
+            toast.error("Error: " + res.error);
         }
     };
 
@@ -297,7 +309,27 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     </div>
                                                     <CardContent className="p-4 space-y-3">
                                                         <div className="flex justify-between items-start">
-                                                            <p className="text-base font-bold text-slate-900 leading-tight">{p.personas.nombre_completo}</p>
+                                                            <div className="space-y-1">
+                                                                <p className="text-base font-bold text-slate-900 leading-tight">{p.personas.nombre_completo}</p>
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 text-slate-400 hover:text-indigo-600"
+                                                                        onClick={() => setEditingPerson(p.personas)}
+                                                                    >
+                                                                        <Pencil className="h-3 w-3" />
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-6 w-6 text-slate-400 hover:text-red-600"
+                                                                        onClick={() => handleUnlinkPerson(p.id)}
+                                                                    >
+                                                                        <UserMinus className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
                                                             <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
                                                         </div>
 
@@ -314,7 +346,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <FileSignature className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                                                                 <div className="space-y-0.5">
                                                                     <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Estado Civil / Cónyuge</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.estado_civil_detallado?.estado || "No consta"}</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">
+                                                                        {p.personas.estado_civil_detalle || p.personas.estado_civil_detallado?.estado || "No consta"}
+                                                                        {p.personas.datos_conyuge?.nombre ? ` (con ${p.personas.datos_conyuge.nombre})` : ""}
+                                                                    </p>
                                                                 </div>
                                                             </div>
 
@@ -322,7 +357,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <Users className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
                                                                 <div className="space-y-0.5">
                                                                     <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Filiación (Padres)</p>
-                                                                    <p className="text-[11px] text-slate-700 font-medium italic leading-tight">{p.personas.estado_civil_detallado?.padres || "No consta"}</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium italic leading-tight">{p.personas.nombres_padres || p.personas.estado_civil_detallado?.padres || "No consta"}</p>
                                                                 </div>
                                                             </div>
 
@@ -376,6 +411,28 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
             <TabsContent value="inscription">
                 <InscriptionTracker data={currentEscritura} />
             </TabsContent>
+
+            {/* Editing Person Modal */}
+            <Dialog open={!!editingPerson} onOpenChange={() => setEditingPerson(null)}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Editar Persona</DialogTitle>
+                        <DialogDescription>
+                            Modifica los datos personales y filiatorios. Los cambios se aplicarán globalmente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingPerson && (
+                        <PersonForm
+                            initialData={editingPerson}
+                            onSuccess={() => {
+                                setEditingPerson(null);
+                                router.refresh();
+                            }}
+                            onCancel={() => setEditingPerson(null)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </Tabs>
     );
 }

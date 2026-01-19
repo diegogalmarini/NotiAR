@@ -64,7 +64,14 @@ export function MagicDropzone() {
 
             const result = await response.json();
 
-            toast.success("Carpeta creada y datos extraídos correctamente!", { id: toastId });
+            const clientCount = result.debug?.clients || 0;
+            const assetCount = result.debug?.assets || 0;
+
+            if (clientCount === 0 && assetCount === 0) {
+                toast.warning("Alerta: La IA no detectó entidades. Verifique el formato.", { id: toastId, duration: 5000 });
+            } else {
+                toast.success(`¡Éxito! Se detectaron ${clientCount} Clientes y ${assetCount} Inmueble(s).`, { id: toastId, duration: 5000 });
+            }
 
             if (result.folderId) {
                 router.push(`/carpeta/${result.folderId}`);

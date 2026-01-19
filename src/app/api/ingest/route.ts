@@ -121,7 +121,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
             const parsedData = JSON.parse(cleanJson);
 
             // DEBUG MODE: Log the extracted data for production audit
-            console.log("EXTRACTED DATA (DEBUG):", JSON.stringify(parsedData, null, 2));
+            console.log("🔥 AI EXTRACTED DATA:", JSON.stringify(parsedData, null, 2));
 
             return parsedData;
         } catch (err: any) {
@@ -219,7 +219,10 @@ export async function POST(request: Request) {
                     nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
                     fecha_nacimiento: c.fecha_nacimiento || null,
                     domicilio_real: { literal: c.domicilio_real },
-                    estado_civil_detallado: {
+                    nombres_padres: c.nombres_padres || null,
+                    estado_civil_detalle: c.estado_civil || null,
+                    datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
+                    estado_civil_detallado: { // Keep for legacy if needed, but primary is above
                         estado: c.estado_civil,
                         padres: c.nombres_padres,
                         conyuge: c.conyuge
@@ -242,7 +245,8 @@ export async function POST(request: Request) {
         return NextResponse.json({
             success: true,
             folderId: carpeta.id,
-            debug: { clients: clientes.length, assets: inmuebles.length }
+            debug: { clients: clientes.length, assets: inmuebles.length },
+            extractedData: aiData
         });
 
     } catch (error: any) {
