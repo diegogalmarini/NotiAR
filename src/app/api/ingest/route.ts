@@ -207,52 +207,53 @@ export async function POST(request: Request) {
             }]).select().single();
 
             // 4. Clientes
-            const normalizeID = (id: any) => String(id).replace(/[^0-9]/g, '');
+            for (const c of clientes) {
+                const taxId = c.cuit || c.dni || null;
+                if (!taxId || !c.nombre_completo) continue;
 
-            // ... inside the loop ...
-            // Create Persona
-            const { data: persona } = await supabase.from('personas').upsert({
-                tax_id: normalizeID(taxId),
-                nombre_completo: toTitleCase(c.nombre_completo),
-                dni: c.dni ? normalizeID(c.dni) : null,
-                cuit: c.cuit ? normalizeID(c.cuit) : null,
-                nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
-                fecha_nacimiento: c.fecha_nacimiento || null,
-                domicilio_real: { literal: c.domicilio_real },
-                nombres_padres: c.nombres_padres || null,
-                estado_civil_detalle: c.estado_civil || null,
-                datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
-                estado_civil_detallado: { // Keep for legacy if needed, but primary is above
-                    estado: c.estado_civil,
-                    padres: c.nombres_padres,
-                    conyuge: c.conyuge
-                },
-                contacto: { email: null, telefono: null },
-                origen_dato: 'IA_EXTRACCION_AGRESIVA',
-                updated_at: new Date().toISOString(),
-            }, { onConflict: 'tax_id' }).select().single();
+                // Create Persona
+                const { data: persona } = await supabase.from('personas').upsert({
+                    tax_id: normalizeID(taxId),
+                    nombre_completo: toTitleCase(c.nombre_completo),
+                    dni: c.dni ? normalizeID(c.dni) : null,
+                    cuit: c.cuit ? normalizeID(c.cuit) : null,
+                    nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
+                    fecha_nacimiento: c.fecha_nacimiento || null,
+                    domicilio_real: { literal: c.domicilio_real },
+                    nombres_padres: c.nombres_padres || null,
+                    estado_civil_detalle: c.estado_civil || null,
+                    datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
+                    estado_civil_detallado: {
+                        estado: c.estado_civil,
+                        padres: c.nombres_padres,
+                        conyuge: c.conyuge
+                    },
+                    contacto: { email: null, telefono: null },
+                    origen_dato: 'IA_EXTRACCION_AGRESIVA',
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'tax_id' }).select().single();
 
-            if (persona && operacion) {
-                await supabase.from('participantes_operacion').insert([{
-                    operacion_id: operacion.id,
-                    persona_id: persona.tax_id, // This is correct, but let's be sure the UI maps correctly
-                    rol: c.rol?.toUpperCase() || 'VENDEDOR'
-                }]);
+                if (persona && operacion) {
+                    await supabase.from('participantes_operacion').insert([{
+                        operacion_id: operacion.id,
+                        persona_id: persona.tax_id,
+                        rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                    }]);
+                }
             }
         }
-    }
 
         return NextResponse.json({
-        success: true,
-        folderId: carpeta.id,
-        debug: { clients: clientes.length, assets: inmuebles.length },
-        extractedData: aiData
-    });
+            success: true,
+            folderId: carpeta.id,
+            debug: { clients: clientes.length, assets: inmuebles.length },
+            extractedData: aiData
+        });
 
-} catch (error: any) {
-    console.error('[INGEST] ❌ Fatal Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-}
+    } catch (error: any) {
+        console.error('[INGEST] ❌ Fatal Error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }
