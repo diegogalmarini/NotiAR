@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import pdf from "pdf-parse";
-import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
+import * as mammoth from "mammoth";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -13,9 +13,12 @@ async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.pdf')) {
-        const data = await pdf(buffer);
-        return data.text;
+        const parser = new PDFParse({ data: buffer });
+        const result = await parser.getText();
+        await parser.destroy(); // Cleanup pdfjs-dist resources
+        return result.text;
     } else if (fileName.endsWith('.docx')) {
+        // mammoth.extractRawText works as a named export from the wildcard import
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
     } else if (fileName.endsWith('.doc')) {
