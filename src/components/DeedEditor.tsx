@@ -115,9 +115,9 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1">
                 {/* Left: Data Summary (Consultation) */}
-                <div className="lg:col-span-4 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
+                <div className="lg:col-span-4 space-y-4 overflow-y-auto pr-2 custom-scrollbar max-h-[calc(100vh-320px)]">
                     <Card className="bg-slate-50/50">
                         <CardHeader className="p-4 border-b bg-muted/30">
                             <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
@@ -158,16 +158,16 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                 </div>
 
                 {/* Right: Rich Editor */}
-                <div className="lg:col-span-8 h-full flex flex-col">
-                    <Card className="flex-1 shadow-sm border overflow-hidden bg-white">
+                <div className="lg:col-span-8 flex flex-col h-full overflow-hidden">
+                    <Card className="flex-1 shadow-sm border bg-white overflow-hidden flex flex-col">
                         <Textarea
                             value={content}
                             onChange={(e) => setContent(e.target.value)}
-                            className="h-full min-h-[500px] w-full p-10 font-serif text-[1.1rem] leading-[1.8] focus-visible:ring-0 border-none resize-none"
+                            className="flex-1 w-full p-10 font-serif text-[1.1rem] leading-[1.8] focus-visible:ring-0 border-none resize-none overflow-y-auto"
                             placeholder="El borrador aparecerá aquí..."
                         />
                     </Card>
-                    <p className="text-[10px] text-muted-foreground italic text-center mt-2">
+                    <p className="text-[10px] text-muted-foreground italic text-center mt-2 shrink-0">
                         Escritura redactada con apoyo de IA. Requiere supervisión profesional.
                     </p>
                 </div>

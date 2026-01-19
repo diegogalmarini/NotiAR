@@ -302,7 +302,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                 </div>
             </TabsContent>
 
-            <TabsContent value="draft" className="h-[calc(100vh-250px)]">
+            <TabsContent value="draft" className="h-[calc(100vh-180px)] overflow-hidden">
                 {activeDeedId ? (
                     <DeedEditor
                         escrituraId={activeDeedId}
