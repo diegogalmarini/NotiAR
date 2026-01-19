@@ -21,6 +21,8 @@ export default async function CarpetasPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
+    console.log("📂 CARPETAS FETCHED:", carpetas?.length, "ERROR:", error);
+
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-end">

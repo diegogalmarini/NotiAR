@@ -20,6 +20,8 @@ export default async function InmueblesPage() {
         .select("*")
         .order("created_at", { ascending: false });
 
+    console.log("🏠 INMUEBLES FETCHED:", inmuebles?.length, "ERROR:", error);
+
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
             <div className="flex justify-between items-end">

@@ -69,6 +69,8 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
         }
     );
 
+    console.log("💎 OPTIMISTIC OPS:", optimisticOps);
+
     const handleLinkAsset = async (assetId: string) => {
         if (!activeDeedId) return;
         const res = await linkAssetToDeed(activeDeedId, assetId);

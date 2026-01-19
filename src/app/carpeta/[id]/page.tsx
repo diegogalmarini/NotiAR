@@ -8,6 +8,7 @@ import FolderWorkspace from "@/components/FolderWorkspace";
 
 export default async function CarpetaDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
+    console.log("🔍 FETCHING CARPETA ID:", id);
 
     // Fetch full hierarchy
     const { data: carpeta, error } = await supabase
@@ -29,9 +30,9 @@ export default async function CarpetaDetailPage({ params }: { params: Promise<{ 
         .eq("id", id)
         .single();
 
-    if (error || !carpeta) {
-        notFound();
-    }
+    if (error) console.error("❌ SUPABASE FETCH ERROR:", error);
+    if (!carpeta) console.warn("⚠️ CARPETA NOT FOUND");
+    else console.log("✅ CARPETA DATA LOADED, WRITINGS COUNT:", carpeta.escrituras?.length);
 
     return (
         <div className="min-h-screen bg-slate-50/50 p-6 md:p-10 space-y-8">

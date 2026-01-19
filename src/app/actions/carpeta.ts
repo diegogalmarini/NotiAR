@@ -152,6 +152,12 @@ export async function unlinkPersonFromOperation(participanteId: string) {
             .eq('id', participanteId);
 
         if (error) throw error;
+
+        revalidatePath('/dashboard');
+        // We'll also try to revalidate the current page if possible, 
+        // though revalidatePath works by route pattern too.
+        revalidatePath('/carpeta/[id]', 'page');
+
         return { success: true };
     } catch (error: any) {
         return { success: false, error: error.message };
