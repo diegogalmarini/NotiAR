@@ -54,35 +54,36 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     const isVision = fileBuffer && mimeType === 'application/pdf';
 
     const prompt = `
-      Eres un Oficial de Notaría experto y extremadamente meticuloso.
+      ACTÚA COMO UN ESCRIBANO EXPERTO. Tienes el documento COMPLETO (puede tener 25+ páginas).
       Tu trabajo NO ES RESUMIR. Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
 
-      Analiza el documento y extrae el siguiente JSON. Si un dato no está, usa null.
+      TU MISIÓN DE ESCANEO:
+      1. Localiza la sección donde se describe el INMUEBLE (busca anclas: "LOTE", "PARCELA", "MIDE", "LINDANDO", "DESLINDE"). Generalmente está hacia el final del documento o después de la descripción del acto.
+      2. Localiza la sección de los COMPARECIENTES (busca anclas: "COMPARECE", "DATOS PERSONALES", "ESTADO CIVIL").
 
       REGLAS DE ORO DE EXTRACCIÓN:
-      1. PARA "transcripcion_literal" (INMUEBLES): BUSCA la descripción técnica del lote (medidas, linderos, superficie, antecedentes). COPIA EL BLOQUE DE TEXTO EXACTO Y COMPLETO. No omitas ni una coma.
+      1. PARA "transcripcion_literal" (INMUEBLES): BUSCA la descripción técnica completa. COPIA EL BLOQUE DE TEXTO EXACTO Y COMPLETO desde "Un lote de terreno..." hasta la superficie y linderos finales. NO RESUMAS NADA.
       2. PARA "nombres_padres": Si la persona es soltera o se menciona su filiación, BUSCA la frase "hijo de... y de...". EXTRAE LOS NOMBRES COMPLETOS.
-      3. PARA "estado_civil": No pongas solo una palabra. Extrae la condición completa (ej: "Casado en primeras nupcias con Maria Perez", "Soltero", "Divorciado de...").
-      4. PARA "domicilio_real": Extrae la dirección completa (calle, número, ciudad, provincia).
-      5. PARA "fecha_escritura": Asegúrate de que el formato sea YYYY-MM-DD.
+      3. PARA "estado_civil": Extrae la condición completa (ej: "Casado en primeras nupcias con Maria Perez").
+      4. PARA "domicilio_real": Extrae la dirección completa.
 
       ESQUEMA JSON (ESTRICTO):
       {
-        "resumen_acto": "Breve descripción (ej: Compraventa de Inmueble)",
+        "resumen_acto": "string",
         "numero_escritura": "string o null",
         "fecha_escritura": "YYYY-MM-DD o null",
         "clientes": [
           {
             "rol": "VENDEDOR" | "COMPRADOR",
             "nombre_completo": "string",
-            "dni": "Solo números",
-            "cuit": "Solo números o null",
-            "nacionalidad": "Ej: Argentino/a",
+            "dni": "string",
+            "cuit": "string o null",
+            "nacionalidad": "string",
             "fecha_nacimiento": "YYYY-MM-DD o null",
-            "estado_civil": "Detalle completo (hijo de, casado con, etc)",
-            "nombres_padres": "Nombres de los padres si figuran",
-            "conyuge": "Nombre del cónyuge si figura",
-            "domicilio_real": "string completo",
+            "estado_civil": "string detallado",
+            "nombres_padres": "string o null",
+            "conyuge": "string o null",
+            "domicilio_real": "string",
             "email": null,
             "telefono": null
           }
@@ -90,9 +91,9 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
         "inmuebles": [
           {
             "partido": "string",
-            "nomenclatura": "string (Circ, Secc, Chacra, Manz, Parc)",
-            "partida_inmobiliaria": "Solo números",
-            "transcripcion_literal": "BLOQUE TEXTUAL COMPLETO DE DESCRIPCION Y LINDEROS",
+            "nomenclatura": "string",
+            "partida_inmobiliaria": "string",
+            "transcripcion_literal": "TEXTO TEXTUAL LARGO Y COMPLETO",
             "valuacion_fiscal": 0
           }
         ]
@@ -102,11 +103,10 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     let contents: any[] = [{ text: prompt }];
     if (isVision) {
         contents.push({ inlineData: { data: fileBuffer!.toString('base64'), mimeType: mimeType! } });
-        if (text) contents.push({ text: `Texto extraído por OCR como referencia:\n${text.substring(0, 15000)}` });
+        if (text) contents.push({ text: `Texto extraído por OCR como referencia (completo):\n${text.substring(0, 200000)}` });
     } else {
-        // Boost priority for relevant keywords in long texts
-        const textToProcess = text.substring(0, 45000);
-        contents.push({ text: `CONTENIDO DEL DOCUMENTO:\n${textToProcess}` });
+        const textToProcess = text.substring(0, 200000);
+        contents.push({ text: `CONTENIDO DEL DOCUMENTO (HASTA 80 PÁGINAS):\n${textToProcess}` });
     }
 
     const MAX_RETRIES = 3;

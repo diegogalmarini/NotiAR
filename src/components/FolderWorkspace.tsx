@@ -241,12 +241,14 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <DialogHeader>
                                                         <DialogTitle className="text-xl font-bold text-indigo-900">Transcripción Literal</DialogTitle>
                                                         <DialogDescription>
-                                                            Copia fiel del bloque de descripción del inmueble extraída por IA.
+                                                            Copia fiel del bloque de descripción del inmueble extraída por IA (Documentos largos).
                                                         </DialogDescription>
                                                     </DialogHeader>
-                                                    <div className="p-5 bg-slate-50 rounded-xl border border-indigo-100 font-serif text-sm leading-relaxed whitespace-pre-line text-slate-800 shadow-inner">
-                                                        {escritura.inmuebles.transcripcion_literal}
-                                                    </div>
+                                                    <ScrollArea className="mt-4 h-[60vh] rounded-xl border border-indigo-100 bg-slate-50 p-5 shadow-inner">
+                                                        <div className="font-serif text-sm leading-relaxed whitespace-pre-line text-slate-800">
+                                                            {escritura.inmuebles.transcripcion_literal}
+                                                        </div>
+                                                    </ScrollArea>
                                                 </DialogContent>
                                             </Dialog>
                                         )}
