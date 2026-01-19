@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Edit2, UserPlus, Phone, Mail, MapPin, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
+import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 
 export default async function ClientesPage() {
     const { data: personas, error } = await supabase
@@ -80,9 +81,7 @@ export default async function ClientesPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" className="group-hover:bg-slate-100">
-                                            <Edit2 size={16} />
-                                        </Button>
+                                        <EditarClienteDialog persona={persona} />
                                     </TableCell>
                                 </TableRow>
                             ))}

@@ -19,6 +19,7 @@ async function getMammoth() {
 
 async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
+    console.log(`[EXTRACT] Starting extraction for ${fileName}...`);
 
     // Safety check for legacy binary formats that crash Vercel
     if (fileName.endsWith('.doc')) {
@@ -32,16 +33,25 @@ async function extractTextFromFile(file: File): Promise<string> {
         try {
             const pdfParser = await getPdfParser();
             const data = await pdfParser(buffer);
-            return data.text;
+            console.log(`[EXTRACT] PDF parsed: ${data.text?.length || 0} chars.`);
+            return data.text || "";
         } catch (err: any) {
-            console.error("Error parsing PDF:", err);
-            // We'll still return text if it fails, Gemini Vision will handle the buffer later
+            console.error("[EXTRACT] Error parsing PDF:", err);
             return "";
         }
     } else if (fileName.endsWith('.docx')) {
-        const mammoth = await getMammoth();
-        const result = await mammoth.extractRawText({ buffer });
-        return result.value;
+        try {
+            const mammoth = await getMammoth();
+            const result = await mammoth.extractRawText({ buffer });
+            console.log(`[EXTRACT] DOCX parsed: ${result.value?.length || 0} chars.`);
+            if (result.messages.length > 0) {
+                console.warn("[EXTRACT] Mammoth messages:", result.messages);
+            }
+            return result.value || "";
+        } catch (err: any) {
+            console.error("[EXTRACT] Mammoth failed:", err);
+            throw new Error(`Error leyendo DOCX: ${err.message}`);
+        }
     } else {
         throw new Error("Formato de archivo no compatible. Use PDF o DOCX.");
     }
@@ -52,36 +62,53 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     const model = genAI.getGenerativeModel({ model: modelName });
 
     let contents: any[] = [];
-
-    // Context-aware prompt based on source
     const isVision = fileBuffer && mimeType === 'application/pdf';
 
     const prompt = `
     Eres un experto en lectura de documentos notariales argentinos (escrituras, minutas, etc).
-    Tu tarea es extraer información precisa y estructurada en formato JSON puro, sin bloques de código markdown.
+    Tu tarea es extraer información precisa y estructurada en formato JSON puro.
     
     ${isVision
-            ? "Analiza visualmente el documento adjunto (incluyendo sellos, firmas y formato)..."
+            ? "Analiza VISUALMENTE el documento adjunto (incluyendo sellos, firmas y formato)..."
             : "Analiza el siguiente texto legal extraído..."}
 
-    INSTRUCCIONES CRÍTICAS:
-    1. ${isVision ? "Usa tus capacidades de visión para interpretar cada palabra, incluso en escaneos de baja calidad." : "Interpreta el texto extraído con máxima fidelidad legal."}
-    2. Identifica correctamente nombres, DNI/CUIT (tax_id), estados civiles y fechas.
-    3. Para inmuebles, busca: Partido, Partida y Nomenclatura Catastral (Circ, Secc, Chacra, Quinta, Fraccion, Manzana, Parcela, Subparcela).
-    4. Identifica el acto (ej. COMPRAVENTA, HIPOTECA) y el rol del participante (ej. VENDEDOR, COMPRADOR).
+    INSTRUCCIONES CRÍTICAS (PROGRAMA - ETAPA 1):
+    1. Extrae TODOS los clientes/partes mencionadas.
+    2. Para cada persona, identifica: nombre_completo, nacionalidad, fecha_nacimiento (YYYY-MM-DD), dni (solo números), cuit, estado_civil, nombres_padres (si es soltero), domicilio, email, telefono, y rol (VENDEDOR o COMPRADOR).
+    3. Extrae TODOS los inmuebles mencionados.
+    4. Para cada inmueble, identifica: partido, partida, nomenclatura (Circ, Secc, etc), y EXTREMADAMENTE IMPORTANTE: la transcripcion_literal (Copia textual de la descripción del inmueble).
 
-    Extrae en este formato JSON:
+    ESQUEMA JSON REQUERIDO:
     {
-      "persona": { "tax_id": "...", "nombre_completo": "...", "nacionalidad": "...", "fecha_nacimiento": "..." },
-      "inmueble": { "partido_id": "...", "nro_partida": "...", "nomenclatura_catastral": { ... } },
-      "operacion": { "tipo_acto": "...", "rol": "..." }
+      "clientes": [
+        {
+          "nombre_completo": "string",
+          "nacionalidad": "string",
+          "fecha_nacimiento": "YYYY-MM-DD",
+          "dni": "string",
+          "cuit": "string",
+          "estado_civil": "string",
+          "nombres_padres": "string",
+          "domicilio": "string",
+          "email": "string",
+          "telefono": "string",
+          "rol": "VENDEDOR|COMPRADOR"
+        }
+      ],
+      "inmuebles": [
+        {
+          "partido": "string",
+          "partida": "string",
+          "transcripcion_literal": "string",
+          "nomenclatura": "string"
+        }
+      ]
     }
     
-    Si no encuentras un dato, usa null.
+    Si no encuentras un dato, usa null. Devuelve SOLO el JSON sin markdown.
     `;
 
     if (isVision) {
-        // CASE A: PDF (Vision Path)
         contents = [
             { text: prompt },
             {
@@ -91,13 +118,11 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
                 }
             }
         ];
-        // Add text context if available
         if (text && text.trim().length > 0) {
-            contents.push({ text: `Texto extraído como referencia adicional:\n${text.substring(0, 5000)}` });
+            contents.push({ text: `Texto extraído como referencia adicional:\n${text.substring(0, 10000)}` });
         }
     } else {
-        // CASE B: Text Extraction Path (.docx)
-        contents = [{ text: `${prompt}\n\nCONTENIDO DEL DOCUMENTO:\n${text.substring(0, 30000)}` }];
+        contents = [{ text: `${prompt}\n\nCONTENIDO DEL DOCUMENTO:\n${text.substring(0, 45000)}` }];
     }
 
     const result = await model.generateContent(contents);
@@ -107,7 +132,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     try {
         return JSON.parse(cleanJson);
     } catch (e) {
-        console.error("JSON Parse Error. Raw response:", responseText);
+        console.error("[JSON] Parse Error. Raw response:", responseText);
         const match = responseText.match(/\{[\s\S]*\}/);
         if (match) return JSON.parse(match[0]);
         throw e;
@@ -176,115 +201,109 @@ export async function POST(request: Request) {
         // 2. AI Extraction
         let aiData;
         try {
+            // Validate extracted text before sending to AI (if not PDF)
+            if (!fileName.endsWith('.pdf') && (!extractedText || extractedText.trim().length < 50)) {
+                return NextResponse.json({
+                    error: `El archivo ${fileName} parece estar vacío o no se ha podido extraer suficiente texto (${extractedText?.length || 0} caracteres).`
+                }, { status: 400 });
+            }
+
             aiData = await askGeminiForData(
                 extractedText,
                 buffer,
-                file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined)
+                file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : undefined)
             );
+            console.log(`[AI] Response entities: ${aiData.clientes?.length || 0} clients, ${aiData.inmuebles?.length || 0} assets.`);
         } catch (err) {
-            console.error("AI error:", err);
-            aiData = { persona: null, inmueble: null, operacion: { tipo_acto: 'COMPRAVENTA', rol: 'VENDEDOR' } };
+            console.error("[AI] Error during analysis:", err);
+            return NextResponse.json({ error: "Error en el análisis de IA del documento." }, { status: 500 });
         }
 
-        const { persona, inmueble, operacion } = aiData;
+        const { clientes = [], inmuebles = [] } = aiData;
 
-        // 3. Ingest Persona
-        let personData = null;
-        if (persona?.tax_id && persona?.nombre_completo) {
-            const { data, error: pError } = await supabase
-                .from('personas')
-                .upsert({
-                    tax_id: normalizeID(persona.tax_id),
-                    nombre_completo: toTitleCase(persona.nombre_completo),
-                    nacionalidad: persona.nacionalidad ? toTitleCase(persona.nacionalidad) : null,
-                    fecha_nacimiento: persona.fecha_nacimiento,
-                    origen_dato: 'IA_OCR',
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'tax_id' })
-                .select().single();
-
-            if (pError) {
-                console.error("Persona upsert error:", pError);
-            } else {
-                personData = data;
-            }
-        }
-
-        // 4. Ingest Inmueble
-        let propertyData = null;
-        if (inmueble?.partido_id && inmueble?.nro_partida) {
-            const { data, error: iError } = await supabase
-                .from('inmuebles')
-                .upsert({
-                    partido_id: inmueble.partido_id,
-                    nro_partida: inmueble.nro_partida,
-                    nomenclatura_catastral: inmueble.nomenclatura_catastral || {},
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'partido_id,nro_partida' })
-                .select().single();
-
-            if (iError) {
-                console.error("Inmueble upsert error:", iError);
-            } else {
-                propertyData = data;
-            }
-        }
-
-        // 5. Create Folder and Link
+        // 3. Create Folder
         const { data: carpeta, error: cError } = await supabase
             .from('carpetas')
             .insert([{ caratula: `Ingesta: ${file.name}`, estado: 'ABIERTA' }])
             .select().single();
 
-        if (cError) {
-            console.error("Carpeta creation error:", cError);
-            throw cError;
+        if (cError) throw cError;
+
+        // 4. Ingest Inmuebles
+        const propertyIds: string[] = [];
+        for (const i of inmuebles) {
+            const { data, error } = await supabase
+                .from('inmuebles')
+                .upsert({
+                    partido_id: i.partido || null,
+                    nro_partida: i.partida || null,
+                    nomenclatura_catastral: { literal: i.nomenclatura },
+                    transcripcion_literal: i.transcripcion_literal || null,
+                    updated_at: new Date().toISOString(),
+                }, { onConflict: 'partido_id,nro_partida' })
+                .select().single();
+
+            if (!error && data) propertyIds.push(data.id);
         }
 
-        // Create Escritura
-        const { data: escritura, error: eError } = await supabase
+        // 5. Ingest Personas linked to a default Operation
+        // Create a single main Escritura for the folder
+        const { data: escritura } = await supabase
             .from('escrituras')
             .insert([{
                 carpeta_id: carpeta.id,
-                inmueble_princ_id: propertyData?.id || null
+                inmueble_princ_id: propertyIds[0] || null
             }])
             .select().single();
 
-        if (eError) {
-            console.error("Escritura creation error:", eError);
-        }
-
-        // Create Operacion
         if (escritura) {
-            const { data: operacionRow, error: oError } = await supabase
+            const { data: operacion } = await supabase
                 .from('operaciones')
                 .insert([{
                     escritura_id: escritura.id,
-                    tipo_acto: operacion?.tipo_acto || 'COMPRAVENTA'
+                    tipo_acto: 'COMPRAVENTA' // Default for now
                 }])
                 .select().single();
 
-            if (oError) {
-                console.error("Operacion creation error:", oError);
-            } else if (personData && operacionRow) {
-                await supabase
-                    .from('participantes_operacion')
-                    .insert([{
-                        operacion_id: operacionRow.id,
-                        persona_id: personData.tax_id,
-                        rol: operacion?.rol || 'VENDEDOR'
-                    }]);
+            for (const c of clientes) {
+                const taxId = c.cuit || c.dni || null;
+                if (!taxId || !c.nombre_completo) continue;
+
+                const { data: persona } = await supabase
+                    .from('personas')
+                    .upsert({
+                        tax_id: normalizeID(taxId),
+                        nombre_completo: toTitleCase(c.nombre_completo),
+                        nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
+                        fecha_nacimiento: c.fecha_nacimiento || null,
+                        domicilio_real: { literal: c.domicilio },
+                        estado_civil_detallado: { estado: c.estado_civil, padres: c.nombres_padres },
+                        contacto: { email: c.email, telefono: c.telefono },
+                        origen_dato: 'IA_OCR',
+                        updated_at: new Date().toISOString(),
+                    }, { onConflict: 'tax_id' })
+                    .select().single();
+
+                if (persona && operacion) {
+                    await supabase
+                        .from('participantes_operacion')
+                        .insert([{
+                            operacion_id: operacion.id,
+                            persona_id: persona.tax_id,
+                            rol: c.rol || 'VENDEDOR'
+                        }]);
+                }
             }
         }
 
         return NextResponse.json({
-            message: 'Magic ingestion complete',
+            message: 'Magic ingestion complete (Stage 1 Schema)',
             folderId: carpeta.id,
-            extracted: { persona, inmueble }
+            entities: { clients: clientes.length, assets: inmuebles.length }
         });
 
     } catch (error: any) {
-        console.error('Ingest API error:', error);
+        console.error('[INGEST] API error:', error);
         return NextResponse.json(
             { error: error.message || 'Internal Server Error' },
             { status: 500 }
