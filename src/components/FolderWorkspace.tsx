@@ -46,6 +46,8 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isPersonSearchOpen, setIsPersonSearchOpen] = useState(false);
     const [isAssetSearchOpen, setIsAssetSearchOpen] = useState(false);
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
+
+    console.log("📂 FolderWorkspace Initial Data:", JSON.stringify(initialData, null, 2));
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
     const [isPending, startTransition] = useTransition();
     const [isDeleting, setIsDeleting] = useState(false);
@@ -274,6 +276,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 </CardContent>
                             </Card>
                         ))}
+                        {carpeta.escrituras.length === 0 && (
+                            <div className="p-8 text-center bg-slate-50 border-2 border-dashed rounded-xl">
+                                <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                <p className="text-sm text-slate-500 font-medium">No hay escrituras</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Main Content: Acts and Participants */}
