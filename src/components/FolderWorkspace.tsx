@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2 } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
 import { AssetSearch } from "./AssetSearch";
 import { DeedEditor } from "./DeedEditor";
@@ -14,11 +14,23 @@ import { StatusStepper } from "./StatusStepper";
 import { MinutaGenerator } from "./MinutaGenerator";
 import { AMLCompliance } from "./AMLCompliance";
 import { InscriptionTracker } from "./InscriptionTracker";
-import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed } from "@/app/actions/carpeta";
+import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed, deleteCarpeta } from "@/app/actions/carpeta";
 import { ClientOutreach } from "./ClientOutreach";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { useRouter } from "next/navigation";
 
 export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [carpeta, setCarpeta] = useState(initialData);
@@ -27,6 +39,8 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
     const [isPending, startTransition] = useTransition();
+    const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
 
     // Optimistic participants
     const [optimisticOps, addOptimisticParticipant] = useOptimistic(
@@ -76,6 +90,19 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
         });
     };
 
+    const handleDeleteFolder = async () => {
+        setIsDeleting(true);
+        const res = await deleteCarpeta(carpeta.id);
+        setIsDeleting(false);
+
+        if (res.success) {
+            toast.success("Carpeta eliminada correctamente");
+            router.push("/dashboard");
+        } else {
+            toast.error(res.error || "Error al eliminar la carpeta");
+        }
+    };
+
     const currentEscritura = carpeta.escrituras.find((e: any) => e.id === activeDeedId);
 
     return (
@@ -106,6 +133,33 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
                     <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
+
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>¿Estás seguro de eliminar esta carpeta?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Esta acción no se puede deshacer. Se borrarán todos los documentos,
+                                    operaciones y participantes vinculados a este trámite ({carpeta.caratula || "Sin título"}).
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel disabled={isDeleting}>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDeleteFolder}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? "Eliminando..." : "Eliminar Definitivamente"}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
             </div>
 

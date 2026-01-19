@@ -2,6 +2,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { revalidatePath } from "next/cache";
+import { logAction } from "@/lib/logger";
 
 const SUPER_ADMIN_EMAIL = "diegogalmarini@gmail.com";
 
@@ -10,7 +11,18 @@ const SUPER_ADMIN_EMAIL = "diegogalmarini@gmail.com";
  */
 async function isAdmin(): Promise<boolean> {
     const { data: { session } } = await supabase.auth.getSession();
-    return session?.user?.email === SUPER_ADMIN_EMAIL;
+    if (!session?.user) return false;
+
+    // Check by email bypass (Super Admin) or by role in database
+    if (session.user.email === SUPER_ADMIN_EMAIL) return true;
+
+    const { data: profile } = await supabase
+        .from("user_profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+
+    return profile?.role === "admin";
 }
 
 /**
@@ -57,6 +69,9 @@ export async function approveUser(userId: string) {
             .eq("id", userId);
 
         if (error) throw error;
+
+        // Log action
+        await logAction('APPROVE_USER', 'USER_PROFILE', { userId });
 
         revalidatePath("/admin/users");
         return { success: true };
@@ -147,5 +162,38 @@ export async function getUserStats() {
     } catch (error: any) {
         console.error("Error fetching user stats:", error);
         return { success: false, error: error.message, data: null };
+    }
+}
+
+/**
+ * Pre-create a user (Invitation)
+ */
+export async function preCreateUser(email: string, fullName: string) {
+    try {
+        if (!(await isAdmin())) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        // We insert into user_profiles directly. 
+        // When the user signs up with this email, the trigger/logic will match it.
+        // OR we just set them as approved so when they join, they are already in.
+        const { error } = await supabase
+            .from("user_profiles")
+            .insert([{
+                email,
+                full_name: fullName,
+                approval_status: 'approved',
+                role: 'user'
+            }]);
+
+        if (error) throw error;
+
+        await logAction('INVITE_USER', 'USER_PROFILE', { email, fullName });
+
+        revalidatePath("/admin/users");
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error pre-creating user:", error);
+        return { success: false, error: error.message };
     }
 }

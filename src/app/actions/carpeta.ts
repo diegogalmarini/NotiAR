@@ -2,6 +2,7 @@
 
 import { supabase } from "@/lib/supabaseClient";
 import { revalidatePath } from "next/cache";
+import { logAction } from "@/lib/logger";
 
 export async function createFolder(caratula?: string) {
     try {
@@ -105,6 +106,40 @@ export async function updateFolderStatus(folderId: string, newStatus: string) {
         revalidatePath(`/carpeta/${folderId}`);
         return { success: true, data };
     } catch (error: any) {
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deleteCarpeta(carpetaId: string) {
+    try {
+        // 1. Get folder details for logging before deletion
+        const { data: folder } = await supabase
+            .from('carpetas')
+            .select('caratula')
+            .eq('id', carpetaId)
+            .single();
+
+        // 2. Perform deletion
+        // We rely on Supabase CASCADE for escrituras -> operaciones -> participantes
+        // But we explicitly delete the main folder record.
+        const { error } = await supabase
+            .from('carpetas')
+            .delete()
+            .eq('id', carpetaId);
+
+        if (error) throw error;
+
+        // 3. Log action
+        await logAction('DELETE', 'CARPETA', {
+            id: carpetaId,
+            caratula: folder?.caratula
+        });
+
+        revalidatePath('/dashboard');
+        revalidatePath('/carpetas');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting folder:', error);
         return { success: false, error: error.message };
     }
 }

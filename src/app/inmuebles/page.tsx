@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Building2, Edit2, MapPinned, FileSearch } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { NuevoInmuebleDialog } from "@/components/NuevoInmuebleDialog";
 
 export default async function InmueblesPage() {
     const { data: inmuebles, error } = await supabase
@@ -26,10 +27,7 @@ export default async function InmueblesPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Inmuebles</h1>
                     <p className="text-muted-foreground">Base de datos de propiedades y nomenclaturas catastrales.</p>
                 </div>
-                <Button>
-                    <Building2 className="mr-2 h-4 w-4" />
-                    Nuevo Inmueble
-                </Button>
+                <NuevoInmuebleDialog />
             </div>
 
             <Card>

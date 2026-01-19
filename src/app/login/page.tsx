@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Clock } from "lucide-react";
 
 function LoginForm() {
     const [email, setEmail] = useState("");
@@ -60,6 +62,8 @@ function LoginForm() {
         }
     };
 
+    const isPending = searchParams.get("status") === "pending";
+
     return (
         <Card className="max-w-md w-full">
             <CardHeader className="text-center">
@@ -67,6 +71,16 @@ function LoginForm() {
                 <CardDescription>Sistema de Gestión Notarial</CardDescription>
             </CardHeader>
             <CardContent>
+                {isPending && (
+                    <Alert variant="warning" className="mb-6">
+                        <Clock className="h-4 w-4" />
+                        <AlertTitle>Acceso Restringido</AlertTitle>
+                        <AlertDescription>
+                            Tu cuenta está pendiente de aprobación por el Escribano Titular.
+                        </AlertDescription>
+                    </Alert>
+                )}
+
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="email">Email</Label>

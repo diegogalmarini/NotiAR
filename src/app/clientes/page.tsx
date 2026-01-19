@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Edit2, UserPlus, Phone, Mail, MapPin, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 
 export default async function ClientesPage() {
     const { data: personas, error } = await supabase
@@ -26,10 +27,7 @@ export default async function ClientesPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Clientes</h1>
                     <p className="text-muted-foreground">Gestión de personas y participantes vinculados al sistema.</p>
                 </div>
-                <Button>
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Nuevo Cliente
-                </Button>
+                <NuevoClienteDialog />
             </div>
 
             <Card>

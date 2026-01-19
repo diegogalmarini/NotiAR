@@ -17,6 +17,7 @@ import { ExpiringDeedsAlert } from "@/components/ExpiringDeedsAlert";
 import { MagicDropzone } from "@/components/MagicDropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { DeleteFolderButton } from "@/components/DeleteFolderButton";
 
 export default async function DashboardPage() {
     const { data: carpetas, error } = await supabase
@@ -153,6 +154,7 @@ export default async function DashboardPage() {
                                                 Abrir
                                             </Link>
                                         </Button>
+                                        <DeleteFolderButton folderId={carpeta.id} folderName={carpeta.caratula} />
                                     </TableCell>
                                 </TableRow>
                             ))}

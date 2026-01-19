@@ -21,8 +21,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { CheckCircle, XCircle, Trash2, Search, Users, Clock, Shield } from "lucide-react";
-import { getAllUsers, approveUser, rejectUser, deleteUser, getUserStats } from "@/app/actions/admin";
+import { CheckCircle, XCircle, Trash2, Search, Users, Clock, Shield, UserPlus } from "lucide-react";
+import { getAllUsers, approveUser, rejectUser, deleteUser, getUserStats, preCreateUser } from "@/app/actions/admin";
 import { toast } from "sonner";
 
 type UserProfile = {
@@ -44,6 +44,9 @@ export default function AdminUsersPage() {
     const [stats, setStats] = useState<any>(null);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+    const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+    const [inviteForm, setInviteForm] = useState({ email: "", fullName: "" });
+    const [isInviting, setIsInviting] = useState(false);
 
     const loadData = async () => {
         setLoading(true);
@@ -121,6 +124,26 @@ export default function AdminUsersPage() {
         }
     };
 
+    const handleInvite = async () => {
+        if (!inviteForm.email || !inviteForm.fullName) {
+            toast.error("Complete todos los campos");
+            return;
+        }
+
+        setIsInviting(true);
+        const res = await preCreateUser(inviteForm.email, inviteForm.fullName);
+        setIsInviting(false);
+
+        if (res.success) {
+            toast.success("Usuario pre-aprobado correctamente");
+            setInviteDialogOpen(false);
+            setInviteForm({ email: "", fullName: "" });
+            loadData();
+        } else {
+            toast.error(res.error || "Error al invitar usuario");
+        }
+    };
+
     const getStatusBadge = (status: string) => {
         const configs: any = {
             pending: { label: "Pendiente", className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -154,6 +177,10 @@ export default function AdminUsersPage() {
                     </h1>
                     <p className="text-muted-foreground">Gestión de usuarios del sistema</p>
                 </div>
+                <Button onClick={() => setInviteDialogOpen(true)}>
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Pre-crear Empleado
+                </Button>
             </div>
 
             {/* Stats Cards */}
@@ -363,6 +390,47 @@ export default function AdminUsersPage() {
                         </Button>
                         <Button variant="destructive" onClick={handleDeleteConfirm}>
                             Eliminar
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Invite Dialog */}
+            <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Pre-crear / Invitar Empleado</DialogTitle>
+                        <DialogDescription>
+                            Permite que un nuevo empleado se registre y sea aprobado automáticamente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="invite-name">Nombre Completo</Label>
+                            <Input
+                                id="invite-name"
+                                value={inviteForm.fullName}
+                                onChange={(e) => setInviteForm({ ...inviteForm, fullName: e.target.value })}
+                                placeholder="Ej: Maria Lopez"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="invite-email">Email</Label>
+                            <Input
+                                id="invite-email"
+                                type="email"
+                                value={inviteForm.email}
+                                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                                placeholder="empleado@notaria.com"
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                            Cancelar
+                        </Button>
+                        <Button onClick={handleInvite} disabled={isInviting}>
+                            {isInviting ? "Guardando..." : "Confirmar Pre-aprobación"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
