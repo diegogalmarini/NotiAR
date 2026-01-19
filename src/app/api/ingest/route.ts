@@ -57,6 +57,8 @@ async function extractTextFromFile(file: File): Promise<string> {
     }
 }
 
+import * as Sentry from "@sentry/nextjs";
+
 async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: string) {
     const modelName = await getLatestModel('INGEST');
     const model = genAI.getGenerativeModel({ model: modelName });
@@ -125,17 +127,33 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
         contents = [{ text: `${prompt}\n\nCONTENIDO DEL DOCUMENTO:\n${text.substring(0, 45000)}` }];
     }
 
-    const result = await model.generateContent(contents);
-    const responseText = result.response.text();
-    const cleanJson = responseText.replace(/```json|```/g, "").trim();
-
     try {
-        return JSON.parse(cleanJson);
-    } catch (e) {
-        console.error("[JSON] Parse Error. Raw response:", responseText);
-        const match = responseText.match(/\{[\s\S]*\}/);
-        if (match) return JSON.parse(match[0]);
-        throw e;
+        const result = await model.generateContent(contents);
+        const responseText = result.response.text();
+
+        if (!responseText || responseText.trim().length === 0) {
+            throw new Error("Gemini devolvió una respuesta vacía (posiblemente bloqueado por filtros de seguridad).");
+        }
+
+        const cleanJson = responseText.replace(/```json|```/g, "").trim();
+
+        try {
+            return JSON.parse(cleanJson);
+        } catch (e) {
+            console.error("[JSON] Parse Error. Raw response:", responseText);
+            const match = responseText.match(/\{[\s\S]*\}/);
+            if (match) return JSON.parse(match[0]);
+            throw e;
+        }
+    } catch (err: any) {
+        Sentry.captureException(err, {
+            extra: {
+                model: modelName,
+                isVision,
+                textLength: text?.length
+            }
+        });
+        throw err;
     }
 }
 
