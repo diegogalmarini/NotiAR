@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabaseClient';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getLatestModel } from '@/lib/aiConfig';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -16,14 +17,16 @@ async function getMammoth() {
     return await import("mammoth");
 }
 
-async function getWordExtractor() {
-    return await import("word-extractor") as any;
-}
-
 async function extractTextFromFile(file: File): Promise<string> {
+    const fileName = file.name.toLowerCase();
+
+    // Safety check for legacy binary formats that crash Vercel
+    if (fileName.endsWith('.doc')) {
+        throw new Error("El formato .doc (Word 97-2003) no es seguro. Por favor, abra el archivo y guárdelo como PDF o .docx antes de subirlo.");
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const fileName = file.name.toLowerCase();
 
     if (fileName.endsWith('.pdf')) {
         try {
@@ -32,44 +35,42 @@ async function extractTextFromFile(file: File): Promise<string> {
             return data.text;
         } catch (err: any) {
             console.error("Error parsing PDF:", err);
-            throw new Error(`Error al leer el PDF: ${err.message}`);
+            // We'll still return text if it fails, Gemini Vision will handle the buffer later
+            return "";
         }
     } else if (fileName.endsWith('.docx')) {
         const mammoth = await getMammoth();
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
-    } else if (fileName.endsWith('.doc')) {
-        try {
-            const WordExtractor = (await getWordExtractor()) as any;
-            const extractor = new WordExtractor.default();
-            const doc = await extractor.extract(buffer);
-            return doc.getBody();
-        } catch (err: any) {
-            console.error("Error parsing .doc:", err);
-            throw new Error(`Error al leer el archivo .doc: ${err.message}`);
-        }
     } else {
-        throw new Error("Formato de archivo no compatible. Use PDF, DOC o DOCX.");
+        throw new Error("Formato de archivo no compatible. Use PDF o DOCX.");
     }
 }
 
 async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: string) {
-    // Upgraded to 1.5 Pro for maximum precision as requested by user
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+    const modelName = await getLatestModel('INGEST');
+    const model = genAI.getGenerativeModel({ model: modelName });
 
     let contents: any[] = [];
+
+    // Context-aware prompt based on source
+    const isVision = fileBuffer && mimeType === 'application/pdf';
 
     const prompt = `
     Eres un experto en lectura de documentos notariales argentinos (escrituras, minutas, etc).
     Tu tarea es extraer información precisa y estructurada en formato JSON puro, sin bloques de código markdown.
     
+    ${isVision
+            ? "Analiza visualmente el documento adjunto (incluyendo sellos, firmas y formato)..."
+            : "Analiza el siguiente texto legal extraído..."}
+
     INSTRUCCIONES CRÍTICAS:
-    1. Si el documento es un escaneo de baja calidad, usa tus capacidades de visión para interpretar cada palabra.
+    1. ${isVision ? "Usa tus capacidades de visión para interpretar cada palabra, incluso en escaneos de baja calidad." : "Interpreta el texto extraído con máxima fidelidad legal."}
     2. Identifica correctamente nombres, DNI/CUIT (tax_id), estados civiles y fechas.
     3. Para inmuebles, busca: Partido, Partida y Nomenclatura Catastral (Circ, Secc, Chacra, Quinta, Fraccion, Manzana, Parcela, Subparcela).
     4. Identifica el acto (ej. COMPRAVENTA, HIPOTECA) y el rol del participante (ej. VENDEDOR, COMPRADOR).
 
-    Extrae en este formato:
+    Extrae en este formato JSON:
     {
       "persona": { "tax_id": "...", "nombre_completo": "...", "nacionalidad": "...", "fecha_nacimiento": "..." },
       "inmueble": { "partido_id": "...", "nro_partida": "...", "nomenclatura_catastral": { ... } },
@@ -79,25 +80,24 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     Si no encuentras un dato, usa null.
     `;
 
-    if (fileBuffer && mimeType === 'application/pdf') {
-        // Multimodal path for PDFs (better for OCR)
+    if (isVision) {
+        // CASE A: PDF (Vision Path)
         contents = [
             { text: prompt },
             {
                 inlineData: {
-                    data: fileBuffer.toString('base64'),
-                    mimeType: mimeType
+                    data: fileBuffer!.toString('base64'),
+                    mimeType: mimeType!
                 }
             }
         ];
-
-        // Add text as additional context if available and short
-        if (text && text.length > 0) {
-            contents.push({ text: `Contexto de texto extraído (puede ser incompleto si es escaneado):\n${text.substring(0, 5000)}` });
+        // Add text context if available
+        if (text && text.trim().length > 0) {
+            contents.push({ text: `Texto extraído como referencia adicional:\n${text.substring(0, 5000)}` });
         }
     } else {
-        // Standard text path for DOC/DOCX
-        contents = [{ text: `${prompt}\n\nTEXTO DEL DOCUMENTO:\n${text.substring(0, 30000)}` }];
+        // CASE B: Text Extraction Path (.docx)
+        contents = [{ text: `${prompt}\n\nCONTENIDO DEL DOCUMENTO:\n${text.substring(0, 30000)}` }];
     }
 
     const result = await model.generateContent(contents);
@@ -108,7 +108,6 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
         return JSON.parse(cleanJson);
     } catch (e) {
         console.error("JSON Parse Error. Raw response:", responseText);
-        // Fallback or attempt to fix common issues
         const match = responseText.match(/\{[\s\S]*\}/);
         if (match) return JSON.parse(match[0]);
         throw e;
@@ -152,15 +151,26 @@ export async function POST(request: Request) {
 
         console.log(`[INGEST] Processing file: ${file.name} (${file.size} bytes)`);
 
-        // 1. Extract Text (Fallback for PDFs, primary for DOC/DOCX)
+        // 1. Ingestion Strategy based on format
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
+        const fileName = file.name.toLowerCase();
 
         let extractedText = "";
+
+        // Handle .doc rejection before any expensive operation
+        if (fileName.endsWith('.doc')) {
+            return NextResponse.json({
+                error: "El formato .doc (Word 97-2003) no es seguro. Por favor, abra el archivo y guárdelo como PDF o .docx antes de subirlo."
+            }, { status: 400 });
+        }
+
         try {
             extractedText = await extractTextFromFile(file);
-        } catch (err) {
-            console.warn("[INGEST] Text extraction failed, will rely on multimodal if PDF:", err);
+        } catch (err: any) {
+            console.warn("[INGEST] Text extraction warning:", err.message);
+            // Non-fatal if it's a PDF, we'll rely on Vision
+            if (!fileName.endsWith('.pdf')) throw err;
         }
 
         // 2. AI Extraction
