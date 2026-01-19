@@ -25,37 +25,33 @@ export function MagicDropzone() {
         setIsDragging(false);
 
         const files = Array.from(e.dataTransfer.files);
-        const pdfFile = files.find(f => f.type === "application/pdf");
+        const validExtensions = [".pdf", ".doc", ".docx"];
+        const file = files.find(f => {
+            const fileName = f.name.toLowerCase();
+            return validExtensions.some(ext => fileName.endsWith(ext));
+        });
 
-        if (!pdfFile) {
-            toast.error("Por favor, arrastra un archivo PDF válido.");
+        if (!file) {
+            toast.error("Por favor, arrastra un archivo válido (PDF, DOC o DOCX).");
             return;
         }
 
-        await processFile(pdfFile);
+        await processFile(file);
     };
 
     const processFile = async (file: File) => {
         setIsUploading(true);
-        const toastId = toast.loading("Iniciando 'Magia'... leyendo documento y creando carpeta.");
+        const toastId = toast.loading(`Iniciando 'Magia'... procesando ${file.name}`);
 
         try {
-            // Simulated extraction data (as we don't have real OCR yet, but we'll call the ingest API)
-            // In a real scenario, we'd upload the file to a storage and then call a worker
-            // For now, we simulate the "Ingest" flow that creates a folder + extracted data
-
-            // To be consistent with "Gonzalo's Magic", we call the ingest API
-            // which we will refactor to support folder creation.
-
             const response = await fetch("/api/ingest", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    // Simulated data that might come from OCR
                     tax_id: "20-12345678-9",
                     nombre_completo: "CLIENTE EXTRAIDO POR IA",
                     origen_dato: "IA_OCR",
-                    create_folder: true, // New flag for our API
+                    create_folder: true,
                     folder_name: `Carpeta Magica - ${file.name}`
                 })
             });
@@ -66,7 +62,6 @@ export function MagicDropzone() {
 
             toast.success("Carpeta creada y datos extraídos correctamente!", { id: toastId });
 
-            // Redirect to the new folder workspace
             if (result.folderId) {
                 router.push(`/carpeta/${result.folderId}`);
             } else {
@@ -113,13 +108,13 @@ export function MagicDropzone() {
                     {isDragging ? "¡Sueltalo ahora!" : "Inicia un trámite con Magia"}
                 </h3>
                 <p className="text-slate-500 max-w-sm mx-auto">
-                    Arrastra tu Escritura, PDF o Ficha aquí. NotiAr creará la carpeta y extraerá los datos automáticamente.
+                    Arrastra tu Escritura, PDF, Word o Ficha aquí. NotiAr creará la carpeta y extraerá los datos automáticamente.
                 </p>
             </div>
 
             <div className="flex gap-4 mt-2">
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                    <FileText size={14} /> PDF admitidos
+                    <FileText size={14} /> PDF, DOC, DOCX
                 </div>
                 <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400">
                     <FolderPlus size={14} /> Auto-creación de carpeta
@@ -129,7 +124,7 @@ export function MagicDropzone() {
             {/* Hidden Input for Click Access */}
             <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="absolute inset-0 opacity-0 cursor-pointer"
                 onChange={(e) => {
                     const file = e.target.files?.[0];
