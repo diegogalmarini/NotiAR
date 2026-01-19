@@ -14,19 +14,19 @@ export default async function CarpetaDetailPage({ params }: { params: Promise<{ 
     const { data: carpeta, error } = await supabase
         .from("carpetas")
         .select(`
-      *,
-      escrituras (
-        *,
-        inmuebles (*),
-        operaciones (
-          *,
-          participantes_operacion (
             *,
-            persona:personas (*)
-          )
-        )
-      )
-    `)
+            escrituras (
+                *,
+                inmuebles!inmueble_princ_id (*),
+                operaciones (
+                    *,
+                    participantes_operacion (
+                        *,
+                        persona:personas (*)
+                    )
+                )
+            )
+        `)
         .eq("id", id)
         .single();
 

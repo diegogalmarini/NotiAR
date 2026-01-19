@@ -17,8 +17,7 @@ import { NuevoInmuebleDialog } from "@/components/NuevoInmuebleDialog";
 export default async function InmueblesPage() {
     const { data: inmuebles, error } = await supabase
         .from("inmuebles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*");
 
     console.log("🏠 INMUEBLES FETCHED:", inmuebles?.length, "ERROR:", error);
 

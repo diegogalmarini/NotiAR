@@ -18,8 +18,7 @@ import { cn } from "@/lib/utils";
 export default async function CarpetasPage() {
     const { data: carpetas, error } = await supabase
         .from("carpetas")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("*");
 
     console.log("📂 CARPETAS FETCHED:", carpetas?.length, "ERROR:", error);
 
