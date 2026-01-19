@@ -17,12 +17,6 @@ async function getMammoth() {
 
 async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
-    console.log(`[EXTRACT] Starting extraction for ${fileName}...`);
-
-    if (fileName.endsWith('.doc')) {
-        throw new Error("El formato .doc no es seguro. Use PDF o .docx.");
-    }
-
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
@@ -60,53 +54,59 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     const isVision = fileBuffer && mimeType === 'application/pdf';
 
     const prompt = `
-      Actúa como un Oficial de Notaría experto. Analiza el siguiente documento legal (Escritura o Título).
-      Tu objetivo es extraer datos estructurados precisos.
-      
-      ESQUEMA JSON REQUERIDO (ESTRICTO):
+      Eres un Oficial de Notaría experto y extremadamente meticuloso.
+      Tu trabajo NO ES RESUMIR. Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
+
+      Analiza el documento y extrae el siguiente JSON. Si un dato no está, usa null.
+
+      REGLAS DE ORO DE EXTRACCIÓN:
+      1. PARA "transcripcion_literal" (INMUEBLES): BUSCA la descripción técnica del lote (medidas, linderos, superficie, antecedentes). COPIA EL BLOQUE DE TEXTO EXACTO Y COMPLETO. No omitas ni una coma.
+      2. PARA "nombres_padres": Si la persona es soltera o se menciona su filiación, BUSCA la frase "hijo de... y de...". EXTRAE LOS NOMBRES COMPLETOS.
+      3. PARA "estado_civil": No pongas solo una palabra. Extrae la condición completa (ej: "Casado en primeras nupcias con Maria Perez", "Soltero", "Divorciado de...").
+      4. PARA "domicilio_real": Extrae la dirección completa (calle, número, ciudad, provincia).
+      5. PARA "fecha_escritura": Asegúrate de que el formato sea YYYY-MM-DD.
+
+      ESQUEMA JSON (ESTRICTO):
       {
-        "resumen_acto": "Breve descripción (ej: Compraventa Inmueble)",
+        "resumen_acto": "Breve descripción (ej: Compraventa de Inmueble)",
         "numero_escritura": "string o null",
         "fecha_escritura": "YYYY-MM-DD o null",
         "clientes": [
           {
-            "rol": "VENDEDOR" o "COMPRADOR",
+            "rol": "VENDEDOR" | "COMPRADOR",
             "nombre_completo": "string",
             "dni": "Solo números",
             "cuit": "Solo números o null",
-            "nacionalidad": "Ej: Argentino",
+            "nacionalidad": "Ej: Argentino/a",
             "fecha_nacimiento": "YYYY-MM-DD o null",
-            "estado_civil": "Soltero/Casado/Divorciado/Viudo",
-            "nombres_padres": "Nombres completos de los padres",
-            "conyuge": "Nombre del cónyuge o null",
-            "domicilio_real": "string",
+            "estado_civil": "Detalle completo (hijo de, casado con, etc)",
+            "nombres_padres": "Nombres de los padres si figuran",
+            "conyuge": "Nombre del cónyuge si figura",
+            "domicilio_real": "string completo",
             "email": null,
             "telefono": null
           }
         ],
         "inmuebles": [
           {
-            "partido": "Ej: Bahía Blanca",
-            "nomenclatura": "Circ, Secc, Manz, Parc...",
+            "partido": "string",
+            "nomenclatura": "string (Circ, Secc, Chacra, Manz, Parc)",
             "partida_inmobiliaria": "Solo números",
-            "transcripcion_literal": "COPIA TEXTUAL de la descripción catastral del lote",
+            "transcripcion_literal": "BLOQUE TEXTUAL COMPLETO DE DESCRIPCION Y LINDEROS",
             "valuacion_fiscal": 0
           }
         ]
       }
-
-      INSTRUCCIONES:
-      - Devuelve SOLO el JSON.
-      - Si falta un dato, usa null.
-      - No inventes información.
     `;
 
     let contents: any[] = [{ text: prompt }];
     if (isVision) {
         contents.push({ inlineData: { data: fileBuffer!.toString('base64'), mimeType: mimeType! } });
-        if (text) contents.push({ text: `Texto extraíble como referencia:\n${text.substring(0, 10000)}` });
+        if (text) contents.push({ text: `Texto extraído por OCR como referencia:\n${text.substring(0, 15000)}` });
     } else {
-        contents.push({ text: `CONTENIDO DEL DOCUMENTO:\n${text.substring(0, 40000)}` });
+        // Boost priority for relevant keywords in long texts
+        const textToProcess = text.substring(0, 45000);
+        contents.push({ text: `CONTENIDO DEL DOCUMENTO:\n${textToProcess}` });
     }
 
     const MAX_RETRIES = 3;
@@ -114,16 +114,21 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            console.log(`[AI] Intento ${attempt + 1}/${MAX_RETRIES} (${modelName})...`);
+            console.log(`[AI] Intento AGRESIVO ${attempt + 1}/${MAX_RETRIES} (${modelName})...`);
             const result = await model.generateContent(contents);
             const responseText = result.response.text();
             const cleanJson = responseText.replace(/```json|```/g, "").trim();
-            return JSON.parse(cleanJson);
+            const parsedData = JSON.parse(cleanJson);
+
+            // DEBUG MODE: Log the extracted data for production audit
+            console.log("EXTRACTED DATA (DEBUG):", JSON.stringify(parsedData, null, 2));
+
+            return parsedData;
         } catch (err: any) {
             lastError = err;
-            console.error(`[AI] Fallo ${attempt + 1}:`, err.message);
-            const isTransient = err.message?.includes("fetch failed") || err.message?.includes("503") || err.message?.includes("429");
-            if (!isTransient) break;
+            console.error(`[AI] Error en extracción:`, err.message);
+            const isTransient = err.message?.includes("fetch failed") || err.message?.includes("503") || err.message?.includes("429") || err.message?.includes("finishReason: RECITATION");
+            if (!isTransient && attempt === MAX_RETRIES - 1) break;
             if (attempt < MAX_RETRIES - 1) await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
         }
     }
@@ -136,9 +141,9 @@ export async function POST(request: Request) {
     try {
         const formData = await request.formData();
         const file = formData.get('file') as File;
-        if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
+        if (!file) return NextResponse.json({ error: "No se encontró el archivo" }, { status: 400 });
 
-        console.log(`[INGEST] Iniciando proceso robusto para: ${file.name}`);
+        console.log(`[INGEST] Overhaul Agresivo para: ${file.name}`);
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -155,22 +160,24 @@ export async function POST(request: Request) {
         try {
             aiData = await askGeminiForData(extractedText, buffer, file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : undefined));
         } catch (err: any) {
-            return NextResponse.json({ error: "Error en análisis IA", details: err.message }, { status: 500 });
+            return NextResponse.json({ error: "Error en análisis IA Agresivo", details: err.message }, { status: 500 });
         }
 
         const { clientes = [], inmuebles = [], resumen_acto, numero_escritura, fecha_escritura } = aiData;
 
-        // --- TRANSACCIÓN DE PERSISTENCIA ---
-
-        // 1. Crear Carpeta
+        // 1. Carpeta
         const { data: carpeta, error: cError } = await supabase
             .from('carpetas')
-            .insert([{ caratula: `Ingesta: ${file.name}`, estado: 'ABIERTA', resumen_ia: resumen_acto }])
+            .insert([{
+                caratula: `${resumen_acto || 'Ingesta'}: ${file.name}`,
+                estado: 'ABIERTA',
+                resumen_ia: resumen_acto
+            }])
             .select()
             .single();
         if (cError) throw new Error(`Error Carpeta: ${cError.message}`);
 
-        // 2. Procesar Inmuebles
+        // 2. Inmuebles
         const propertyIds: string[] = [];
         for (const i of inmuebles) {
             const { data, error } = await supabase.from('inmuebles').upsert({
@@ -183,7 +190,7 @@ export async function POST(request: Request) {
             if (!error && data) propertyIds.push(data.id);
         }
 
-        // 3. Crear Escritura y Operación
+        // 3. Escritura
         const { data: escritura } = await supabase.from('escrituras').insert([{
             carpeta_id: carpeta.id,
             nro_protocolo: numero_escritura,
@@ -198,11 +205,12 @@ export async function POST(request: Request) {
                 tipo_acto: resumen_acto || 'COMPRAVENTA'
             }]).select().single();
 
-            // 4. Procesar Clientes
+            // 4. Clientes
             for (const c of clientes) {
                 const taxId = c.cuit || c.dni || null;
                 if (!taxId || !c.nombre_completo) continue;
 
+                // Create Persona
                 const { data: persona } = await supabase.from('personas').upsert({
                     tax_id: normalizeID(taxId),
                     nombre_completo: toTitleCase(c.nombre_completo),
@@ -216,8 +224,8 @@ export async function POST(request: Request) {
                         padres: c.nombres_padres,
                         conyuge: c.conyuge
                     },
-                    contacto: { email: c.email, telefono: c.telefono },
-                    origen_dato: 'IA_OCR_ROBUST',
+                    contacto: { email: null, telefono: null },
+                    origen_dato: 'IA_OVERHAUL_AGRESIVO',
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'tax_id' }).select().single();
 
@@ -231,11 +239,14 @@ export async function POST(request: Request) {
             }
         }
 
-        console.log(`[INGEST] ✅ Éxito: Carpeta ${carpeta.id}`);
-        return NextResponse.json({ folderId: carpeta.id, entities: { clients: clientes.length, assets: inmuebles.length } });
+        return NextResponse.json({
+            success: true,
+            folderId: carpeta.id,
+            debug: { clients: clientes.length, assets: inmuebles.length }
+        });
 
     } catch (error: any) {
-        console.error('[INGEST] ❌ Fatal:', error);
+        console.error('[INGEST] ❌ Fatal Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

@@ -30,6 +30,14 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import { useRouter } from "next/navigation";
 
 export default function FolderWorkspace({ initialData }: { initialData: any }) {
@@ -200,20 +208,48 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-4 pt-0">
-                                    <div className="rounded-md border bg-slate-50 p-2 flex items-center justify-between">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <Home className="h-3 w-3 text-muted-foreground shrink-0" />
-                                            <p className="text-xs truncate font-medium">
-                                                {escritura.inmuebles ? `${escritura.inmuebles.partido_id} - ${escritura.inmuebles.nro_partida}` : "Sin inmueble vincul."}
-                                            </p>
+                                    <div className="rounded-md border bg-slate-50 p-2 space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                <Home className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                <p className="text-xs truncate font-medium">
+                                                    {escritura.inmuebles ? `${escritura.inmuebles.partido_id} - ${escritura.inmuebles.nro_partida}` : "Sin inmueble vincul."}
+                                                </p>
+                                            </div>
+                                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
+                                                e.stopPropagation();
+                                                setActiveDeedId(escritura.id);
+                                                setIsAssetSearchOpen(true);
+                                            }}>
+                                                <LinkIcon className="h-3 w-3" />
+                                            </Button>
                                         </div>
-                                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveDeedId(escritura.id);
-                                            setIsAssetSearchOpen(true);
-                                        }}>
-                                            <LinkIcon className="h-3 w-3" />
-                                        </Button>
+                                        {escritura.inmuebles?.transcripcion_literal && (
+                                            <Dialog>
+                                                <DialogTrigger asChild>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="w-full text-[10px] h-6 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-bold uppercase text-indigo-700"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        <FileText className="h-3 w-3" />
+                                                        Ver Transcripción Completa
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                                                    <DialogHeader>
+                                                        <DialogTitle className="text-xl font-bold text-indigo-900">Transcripción Literal</DialogTitle>
+                                                        <DialogDescription>
+                                                            Copia fiel del bloque de descripción del inmueble extraída por IA.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <div className="p-5 bg-slate-50 rounded-xl border border-indigo-100 font-serif text-sm leading-relaxed whitespace-pre-line text-slate-800 shadow-inner">
+                                                        {escritura.inmuebles.transcripcion_literal}
+                                                    </div>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -228,14 +264,14 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         </h2>
 
                         {optimisticOps.map((op: any) => (
-                            <Card key={op.id}>
-                                <CardHeader className="pb-3 border-b mb-4 bg-muted/20">
+                            <Card key={op.id} className="border-indigo-100 shadow-sm">
+                                <CardHeader className="pb-3 border-b bg-indigo-50/30">
                                     <div className="flex justify-between items-center">
                                         <div>
-                                            <CardTitle className="text-lg font-bold text-primary">{op.tipo_acto}</CardTitle>
-                                            <CardDescription>Monto: ${op.monto_operacion || "0.00"}</CardDescription>
+                                            <CardTitle className="text-xl font-black text-indigo-900 tracking-tight">{op.tipo_acto}</CardTitle>
+                                            <CardDescription className="text-indigo-600 font-medium">Monto: ${op.monto_operacion || "0.00"}</CardDescription>
                                         </div>
-                                        <Button variant="outline" size="sm" onClick={() => {
+                                        <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={() => {
                                             setActiveOpId(op.id);
                                             setIsPersonSearchOpen(true);
                                         }}>
@@ -244,56 +280,70 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         </Button>
                                     </div>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4">
-                                            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-extrabold flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                Transmitentes
-                                            </Label>
-                                            <div className="space-y-2">
-                                                {op.participantes_operacion
-                                                    ?.filter((p: any) => p.rol === "VENDEDOR")
-                                                    .map((p: any) => (
-                                                        <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-white shadow-sm ring-red-50 hover:ring-2 transition-all">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-semibold">{p.personas.nombre_completo}</span>
-                                                                <span className="text-[10px] text-muted-foreground">CUIL: {p.persona_id}</span>
-                                                            </div>
+                                <CardContent className="p-6">
+                                    <div className="space-y-8">
+                                        {/* Grid of detailed cards */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                            {op.participantes_operacion?.map((p: any) => (
+                                                <Card key={p.id} className="overflow-hidden border-slate-200 shadow-none hover:shadow-md transition-shadow">
+                                                    <div className={cn(
+                                                        "px-3 py-1.5 border-b flex justify-between items-center",
+                                                        p.rol === 'VENDEDOR' ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"
+                                                    )}>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest">{p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}</span>
+                                                        <Badge variant="outline" className="text-[9px] bg-white border-current">{p.persona_id}</Badge>
+                                                    </div>
+                                                    <CardContent className="p-4 space-y-3">
+                                                        <div className="flex justify-between items-start">
+                                                            <p className="text-base font-bold text-slate-900 leading-tight">{p.personas.nombre_completo}</p>
                                                             <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
                                                         </div>
-                                                    ))}
-                                                {op.participantes_operacion?.filter((p: any) => p.rol === "VENDEDOR").length === 0 && (
-                                                    <div className="p-3 border border-dashed rounded-lg text-center">
-                                                        <p className="text-xs text-muted-foreground italic">Ningún transmitente asignado</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-extrabold flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                Adquirentes
-                                            </Label>
-                                            <div className="space-y-2">
-                                                {op.participantes_operacion
-                                                    ?.filter((p: any) => p.rol === "COMPRADOR")
-                                                    .map((p: any) => (
-                                                        <div key={p.id} className="flex items-center justify-between p-3 rounded-lg border bg-white shadow-sm ring-blue-50 hover:ring-2 transition-all">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-semibold">{p.personas.nombre_completo}</span>
-                                                                <span className="text-[10px] text-muted-foreground">CUIL: {p.persona_id}</span>
+
+                                                        <div className="grid grid-cols-1 gap-2.5 pt-2 border-t border-slate-100">
+                                                            <div className="flex items-start gap-2">
+                                                                <Home className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Domicilio Real</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.domicilio_real?.literal || "No consta"}</p>
+                                                                </div>
                                                             </div>
-                                                            <ClientOutreach personId={p.persona_id} personName={p.personas.nombre_completo} />
+
+                                                            <div className="flex items-start gap-2">
+                                                                <FileSignature className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Estado Civil / Cónyuge</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.estado_civil_detallado?.estado || "No consta"}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-start gap-2">
+                                                                <Users className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Filiación (Padres)</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium italic leading-tight">{p.personas.estado_civil_detallado?.padres || "No consta"}</p>
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex items-start gap-2">
+                                                                <Activity className="h-3 w-3 text-muted-foreground mt-0.5 shrink-0" />
+                                                                <div className="space-y-0.5">
+                                                                    <p className="text-[9px] font-bold uppercase text-muted-foreground leading-none">Nacionalidad</p>
+                                                                    <p className="text-[11px] text-slate-700 font-medium leading-tight">{p.personas.nacionalidad || "No consta"}</p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    ))}
-                                                {op.participantes_operacion?.filter((p: any) => p.rol === "COMPRADOR").length === 0 && (
-                                                    <div className="p-3 border border-dashed rounded-lg text-center">
-                                                        <p className="text-xs text-muted-foreground italic">Ningún adquirente asignado</p>
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    </CardContent>
+                                                </Card>
+                                            ))}
                                         </div>
+
+                                        {op.participantes_operacion?.length === 0 && (
+                                            <div className="p-12 border-2 border-dashed rounded-xl text-center bg-slate-50/50">
+                                                <Users className="h-8 w-8 text-slate-300 mx-auto mb-3" />
+                                                <p className="text-sm text-slate-500 font-medium">No hay participantes vinculados a esta operación</p>
+                                                <p className="text-xs text-slate-400 mt-1">Haga clic en 'Vincular Persona' para comenzar</p>
+                                            </div>
+                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
