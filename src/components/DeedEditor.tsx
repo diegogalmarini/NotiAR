@@ -138,20 +138,25 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
 
                             <div className="space-y-3">
                                 <p className="font-bold text-indigo-700">Personas Vinculadas:</p>
-                                {dataSummary.operaciones?.[0]?.participantes_operacion?.map((p: any) => (
-                                    <div key={p.id} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm space-y-1">
-                                        <p className="font-bold text-slate-900 text-[11px]">{p.persona.nombre_completo}</p>
-                                        <div className="flex justify-between items-center">
-                                            <Badge variant="outline" className="text-[8px] py-0 px-1 bg-indigo-50 text-indigo-700 border-indigo-100">{p.rol}</Badge>
-                                            <span className="text-[8px] font-mono opacity-60">{p.persona.tax_id}</span>
+                                {dataSummary.operaciones?.[0]?.participantes_operacion?.map((p: any) => {
+                                    const person = p.persona || p.personas;
+                                    if (!person) return null;
+
+                                    return (
+                                        <div key={p.id} className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm space-y-1">
+                                            <p className="font-bold text-slate-900 text-[11px]">{person.nombre_completo}</p>
+                                            <div className="flex justify-between items-center">
+                                                <Badge variant="outline" className="text-[8px] py-0 px-1 bg-indigo-50 text-indigo-700 border-indigo-100">{p.rol}</Badge>
+                                                <span className="text-[8px] font-mono opacity-60">{person.tax_id || p.persona_id}</span>
+                                            </div>
+                                            <div className="text-[10px] space-y-0.5 pt-1 border-t mt-1 border-slate-100">
+                                                <p className="text-slate-600 truncate"><span className="font-semibold text-indigo-500">📍</span> {person.domicilio_real?.literal || "No consta"}</p>
+                                                <p className="text-slate-600 italic"><span className="font-semibold text-indigo-500">👪</span> {person.nombres_padres || person.estado_civil_detallado?.padres || "Filiación pendiente"}</p>
+                                                <p className="text-slate-600"><span className="font-semibold text-indigo-500">💍</span> {person.estado_civil_detalle || person.estado_civil_detallado?.estado || "Civil pendiente"}</p>
+                                            </div>
                                         </div>
-                                        <div className="text-[10px] space-y-0.5 pt-1 border-t mt-1 border-slate-100">
-                                            <p className="text-slate-600 truncate"><span className="font-semibold text-indigo-500">📍</span> {p.persona.domicilio_real?.literal || "No consta"}</p>
-                                            <p className="text-slate-600 italic"><span className="font-semibold text-indigo-500">👪</span> {p.persona.nombres_padres || p.persona.estado_civil_detallado?.padres || "Filiación pendiente"}</p>
-                                            <p className="text-slate-600"><span className="font-semibold text-indigo-500">💍</span> {p.persona.estado_civil_detalle || p.persona.estado_civil_detallado?.estado || "Civil pendiente"}</p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
 
                             <div className="p-3 bg-amber-50 rounded-lg border border-amber-100 italic text-[10px] text-amber-800 leading-relaxed shadow-sm">
