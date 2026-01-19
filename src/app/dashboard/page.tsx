@@ -16,6 +16,7 @@ import { revalidatePath } from "next/cache";
 import { ExpiringDeedsAlert } from "@/components/ExpiringDeedsAlert";
 import { MagicDropzone } from "@/components/MagicDropzone";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 export default async function DashboardPage() {
     const { data: carpetas, error } = await supabase
