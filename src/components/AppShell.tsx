@@ -1,0 +1,126 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+    LayoutDashboard,
+    FolderKanban,
+    Users,
+    Building2,
+    Calendar,
+    Settings,
+    LogOut,
+    Menu,
+    X,
+    ChevronLeft,
+    ChevronRight
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+const menuItems = [
+    { name: "Inicio", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Carpetas", href: "/carpetas", icon: FolderKanban },
+    { name: "Clientes", href: "/clientes", icon: Users },
+    { name: "Inmuebles", href: "/inmuebles", icon: Building2 },
+    { name: "Agenda", href: "/agenda", icon: Calendar },
+    { name: "Configuración", href: "/configuracion", icon: Settings },
+];
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+    // Don't show shell on login/signup/public pages
+    const isPublicPage = ["/login", "/signup", "/pending-approval", "/unauthorized"].includes(pathname) ||
+        pathname.startsWith("/ficha/") ||
+        pathname.startsWith("/auth/");
+
+    if (isPublicPage) {
+        return <>{children}</>;
+    }
+
+    return (
+        <div className="flex h-screen bg-slate-50 overflow-hidden">
+            {/* Mobile Header */}
+            <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b flex items-center justify-between px-4 z-50">
+                <span className="font-bold text-xl text-primary">NotiAr</span>
+                <Button variant="ghost" size="icon" onClick={() => setIsMobileOpen(!isMobileOpen)}>
+                    {isMobileOpen ? <X /> : <Menu />}
+                </Button>
+            </div>
+
+            {/* Sidebar */}
+            <aside
+                className={cn(
+                    "fixed inset-y-0 left-0 z-40 bg-white border-r transition-all duration-300 transform lg:relative lg:translate-x-0",
+                    isCollapsed ? "w-20" : "w-64",
+                    isMobileOpen ? "translate-x-0" : "-translate-x-full"
+                )}
+            >
+                <div className="flex flex-col h-full">
+                    {/* Header */}
+                    <div className="h-16 flex items-center justify-between px-6 border-b shrink-0">
+                        {!isCollapsed && <span className="font-bold text-xl text-primary">NotiAr</span>}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="hidden lg:flex"
+                            onClick={() => setIsCollapsed(!isCollapsed)}
+                        >
+                            {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+                        </Button>
+                    </div>
+
+                    {/* Navigation */}
+                    <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+                        {menuItems.map((item) => {
+                            const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    className={cn(
+                                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors group",
+                                        isActive
+                                            ? "bg-primary text-primary-foreground shadow-sm"
+                                            : "text-slate-600 hover:bg-slate-100"
+                                    )}
+                                    onClick={() => setIsMobileOpen(false)}
+                                >
+                                    <item.icon size={20} className={cn("shrink-0", isActive ? "" : "group-hover:text-primary")} />
+                                    {!isCollapsed && <span className="font-medium whitespace-nowrap">{item.name}</span>}
+                                </Link>
+                            );
+                        })}
+                    </nav>
+
+                    {/* Footer / User */}
+                    <div className="p-4 border-t shrink-0">
+                        <Button variant="ghost" className={cn("w-full flex items-center justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50 px-3")}>
+                            <LogOut size={20} className="shrink-0" />
+                            {!isCollapsed && <span className="font-medium">Cerrar Sesión</span>}
+                        </Button>
+                    </div>
+                </div>
+            </aside>
+
+            {/* Backdrop for mobile */}
+            {isMobileOpen && (
+                <div
+                    className="fixed inset-0 bg-black/20 z-30 lg:hidden backdrop-blur-sm"
+                    onClick={() => setIsMobileOpen(false)}
+                />
+            )}
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto h-full pt-16 lg:pt-0">
+                <div className="mx-auto max-w-7xl min-h-full">
+                    {children}
+                </div>
+            </main>
+        </div>
+    );
+}
