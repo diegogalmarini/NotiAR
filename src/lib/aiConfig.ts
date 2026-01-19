@@ -7,11 +7,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  * - INGEST: Returns gemini-1.5-pro-latest for superior vision/OCR.
  * - DRAFT/DEFAULT: Returns gemini-2.0-flash-exp for speed and cost-efficiency.
  */
-export async function getLatestModel(taskType?: 'INGEST' | 'DRAFT') {
+export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT') {
     if (taskType === 'INGEST') {
-        return "gemini-1.5-pro-latest";
+        // Flash is significantly faster (usually < 5s),
+        // avoiding the 10s Vercel Hobby timeout that Pro often hits.
+        return "gemini-1.5-flash-latest";
     }
-
-    // Default to latest Flash for speed
-    return "gemini-2.0-flash-exp";
+    return "gemini-1.5-flash-latest";
 }

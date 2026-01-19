@@ -201,6 +201,11 @@ export async function POST(request: Request) {
         // 2. AI Extraction
         let aiData;
         try {
+            if (!process.env.GEMINI_API_KEY) {
+                console.error("[INGEST] Missing GEMINI_API_KEY");
+                return NextResponse.json({ error: "Configuración de IA incompleta (Falta API Key)." }, { status: 500 });
+            }
+
             // Validate extracted text before sending to AI (if not PDF)
             if (!fileName.endsWith('.pdf') && (!extractedText || extractedText.trim().length < 50)) {
                 return NextResponse.json({
@@ -213,13 +218,21 @@ export async function POST(request: Request) {
                 buffer,
                 file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : undefined)
             );
-            console.log(`[AI] Response entities: ${aiData.clientes?.length || 0} clients, ${aiData.inmuebles?.length || 0} assets.`);
-        } catch (err) {
+            console.log(`[AI] Response entities: ${aiData?.clientes?.length || 0} clients, ${aiData?.inmuebles?.length || 0} assets.`);
+
+            if (!aiData || typeof aiData !== 'object') {
+                throw new Error("La IA no devolvió un formato válido.");
+            }
+        } catch (err: any) {
             console.error("[AI] Error during analysis:", err);
-            return NextResponse.json({ error: "Error en el análisis de IA del documento." }, { status: 500 });
+            return NextResponse.json({
+                error: "Error en el análisis de IA del documento.",
+                details: err.message?.substring(0, 100) || "Error desconocido"
+            }, { status: 500 });
         }
 
-        const { clientes = [], inmuebles = [] } = aiData;
+        const clientes = aiData.clientes || [];
+        const inmuebles = aiData.inmuebles || [];
 
         // 3. Create Folder
         const { data: carpeta, error: cError } = await supabase
