@@ -313,84 +313,105 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     </div>
                                                     {(() => {
                                                         const person = p.persona || p.personas;
-                                                        if (!person) return <p className="text-red-500 text-xs">Error: Datos de persona no encontrados</p>;
+                                                        if (!person) return <p className="text-red-500 text-xs text-center py-4">Error: Datos de persona no vinculados</p>;
 
                                                         return (
-                                                            <>
-                                                                <div className="flex justify-between items-start">
-                                                                    <div className="space-y-1">
-                                                                        <p className="text-lg font-bold text-slate-900 leading-tight">{person.nombre_completo}</p>
-                                                                        <div className="flex gap-2 items-center">
-                                                                            <Badge variant="secondary" className="text-[10px] font-bold py-0 h-5">
+                                                            <div className="p-4 space-y-4">
+                                                                {/* Header with Name and Actions */}
+                                                                <div className="flex justify-between items-start gap-4">
+                                                                    <div className="space-y-1 overflow-hidden">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <p className="text-lg font-black text-slate-900 leading-tight truncate">{person.nombre_completo}</p>
+                                                                            <Badge variant="secondary" className="text-[10px] font-bold py-0 h-5 shrink-0 bg-indigo-50 text-indigo-700 border-indigo-100">
                                                                                 {p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}
                                                                             </Badge>
-                                                                            <span className="text-[10px] font-mono text-slate-400">{person.tax_id || p.persona_id}</span>
                                                                         </div>
+                                                                        <p className="text-[11px] font-mono text-slate-400">DNI/ID: {person.tax_id || person.dni || p.persona_id}</p>
                                                                     </div>
-                                                                    <div className="flex gap-1">
+                                                                    <div className="flex items-center gap-1 shrink-0">
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="icon"
-                                                                            className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                                                                            onClick={() => setEditingPerson(person)}
+                                                                            className="h-9 w-9 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                                            onClick={(e) => { e.stopPropagation(); setEditingPerson(person); }}
                                                                         >
                                                                             <Pencil className="h-4 w-4" />
                                                                         </Button>
                                                                         <Button
                                                                             variant="ghost"
                                                                             size="icon"
-                                                                            className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                                            onClick={() => handleUnlinkPerson(p.id)}
+                                                                            className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                                            onClick={(e) => { e.stopPropagation(); handleUnlinkPerson(p.id); }}
                                                                         >
                                                                             <Trash2 className="h-4 w-4" />
                                                                         </Button>
                                                                     </div>
                                                                 </div>
 
-                                                                <div className="grid grid-cols-1 gap-3 pt-3 border-t border-slate-100">
+                                                                {/* Body: Notary Details */}
+                                                                <div className="grid grid-cols-1 gap-2.5 pt-3 border-t border-slate-100">
+                                                                    {/* Nationality and Birth */}
+                                                                    <div className="flex items-center gap-3">
+                                                                        <Activity className="h-4 w-4 text-indigo-500 shrink-0" />
+                                                                        <div className="flex gap-4">
+                                                                            <div className="space-y-0.5">
+                                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacionalidad</p>
+                                                                                <p className="text-xs text-slate-700 font-bold">{person.nacionalidad || "No consta"}</p>
+                                                                            </div>
+                                                                            <div className="space-y-0.5">
+                                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacimiento</p>
+                                                                                <p className="text-xs text-slate-700 font-bold">{person.fecha_nacimiento || "No consta"}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Address */}
                                                                     <div className="flex items-start gap-3">
                                                                         <Home className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                         <div className="space-y-0.5">
-                                                                            <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Domicilio Real</p>
-                                                                            <p className="text-xs text-slate-700 font-medium leading-tight">
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Domicilio Real</p>
+                                                                            <p className="text-xs text-slate-700 font-medium leading-tight italic">
                                                                                 {person.domicilio_real?.literal || "No consta en el documento"}
                                                                             </p>
                                                                         </div>
                                                                     </div>
 
+                                                                    {/* Marital Status and Spouse */}
                                                                     <div className="flex items-start gap-3">
                                                                         <FileSignature className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
-                                                                        <div className="space-y-0.5">
-                                                                            <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Estado Civil / Cónyuge</p>
-                                                                            <p className="text-xs text-slate-700 font-medium leading-tight">
-                                                                                {person.estado_civil_detalle || person.estado_civil_detallado?.estado || "No consta"}
-                                                                                {person.datos_conyuge?.nombre ? ` — Cónyuge: ${person.datos_conyuge.nombre}` : ""}
-                                                                            </p>
+                                                                        <div className="space-y-1">
+                                                                            <div className="space-y-0.5">
+                                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Estado Civil</p>
+                                                                                <p className="text-xs text-slate-700 font-bold leading-tight uppercase">
+                                                                                    {person.estado_civil_detalle || person.estado_civil || person.estado_civil_detallado?.estado || "No consta"}
+                                                                                </p>
+                                                                            </div>
+                                                                            {person.datos_conyuge?.nombre && (
+                                                                                <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border border-slate-100 rounded">
+                                                                                    <span className="text-[10px] font-bold text-indigo-600">Cónyuge:</span>
+                                                                                    <span className="text-xs text-slate-700 font-medium">{person.datos_conyuge.nombre}</span>
+                                                                                </div>
+                                                                            )}
                                                                         </div>
                                                                     </div>
 
+                                                                    {/* Parents (Filiation) */}
                                                                     <div className="flex items-start gap-3">
                                                                         <Users className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                         <div className="space-y-0.5">
-                                                                            <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Filiación (Padres)</p>
-                                                                            <p className="text-xs text-slate-700 font-medium italic leading-tight">
-                                                                                {person.nombres_padres || person.estado_civil_detallado?.padres || "Filiación no informada"}
+                                                                            <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Hijo de:</p>
+                                                                            <p className="text-xs text-slate-700 font-bold leading-tight">
+                                                                                {person.nombres_padres || person.estado_civil_detallado?.padres || "No informado"}
                                                                             </p>
                                                                         </div>
                                                                     </div>
-
-                                                                    <div className="flex items-start gap-3">
-                                                                        <Activity className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
-                                                                        <div className="space-y-0.5">
-                                                                            <p className="text-[10px] font-bold uppercase text-slate-400 leading-none">Nacionalidad</p>
-                                                                            <p className="text-xs text-slate-700 font-medium leading-tight">{person.nacionalidad || "No consta"}</p>
-                                                                        </div>
-                                                                    </div>
                                                                 </div>
+
+                                                                {/* Footer Action */}
                                                                 <div className="pt-2 border-t border-slate-50 flex justify-end">
                                                                     <ClientOutreach personId={p.persona_id} personName={person.nombre_completo} />
                                                                 </div>
-                                                            </>
+                                                            </div>
                                                         );
                                                     })()}
                                                 </Card>
