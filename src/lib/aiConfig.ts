@@ -9,9 +9,8 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  */
 export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT') {
     if (taskType === 'INGEST') {
-        // Flash is significantly faster (usually < 5s),
-        // avoiding the 10s Vercel Hobby timeout that Pro often hits.
-        return "gemini-1.5-flash";
+        // Gemini 2.0 Flash is ultra-fast and reliable in v1beta as of now.
+        return "gemini-2.0-flash-exp";
     }
-    return "gemini-1.5-flash";
+    return "gemini-2.0-flash-exp";
 }
