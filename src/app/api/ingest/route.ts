@@ -16,6 +16,10 @@ async function getMammoth() {
     return await import("mammoth");
 }
 
+async function getWordExtractor() {
+    return await import("word-extractor") as any;
+}
+
 async function extractTextFromFile(file: File): Promise<string> {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
@@ -35,28 +39,80 @@ async function extractTextFromFile(file: File): Promise<string> {
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
     } else if (fileName.endsWith('.doc')) {
-        throw new Error("El formato .doc no es compatible. Use .docx o .pdf.");
+        try {
+            const WordExtractor = (await getWordExtractor()) as any;
+            const extractor = new WordExtractor.default();
+            const doc = await extractor.extract(buffer);
+            return doc.getBody();
+        } catch (err: any) {
+            console.error("Error parsing .doc:", err);
+            throw new Error(`Error al leer el archivo .doc: ${err.message}`);
+        }
     } else {
-        throw new Error("Formato de archivo no compatible. Use PDF o DOCX.");
+        throw new Error("Formato de archivo no compatible. Use PDF, DOC o DOCX.");
     }
 }
 
-async function askGeminiForData(text: string) {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: string) {
+    // Upgraded to 1.5 Pro for maximum precision as requested by user
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+
+    let contents: any[] = [];
+
     const prompt = `
-    Eres un experto en lectura de documentos notariales argentinos.
-    Extrae la siguiente información del texto en JSON puro, sin markdown:
-    - Persona principal: { "tax_id": "...", "nombre_completo": "...", "nacionalidad": "...", "fecha_nacimiento": "..." }
-    - Inmueble: { "partido_id": "...", "nro_partida": "...", "nomenclatura_catastral": { ... } }
-    - Operación: { "tipo_acto": "...", "rol": "..." }
+    Eres un experto en lectura de documentos notariales argentinos (escrituras, minutas, etc).
+    Tu tarea es extraer información precisa y estructurada en formato JSON puro, sin bloques de código markdown.
+    
+    INSTRUCCIONES CRÍTICAS:
+    1. Si el documento es un escaneo de baja calidad, usa tus capacidades de visión para interpretar cada palabra.
+    2. Identifica correctamente nombres, DNI/CUIT (tax_id), estados civiles y fechas.
+    3. Para inmuebles, busca: Partido, Partida y Nomenclatura Catastral (Circ, Secc, Chacra, Quinta, Fraccion, Manzana, Parcela, Subparcela).
+    4. Identifica el acto (ej. COMPRAVENTA, HIPOTECA) y el rol del participante (ej. VENDEDOR, COMPRADOR).
+
+    Extrae en este formato:
+    {
+      "persona": { "tax_id": "...", "nombre_completo": "...", "nacionalidad": "...", "fecha_nacimiento": "..." },
+      "inmueble": { "partido_id": "...", "nro_partida": "...", "nomenclatura_catastral": { ... } },
+      "operacion": { "tipo_acto": "...", "rol": "..." }
+    }
+    
     Si no encuentras un dato, usa null.
-    TEXTO:
-    ${text.substring(0, 15000)}
     `;
 
-    const result = await model.generateContent(prompt);
-    const cleanJson = result.response.text().replace(/```json|```/g, "").trim();
-    return JSON.parse(cleanJson);
+    if (fileBuffer && mimeType === 'application/pdf') {
+        // Multimodal path for PDFs (better for OCR)
+        contents = [
+            { text: prompt },
+            {
+                inlineData: {
+                    data: fileBuffer.toString('base64'),
+                    mimeType: mimeType
+                }
+            }
+        ];
+
+        // Add text as additional context if available and short
+        if (text && text.length > 0) {
+            contents.push({ text: `Contexto de texto extraído (puede ser incompleto si es escaneado):\n${text.substring(0, 5000)}` });
+        }
+    } else {
+        // Standard text path for DOC/DOCX
+        contents = [{ text: `${prompt}\n\nTEXTO DEL DOCUMENTO:\n${text.substring(0, 30000)}` }];
+    }
+
+    const result = await model.generateContent(contents);
+    const responseText = result.response.text();
+    const cleanJson = responseText.replace(/```json|```/g, "").trim();
+
+    try {
+        return JSON.parse(cleanJson);
+    } catch (e) {
+        console.error("JSON Parse Error. Raw response:", responseText);
+        // Fallback or attempt to fix common issues
+        const match = responseText.match(/\{[\s\S]*\}/);
+        if (match) return JSON.parse(match[0]);
+        throw e;
+    }
 }
 
 export async function GET() {
@@ -96,17 +152,25 @@ export async function POST(request: Request) {
 
         console.log(`[INGEST] Processing file: ${file.name} (${file.size} bytes)`);
 
-        // 1. Extract Text
-        let extractedText = await extractTextFromFile(file);
+        // 1. Extract Text (Fallback for PDFs, primary for DOC/DOCX)
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
 
-        if (!extractedText || extractedText.trim().length === 0) {
-            throw new Error("No se pudo extraer texto del archivo.");
+        let extractedText = "";
+        try {
+            extractedText = await extractTextFromFile(file);
+        } catch (err) {
+            console.warn("[INGEST] Text extraction failed, will rely on multimodal if PDF:", err);
         }
 
         // 2. AI Extraction
         let aiData;
         try {
-            aiData = await askGeminiForData(extractedText);
+            aiData = await askGeminiForData(
+                extractedText,
+                buffer,
+                file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : undefined)
+            );
         } catch (err) {
             console.error("AI error:", err);
             aiData = { persona: null, inmueble: null, operacion: { tipo_acto: 'COMPRAVENTA', rol: 'VENDEDOR' } };
