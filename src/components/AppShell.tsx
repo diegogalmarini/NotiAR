@@ -14,12 +14,14 @@ import {
     Menu,
     X,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/lib/supabaseClient";
 
-const menuItems = [
+const baseMenuItems = [
     { name: "Inicio", href: "/dashboard", icon: LayoutDashboard },
     { name: "Carpetas", href: "/carpetas", icon: FolderKanban },
     { name: "Clientes", href: "/clientes", icon: Users },
@@ -32,6 +34,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
+    const [isAdmin, setIsAdmin] = useState(false);
+
+    React.useEffect(() => {
+        const checkAdmin = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from("user_profiles")
+                    .select("role")
+                    .eq("id", user.id)
+                    .single();
+
+                if (profile?.role === "admin") {
+                    setIsAdmin(true);
+                }
+            }
+        };
+        checkAdmin();
+    }, []);
+
+    const menuItems = isAdmin
+        ? [...baseMenuItems, { name: "Administración", href: "/admin/users", icon: Shield }]
+        : baseMenuItems;
 
     // Don't show shell on login/signup/public pages
     const isPublicPage = ["/login", "/signup", "/pending-approval", "/unauthorized"].includes(pathname) ||
