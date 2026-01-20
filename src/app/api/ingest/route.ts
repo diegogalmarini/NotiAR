@@ -235,13 +235,17 @@ export async function POST(request: Request) {
             if (uploadError) {
                 console.error("[INGEST] Error uploading file:", uploadError);
             } else {
-                // Get public URL
-                const { data: { publicUrl } } = supabase.storage
+                // Generate signed URL with expiration (1 year = 31536000 seconds)
+                const { data: signedUrlData, error: urlError } = await supabase.storage
                     .from('escrituras')
-                    .getPublicUrl(storagePath);
+                    .createSignedUrl(storagePath, 31536000); // 1 year expiration
 
-                fileUrl = publicUrl;
-                console.log("[INGEST] File uploaded successfully:", fileUrl);
+                if (urlError) {
+                    console.error("[INGEST] Error generating signed URL:", urlError);
+                } else if (signedUrlData) {
+                    fileUrl = signedUrlData.signedUrl;
+                    console.log("[INGEST] File uploaded successfully with signed URL");
+                }
             }
         } catch (uploadErr: any) {
             console.error("[INGEST] Error in file upload:", uploadErr);

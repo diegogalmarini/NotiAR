@@ -1,6 +1,6 @@
--- Crear bucket de storage para documentos de escrituras
+-- Crear bucket de storage PRIVADO para documentos de escrituras
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('escrituras', 'escrituras', true)
+VALUES ('escrituras', 'escrituras', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- Permitir que cualquiera pueda leer archivos
