@@ -1,7 +1,7 @@
 "use client";
 
 import { supabase } from "@/lib/supabaseClient";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
     Table,
     TableBody,
@@ -19,33 +19,35 @@ import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
+import { formatDateInstructions } from "@/lib/utils";
 
 export default function ClientesPage() {
     const [personas, setPersonas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        async function fetchPersonas() {
-            try {
-                const { data, error } = await supabase
-                    .from("personas")
-                    .select("*")
-                    .order("nombre_completo", { ascending: true });
+    const fetchPersonas = useCallback(async () => {
+        try {
+            const { data, error } = await supabase
+                .from("personas")
+                .select("*")
+                .order("nombre_completo", { ascending: true });
 
-                if (error) {
-                    console.error("Error fetching personas:", error);
-                } else if (data) {
-                    console.log("Fetched", data.length, "personas");
-                    setPersonas(data);
-                }
-            } catch (err) {
-                console.error("Exception fetching personas:", err);
-            } finally {
-                setLoading(false);
+            if (error) {
+                console.error("Error fetching personas:", error);
+            } else if (data) {
+                console.log("Fetched", data.length, "personas");
+                setPersonas(data);
             }
+        } catch (err) {
+            console.error("Exception fetching personas:", err);
+        } finally {
+            setLoading(false);
         }
-        fetchPersonas();
     }, []);
+
+    useEffect(() => {
+        fetchPersonas();
+    }, [fetchPersonas]);
 
     if (loading) {
         return (
@@ -84,7 +86,7 @@ export default function ClientesPage() {
                         <TableHeader>
                             <TableRow>
                                 <TableHead>Nombre Completo</TableHead>
-                                <TableHead>Identificación (Tax ID)</TableHead>
+                                <TableHead>DNI</TableHead>
                                 <TableHead>Contacto</TableHead>
                                 <TableHead>Origen</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
@@ -94,7 +96,14 @@ export default function ClientesPage() {
                             {personas?.map((persona) => (
                                 <TableRow key={persona.tax_id} className="group">
                                     <TableCell className="font-semibold">
-                                        {persona.nombre_completo}
+                                        <div className="flex flex-col">
+                                            <span>{persona.nombre_completo}</span>
+                                            {persona.fecha_nacimiento && (
+                                                <span className="text-xs text-muted-foreground font-normal">
+                                                    Nac: {formatDateInstructions(persona.fecha_nacimiento)}
+                                                </span>
+                                            )}
+                                        </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-sm">
                                         {persona.tax_id}
@@ -122,7 +131,11 @@ export default function ClientesPage() {
                                         <div className="flex justify-end gap-2">
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />
-                                            <DeleteClienteDialog personaId={persona.tax_id} personaNombre={persona.nombre_completo} />
+                                            <DeleteClienteDialog
+                                                personaId={persona.tax_id}
+                                                personaNombre={persona.nombre_completo}
+                                                onClienteDeleted={fetchPersonas}
+                                            />
                                         </div>
                                     </TableCell>
                                 </TableRow>

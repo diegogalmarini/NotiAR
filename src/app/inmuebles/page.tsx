@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Building2, Edit2, MapPinned, FileSearch } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { NuevoInmuebleDialog } from "@/components/NuevoInmuebleDialog";
+import { VerInmuebleDialog, DownloadInmuebleButton } from "@/components/VerInmuebleDialog";
 
 export default function InmueblesPage() {
     const [inmuebles, setInmuebles] = useState<any[]>([]);
@@ -79,41 +80,40 @@ export default function InmueblesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Partido / Dpto</TableHead>
-                                <TableHead>Nro. Partida</TableHead>
-                                <TableHead>Nomenclatura</TableHead>
+                                <TableHead className="w-[200px]">Partido / Dpto</TableHead>
+                                <TableHead className="w-[120px]">Nro. Partida</TableHead>
+                                <TableHead className="w-[250px]">Nomenclatura</TableHead>
                                 <TableHead>Transcripción Literal</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
+                                <TableHead className="text-right w-[100px]">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {inmuebles?.map((inmueble) => (
                                 <TableRow key={inmueble.id} className="group">
-                                    <TableCell className="font-semibold">
+                                    <TableCell className="font-semibold align-top">
                                         <div className="flex items-center gap-2">
-                                            <MapPinned className="h-4 w-4 text-blue-600" />
+                                            <MapPinned className="h-4 w-4 text-blue-600 shrink-0" />
                                             {inmueble.partido_id || 'N/A'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono text-sm">
+                                    <TableCell className="font-mono text-sm align-top">
                                         {inmueble.nro_partida || 'N/A'}
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm">
+                                    <TableCell className="align-top">
+                                        <div className="text-sm line-clamp-3">
                                             {inmueble.nomenclatura || 'Sin nomenclatura'}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm text-muted-foreground line-clamp-2">
-                                            {inmueble.transcripcion_literal ?
-                                                inmueble.transcripcion_literal.substring(0, 100) + '...' :
-                                                'No disponible'}
+                                    <TableCell className="align-top">
+                                        <div className="text-sm text-muted-foreground line-clamp-2 max-w-md" title={inmueble.transcripcion_literal}>
+                                            {inmueble.transcripcion_literal || 'No disponible'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon">
-                                            <FileSearch className="h-4 w-4" />
-                                        </Button>
+                                    <TableCell className="text-right align-top">
+                                        <div className="flex justify-end items-center gap-1">
+                                            <VerInmuebleDialog inmueble={inmueble} />
+                                            <DownloadInmuebleButton inmueble={inmueble} />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

@@ -21,9 +21,10 @@ import { useRouter } from "next/navigation";
 interface DeleteClienteDialogProps {
     personaId: string;
     personaNombre: string;
+    onClienteDeleted?: () => void;
 }
 
-export function DeleteClienteDialog({ personaId, personaNombre }: DeleteClienteDialogProps) {
+export function DeleteClienteDialog({ personaId, personaNombre, onClienteDeleted }: DeleteClienteDialogProps) {
     const [loading, setLoading] = useState(false);
     const router = useRouter();
 
@@ -34,7 +35,11 @@ export function DeleteClienteDialog({ personaId, personaNombre }: DeleteClienteD
 
         if (res.success) {
             toast.success("Cliente eliminado correctamente");
-            router.refresh();
+            if (onClienteDeleted) {
+                onClienteDeleted();
+            } else {
+                router.refresh();
+            }
         } else {
             toast.error(res.error || "Error al eliminar el cliente");
         }
