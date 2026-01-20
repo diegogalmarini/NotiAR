@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
+import { supabase } from '@/lib/supabaseClient';
+import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getLatestModel } from '@/lib/aiConfig';
