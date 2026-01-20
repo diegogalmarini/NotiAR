@@ -216,6 +216,38 @@ export async function POST(request: Request) {
             if (error) console.error("[INGEST] Error Inserting Inmueble:", error);
         }
 
+        // Upload document to Supabase Storage
+        let fileUrl: string | null = null;
+        try {
+            // Generate unique filename with timestamp
+            const timestamp = Date.now();
+            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const storagePath = `documents/${timestamp}_${safeFileName}`;
+
+            // Upload to Supabase Storage
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('escrituras')
+                .upload(storagePath, buffer, {
+                    contentType: file.type,
+                    upsert: false
+                });
+
+            if (uploadError) {
+                console.error("[INGEST] Error uploading file:", uploadError);
+            } else {
+                // Get public URL
+                const { data: { publicUrl } } = supabase.storage
+                    .from('escrituras')
+                    .getPublicUrl(storagePath);
+
+                fileUrl = publicUrl;
+                console.log("[INGEST] File uploaded successfully:", fileUrl);
+            }
+        } catch (uploadErr: any) {
+            console.error("[INGEST] Error in file upload:", uploadErr);
+            // Continue even if upload fails
+        }
+
         // 3. Escritura
         const nroProtocolo = numero_escritura ? parseInt(numero_escritura, 10) : null;
         const { data: escritura, error: escError } = await supabase.from('escrituras').insert([{
@@ -225,7 +257,8 @@ export async function POST(request: Request) {
             inmueble_princ_id: propertyIds[0] || null,
             contenido_borrador: `Borrador generado para: ${resumen_acto}`,
             notario_interviniente: notario_interviniente || null,
-            registro: registro_notario || null
+            registro: registro_notario || null,
+            pdf_url: fileUrl // Save the uploaded file URL
         }]).select().single();
 
 
