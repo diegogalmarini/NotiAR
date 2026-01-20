@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useOptimistic, useTransition } from "react";
+import { useState, useOptimistic, useTransition, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,13 @@ import { useRouter } from "next/navigation";
 
 export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [carpeta, setCarpeta] = useState(initialData);
+
+    // Sync local state when initialData changes (e.g., after router.refresh())
+    useEffect(() => {
+        console.log("🔄 FolderWorkspace: Syncing state with new initialData");
+        setCarpeta(initialData);
+    }, [initialData]);
+
     const [isPersonSearchOpen, setIsPersonSearchOpen] = useState(false);
     const [isAssetSearchOpen, setIsAssetSearchOpen] = useState(false);
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
