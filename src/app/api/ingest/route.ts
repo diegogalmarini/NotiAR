@@ -79,6 +79,9 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
         "resumen_acto": "string (ej: COMPRAVENTA)",
         "numero_escritura": "string o null",
         "fecha_escritura": "YYYY-MM-DD o null",
+        "notario_interviniente": "string o null (nombre completo del escribano que autorizó el documento)",
+        "registro_notario": "string o null (número de registro del escribano)",
+        "numero_acto": "string o null (número del acto registrado)",
         "clientes": [
           {
             "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE" | "REPRESENTANTE",
@@ -106,6 +109,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
         ]
       }
     `;
+
 
     let contents: any[] = [{ text: prompt }];
     if (isVision) {
@@ -170,7 +174,8 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Error en análisis IA Agresivo", details: err.message }, { status: 500 });
         }
 
-        const { clientes = [], inmuebles = [], resumen_acto, numero_escritura, fecha_escritura } = aiData;
+        const { clientes = [], inmuebles = [], resumen_acto, numero_escritura, fecha_escritura, notario_interviniente, registro_notario, numero_acto } = aiData;
+
 
         // 1. Carpeta
         const { data: carpeta, error: cError } = await supabase
@@ -209,8 +214,11 @@ export async function POST(request: Request) {
             nro_protocolo: isNaN(nroProtocolo!) ? null : nroProtocolo,
             fecha_escritura: fecha_escritura,
             inmueble_princ_id: propertyIds[0] || null,
-            contenido_borrador: `Borrador generado para: ${resumen_acto}`
+            contenido_borrador: `Borrador generado para: ${resumen_acto}`,
+            notario_interviniente: notario_interviniente || null,
+            registro: registro_notario || null
         }]).select().single();
+
 
         if (escError) {
             console.error("[INGEST] Error creating escritura:", escError);
@@ -220,8 +228,10 @@ export async function POST(request: Request) {
         if (escritura) {
             const { data: operacion } = await supabase.from('operaciones').insert([{
                 escritura_id: escritura.id,
-                tipo_acto: resumen_acto || 'COMPRAVENTA'
+                tipo_acto: resumen_acto || 'COMPRAVENTA',
+                nro_acto: numero_acto || null
             }]).select().single();
+
 
             // 4. Clientes & Fichas
             for (const c of clientes) {

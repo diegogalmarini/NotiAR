@@ -264,8 +264,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         {/* Escribano */}
                                         <div>
                                             <p className="text-[10px] font-semibold uppercase text-slate-400">Escribano</p>
-                                            <p className="text-slate-700">{escritura.escribano || "No especificado"}</p>
+                                            <p className="text-slate-700">{escritura.notario_interviniente || "No especificado"}</p>
                                         </div>
+
 
                                         {/* Registro */}
                                         <div>
