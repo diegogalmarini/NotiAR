@@ -396,7 +396,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                             if (!person) return <p className="text-red-500 text-xs text-center py-4">Error: Datos de persona no vinculados</p>;
 
                                             return (
-                                                <div className="p-4 space-y-2">
+                                                <div className="p-4 pt-2 space-y-2">
                                                     {/* Full Name */}
                                                     <h3 className="text-base font-bold text-slate-800">{person.nombre_completo}</h3>
 
@@ -456,9 +456,26 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         </div>
                                                     </div>
 
-                                                    {/* Footer Action */}
-                                                    <div className="pt-2 border-t border-slate-100">
-                                                        <ClientOutreach personId={p.persona_id} personName={person.nombre_completo} />
+                                                    {/* Email y Teléfono con WhatsApp */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Email</p>
+                                                            <p className="text-sm text-slate-700">
+                                                                {person.contacto?.email || "No informado"}
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex items-end gap-2">
+                                                            <div className="flex-1">
+                                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Teléfono</p>
+                                                                <p className="text-sm text-slate-700">
+                                                                    {person.contacto?.telefono || "No informado"}
+                                                                </p>
+                                                            </div>
+                                                            {/* WhatsApp button */}
+                                                            <div className="pb-0.5">
+                                                                <ClientOutreach personId={p.persona_id} personName={person.nombre_completo} />
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             );
