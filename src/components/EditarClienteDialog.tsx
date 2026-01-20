@@ -78,16 +78,16 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                     <Edit2 size={16} />
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>Editar Cliente</DialogTitle>
-                        <DialogDescription>
-                            Modifique los datos del cliente. El CUIT/DNI ({persona.tax_id}) no se puede cambiar.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        {/* Nombre Completo */}
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Editar Cliente</DialogTitle>
+                    <DialogDescription>
+                        Modifique los datos del cliente.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="grid gap-4 py-4 overflow-y-auto pr-2">
                         {/* Nombre y Apellido Split */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
@@ -118,9 +118,9 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4 mb-2">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni">DNI (Editable)</Label>
+                                <Label htmlFor="dni">DNI</Label>
                                 <Input
                                     id="dni"
                                     value={formData.dni}
@@ -132,7 +132,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit">CUIT (Editable)</Label>
+                                <Label htmlFor="cuit">CUIT</Label>
                                 <Input
                                     id="cuit"
                                     value={formData.cuit}
@@ -146,21 +146,21 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                         </div>
 
                         {/* Nacionalidad */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="nacionalidad">Nacionalidad *</Label>
-                            <Input
-                                id="nacionalidad"
-                                required
-                                value={formData.nacionalidad}
-                                onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
-                                placeholder="Ej: Argentina"
-                            />
-                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="nacionalidad">Nacionalidad *</Label>
+                                <Input
+                                    id="nacionalidad"
+                                    required
+                                    value={formData.nacionalidad}
+                                    onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
+                                    placeholder="Ej: Argentina"
+                                />
+                            </div>
 
-                        {/* Fecha de Nacimiento */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="fecha_nac">Fecha de Nacimiento</Label>
-                            <div className="flex flex-col gap-1">
+                            {/* Fecha de Nacimiento */}
+                            <div className="grid gap-2">
+                                <Label htmlFor="fecha_nac">Fecha Nacimiento</Label>
                                 <Input
                                     id="fecha_nac"
                                     type="date"
@@ -168,44 +168,11 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                     onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
                                 />
                                 {formData.fecha_nacimiento && (
-                                    <span className="text-xs text-muted-foreground ml-1">
+                                    <span className="text-xs text-muted-foreground">
                                         Formato: {new Date(formData.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
                                     </span>
                                 )}
                             </div>
-                        </div>
-
-                        {/* Estado Civil */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="estado_civil">Estado Civil (Detallado)</Label>
-                            <Input
-                                id="estado_civil"
-                                value={formData.estado_civil}
-                                onChange={(e) => setFormData({ ...formData, estado_civil: e.target.value })}
-                                placeholder="Ej: Casado en primeras nupcias con... / Divorciado de... / Soltero"
-                            />
-                        </div>
-
-                        {/* Nombres de Padres */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="padres">Nombres de los Padres (Filiación)</Label>
-                            <Input
-                                id="padres"
-                                value={formData.nombres_padres}
-                                onChange={(e) => setFormData({ ...formData, nombres_padres: e.target.value })}
-                                placeholder="Obligatorio si soltero/a. Ej: hijo de Juan Pérez y María González"
-                            />
-                        </div>
-
-                        {/* Nombre del Cónyuge */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="conyuge">Nombre del Cónyuge (si aplica)</Label>
-                            <Input
-                                id="conyuge"
-                                value={formData.nombre_conyuge}
-                                onChange={(e) => setFormData({ ...formData, nombre_conyuge: e.target.value })}
-                                placeholder="Si es casado/a"
-                            />
                         </div>
 
                         {/* Domicilio Real */}
@@ -221,30 +188,68 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                             />
                         </div>
 
-                        {/* Email */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                placeholder="por.ejemplo@correo.com"
-                            />
+                        {/* Email y Teléfono */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    placeholder="email@ejemplo.com"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="tel">Teléfono</Label>
+                                <Input
+                                    id="tel"
+                                    value={formData.telefono}
+                                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                    placeholder="Cod. Área + Número"
+                                />
+                            </div>
                         </div>
 
-                        {/* Teléfono */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="tel">Número de Teléfono</Label>
-                            <Input
-                                id="tel"
-                                value={formData.telefono}
-                                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                placeholder="Ej: 291 1234567"
-                            />
+                        <div className="border-t pt-4">
+                            <p className="text-sm font-semibold text-indigo-700 mb-4 uppercase tracking-wider">Estado Civil y Filiación</p>
+
+                            {/* Estado Civil */}
+                            <div className="grid gap-2 mb-3">
+                                <Label htmlFor="estado_civil">Estado Civil (Detalle)</Label>
+                                <Input
+                                    id="estado_civil"
+                                    value={formData.estado_civil}
+                                    onChange={(e) => setFormData({ ...formData, estado_civil: e.target.value })}
+                                    placeholder="Ej: Casado en primeras nupcias con... / Divorciado de... / Soltero"
+                                />
+                            </div>
+
+                            {/* Nombres de Padres */}
+                            <div className="grid gap-2 mb-3">
+                                <Label htmlFor="padres">Filiación (Padres)</Label>
+                                <Input
+                                    id="padres"
+                                    value={formData.nombres_padres}
+                                    onChange={(e) => setFormData({ ...formData, nombres_padres: e.target.value })}
+                                    placeholder="Hijo de [Padre] y de [Madre]"
+                                />
+                            </div>
+
+                            {/* Nombre del Cónyuge */}
+                            <div className="grid gap-2">
+                                <Label htmlFor="conyuge">Cónyuge (Nombre)</Label>
+                                <Input
+                                    id="conyuge"
+                                    value={formData.nombre_conyuge}
+                                    onChange={(e) => setFormData({ ...formData, nombre_conyuge: e.target.value })}
+                                    placeholder="Si es casado/a"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter>
+
+                    <DialogFooter className="pt-4 border-t">
                         <Button type="submit" disabled={loading}>
                             {loading ? "Guardando..." : "Guardar Cambios"}
                         </Button>
