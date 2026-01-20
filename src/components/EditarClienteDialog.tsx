@@ -40,6 +40,34 @@ interface EditarClienteDialogProps {
 export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Deducir DNI y CUIT del tax_id si no están presentes
+    const deduceDniCuit = () => {
+        const personaAny = persona as any;
+        let dni = personaAny.dni || "";
+        let cuit = personaAny.cuit || "";
+
+        // Si no hay DNI ni CUIT, pero hay tax_id, intentar deducirlos
+        if (!dni && !cuit && persona.tax_id) {
+            const taxId = persona.tax_id.replace(/[-\s]/g, '');
+
+            // Si el tax_id tiene 11 dígitos, es un CUIT
+            if (taxId.length === 11) {
+                cuit = persona.tax_id;
+                // El DNI son los dígitos centrales (del 3 al 10)
+                dni = taxId.slice(2, 10);
+            }
+            // Si tiene 8 dígitos o menos, es un DNI
+            else if (taxId.length <= 8) {
+                dni = persona.tax_id;
+            }
+        }
+
+        return { dni, cuit };
+    };
+
+    const { dni: deducedDni, cuit: deducedCuit } = deduceDniCuit();
+
     const [formData, setFormData] = useState({
         nombre_completo: persona.nombre_completo,
         nacionalidad: persona.nacionalidad || "",
@@ -50,8 +78,8 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
         domicilio: persona.domicilio_real?.literal || "",
         email: persona.contacto?.email || "",
         telefono: persona.contacto?.telefono || "",
-        dni: (persona as any).dni || "",
-        cuit: (persona as any).cuit || "",
+        dni: deducedDni,
+        cuit: deducedCuit,
         new_tax_id: persona.tax_id
     });
 
@@ -82,7 +110,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                 <DialogHeader>
                     <DialogTitle>Editar Cliente</DialogTitle>
                     <DialogDescription>
-                        Modifique los datos del cliente.
+                        Modifique los datos personales y filiación. Los cambios se aplicarán globalmente.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -120,7 +148,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni">DNI</Label>
+                                <Label htmlFor="dni">DNI (Documento Nacional de Identidad)</Label>
                                 <Input
                                     id="dni"
                                     value={formData.dni}
@@ -128,11 +156,11 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                         const val = e.target.value;
                                         setFormData({ ...formData, dni: val, new_tax_id: formData.cuit?.trim() ? formData.cuit : val })
                                     }}
-                                    placeholder="DNI"
+                                    placeholder="Ej: 27.841.387"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit">CUIT</Label>
+                                <Label htmlFor="cuit">CUIT/CUIL</Label>
                                 <Input
                                     id="cuit"
                                     value={formData.cuit}
@@ -140,7 +168,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                         const val = e.target.value;
                                         setFormData({ ...formData, cuit: val, new_tax_id: val?.trim() ? val : formData.dni })
                                     }}
-                                    placeholder="CUIT"
+                                    placeholder="Ej: 27-27841387-5"
                                 />
                             </div>
                         </div>
