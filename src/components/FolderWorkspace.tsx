@@ -370,7 +370,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                             </div>
                                                                             <div className="space-y-0.5">
                                                                                 <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacimiento</p>
-                                                                                <p className="text-xs text-slate-700 font-bold">{person.fecha_nacimiento || "No consta"}</p>
+                                                                                <p className="text-xs text-slate-700 font-bold">{formatDateInstructions(person.fecha_nacimiento)}</p>
                                                                             </div>
                                                                         </div>
                                                                     </div>

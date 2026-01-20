@@ -118,11 +118,18 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                 </div>
                 <div className="space-y-2">
                     <Label>Fecha Nacimiento</Label>
-                    <Input
-                        type="date"
-                        value={formData.fecha_nacimiento}
-                        onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                    />
+                    <div className="flex flex-col gap-1">
+                        <Input
+                            type="date"
+                            value={formData.fecha_nacimiento}
+                            onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                        />
+                        {formData.fecha_nacimiento && (
+                            <span className="text-xs text-muted-foreground ml-1">
+                                Formato: {new Date(formData.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                            </span>
+                        )}
+                    </div>
                 </div>
             </div>
 

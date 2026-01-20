@@ -77,23 +77,23 @@ export default function InmueblesPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
+                    <Table className="table-fixed">
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[200px]">Partido / Dpto</TableHead>
-                                <TableHead className="w-[120px]">Nro. Partida</TableHead>
-                                <TableHead className="w-[250px]">Nomenclatura</TableHead>
-                                <TableHead>Transcripción Literal</TableHead>
-                                <TableHead className="text-right w-[100px]">Acciones</TableHead>
+                                <TableHead className="w-[15%]">Partido / Dpto</TableHead>
+                                <TableHead className="w-[15%]">Nro. Partida</TableHead>
+                                <TableHead className="w-[20%]">Nomenclatura</TableHead>
+                                <TableHead className="w-[35%]">Transcripción Literal</TableHead>
+                                <TableHead className="text-right w-[15%]">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {inmuebles?.map((inmueble) => (
                                 <TableRow key={inmueble.id} className="group">
-                                    <TableCell className="font-semibold align-top">
-                                        <div className="flex items-center gap-2">
+                                    <TableCell className="font-semibold align-top truncate" title={inmueble.partido_id}>
+                                        <div className="flex items-center gap-2 truncate">
                                             <MapPinned className="h-4 w-4 text-blue-600 shrink-0" />
-                                            {inmueble.partido_id || 'N/A'}
+                                            <span className="truncate">{inmueble.partido_id || 'N/A'}</span>
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-sm align-top">

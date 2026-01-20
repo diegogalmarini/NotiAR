@@ -111,12 +111,19 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                         {/* Fecha de Nacimiento */}
                         <div className="grid gap-2">
                             <Label htmlFor="fecha_nac">Fecha de Nacimiento</Label>
-                            <Input
-                                id="fecha_nac"
-                                type="date"
-                                value={formData.fecha_nacimiento}
-                                onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                            />
+                            <div className="flex flex-col gap-1">
+                                <Input
+                                    id="fecha_nac"
+                                    type="date"
+                                    value={formData.fecha_nacimiento}
+                                    onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                                />
+                                {formData.fecha_nacimiento && (
+                                    <span className="text-xs text-muted-foreground ml-1">
+                                        Formato: {new Date(formData.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Estado Civil */}
