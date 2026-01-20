@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
+import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
 
 export default async function ClientesPage() {
     const { data: personas, error } = await supabase
@@ -85,6 +86,7 @@ export default async function ClientesPage() {
                                         <div className="flex justify-end gap-2">
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />
+                                            <DeleteClienteDialog personaId={persona.tax_id} personaNombre={persona.nombre_completo} />
                                         </div>
                                     </TableCell>
                                 </TableRow>

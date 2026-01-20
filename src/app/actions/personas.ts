@@ -44,6 +44,12 @@ export async function createPersona(formData: {
 
 export async function updatePersona(taxId: string, formData: {
     nombre_completo: string;
+    nacionalidad?: string;
+    fecha_nacimiento?: string;
+    estado_civil?: string;
+    nombres_padres?: string;
+    nombre_conyuge?: string;
+    domicilio?: string;
     email?: string;
     telefono?: string;
 }) {
@@ -52,6 +58,12 @@ export async function updatePersona(taxId: string, formData: {
             .from("personas")
             .update({
                 nombre_completo: formData.nombre_completo,
+                nacionalidad: formData.nacionalidad || null,
+                fecha_nacimiento: formData.fecha_nacimiento || null,
+                estado_civil_detalle: formData.estado_civil || null,
+                nombres_padres: formData.nombres_padres || null,
+                datos_conyuge: formData.nombre_conyuge ? { nombre: formData.nombre_conyuge } : null,
+                domicilio_real: formData.domicilio ? { literal: formData.domicilio } : null,
                 contacto: {
                     email: formData.email,
                     telefono: formData.telefono
@@ -70,6 +82,25 @@ export async function updatePersona(taxId: string, formData: {
         return { success: true, data };
     } catch (error: any) {
         console.error("Error updating persona:", error);
+        return { success: false, error: error.message };
+    }
+}
+
+export async function deletePersona(taxId: string) {
+    try {
+        const { error } = await supabase
+            .from("personas")
+            .delete()
+            .eq("tax_id", taxId);
+
+        if (error) throw error;
+
+        await logAction('DELETE', 'PERSONA', { id: taxId, tax_id: taxId });
+
+        revalidatePath('/clientes');
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error deleting persona:", error);
         return { success: false, error: error.message };
     }
 }
