@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus, Download } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus, Download, Eye } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
 import { PersonForm } from "./PersonForm";
 import { AssetSearch } from "./AssetSearch";
@@ -241,6 +241,26 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 setIsAssetSearchOpen(true);
                                             }}>
                                                 <Plus className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-[10px] font-medium text-slate-700 gap-1.5"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Eye className="h-3 w-3" />
+                                                Ver Documento
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                className="h-7 text-[10px] font-medium text-slate-700 gap-1.5"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                <Download className="h-3 w-3" />
+                                                Descargar
                                             </Button>
                                         </div>
                                         {escritura.inmuebles?.transcripcion_literal && (
