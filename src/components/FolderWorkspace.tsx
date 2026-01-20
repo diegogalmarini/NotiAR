@@ -731,18 +731,24 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
             {/* Document Viewer Dialog - Fullscreen */}
             <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-[95vh] p-0 overflow-hidden bg-slate-900 border-slate-800">
+                <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-[95vh] p-0 overflow-hidden bg-white border-slate-200">
                     <div className="relative w-full h-full flex flex-col">
                         {/* Header with filename and close button */}
-                        <div className="flex justify-between items-center p-3 bg-slate-900 border-b border-slate-800 text-white">
-                            <h3 className="text-sm font-medium truncate pr-10">
-                                {viewingDocument?.split('/').pop()?.split('_').slice(1).join('_') || "Visualizador de Documento"}
+                        <div className="flex justify-between items-center p-3 bg-white border-b border-slate-200 text-slate-900">
+                            <h3 className="text-sm font-semibold truncate pr-10 flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-blue-600" />
+                                {(() => {
+                                    if (!viewingDocument) return "Cargando...";
+                                    const rawName = viewingDocument.split('/').pop()?.split('?')[0] || "";
+                                    // Remove timestamp if present (13 digits followed by underscore)
+                                    return rawName.replace(/^\d{13}_/, "");
+                                })()}
                             </h3>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 onClick={() => setViewingDocument(null)}
-                                className="text-slate-400 hover:text-white hover:bg-slate-800"
+                                className="text-slate-500 hover:text-slate-900 hover:bg-slate-100"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -751,7 +757,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         </div>
 
                         {/* Document Viewer Container */}
-                        <div className="flex-1 bg-slate-800 flex justify-center overflow-auto p-4 md:p-8">
+                        <div className="flex-1 bg-slate-50 flex justify-center items-center overflow-auto p-4 md:p-8">
                             {viewingDocument && (() => {
                                 const isPdf = viewingDocument.toLowerCase().includes(".pdf");
                                 const isDocx = viewingDocument.toLowerCase().includes(".docx") || viewingDocument.toLowerCase().includes(".doc");
@@ -760,30 +766,37 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     return (
                                         <iframe
                                             src={viewingDocument}
-                                            className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
+                                            className="w-full max-w-5xl h-full bg-white shadow-xl rounded-md border border-slate-200"
                                             title="PDF Viewer"
                                         />
                                     );
                                 }
 
                                 if (isDocx) {
-                                    // Reverting to Google Docs Viewer as Microsoft Office Online doesn't handle Supabase Signed URLs (tokens) well
+                                    // Using Google Docs Viewer with a fallback message
                                     return (
-                                        <iframe
-                                            src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
-                                            className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
-                                            title="Document Viewer"
-                                        />
+                                        <div className="w-full max-w-5xl h-full flex flex-col gap-4">
+                                            <iframe
+                                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
+                                                className="w-full flex-1 bg-white shadow-xl rounded-md border border-slate-200"
+                                                title="Document Viewer"
+                                            />
+                                            <div className="text-center py-2">
+                                                <p className="text-xs text-slate-500">
+                                                    Si el documento no carga, puedes <a href={viewingDocument} target="_blank" className="text-blue-600 underline font-medium">descargarlo directamente aquí</a>.
+                                                </p>
+                                            </div>
+                                        </div>
                                     );
                                 }
 
-                                // Fallback to Google Docs Viewer if not PDF/DOCX or if Microsoft fails
                                 return (
-                                    <iframe
-                                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
-                                        className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
-                                        title="Google Docs Viewer"
-                                    />
+                                    <div className="text-center p-10 bg-white rounded-lg shadow-sm border border-slate-200">
+                                        <p className="text-slate-600 mb-4">El visualizador no es compatible con este tipo de archivo.</p>
+                                        <Button asChild variant="outline">
+                                            <a href={viewingDocument} target="_blank">Descargar Archivo</a>
+                                        </Button>
+                                    </div>
                                 );
                             })()}
                         </div>
