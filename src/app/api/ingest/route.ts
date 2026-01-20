@@ -232,8 +232,6 @@ export async function POST(request: Request) {
                 const { data: persona, error: pError } = await supabase.from('personas').upsert({
                     tax_id: normalizeID(taxId),
                     nombre_completo: toTitleCase(c.nombre_completo),
-                    dni: c.dni ? normalizeID(c.dni) : null,
-                    cuit: c.cuit ? normalizeID(c.cuit) : null,
                     nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
                     fecha_nacimiento: c.fecha_nacimiento || null,
                     domicilio_real: { literal: c.domicilio_real },
@@ -246,7 +244,7 @@ export async function POST(request: Request) {
                         conyuge: c.conyuge
                     },
                     contacto: { email: c.email || null, telefono: c.telefono || null },
-                    origen_dato: 'IA_EXTRACCION_AGRESIVA',
+                    origen_dato: 'IA_OCR',
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'tax_id' }).select().single();
 
