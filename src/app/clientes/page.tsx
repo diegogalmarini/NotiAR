@@ -14,6 +14,7 @@ import { Search, Edit2, UserPlus, Phone, Mail, MapPin, Users } from "lucide-reac
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
+import { SendFichaDialog } from "@/components/SendFichaDialog";
 
 export default async function ClientesPage() {
     const { data: personas, error } = await supabase
@@ -81,7 +82,10 @@ export default async function ClientesPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <EditarClienteDialog persona={persona} />
+                                        <div className="flex justify-end gap-2">
+                                            <SendFichaDialog persona={persona} />
+                                            <EditarClienteDialog persona={persona} />
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))}

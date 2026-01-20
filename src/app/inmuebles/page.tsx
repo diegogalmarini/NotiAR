@@ -45,10 +45,10 @@ export default async function InmueblesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Ubicación / Partido</TableHead>
+                                <TableHead>Partido / Dpto</TableHead>
                                 <TableHead>Nro. Partida</TableHead>
-                                <TableHead>Nomenclatura Catastral</TableHead>
-                                <TableHead>Valuación</TableHead>
+                                <TableHead>Nomenclatura</TableHead>
+                                <TableHead>Transcripción Literal</TableHead>
                                 <TableHead className="text-right">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -59,26 +59,25 @@ export default async function InmueblesPage() {
                                         <div className="flex items-start gap-2">
                                             <MapPinned className="h-4 w-4 mt-0.5 text-primary opacity-70" />
                                             <div>
-                                                <div className="font-semibold">{inmueble.nomenclatura_catastral?.partido || "Sin Partido"}</div>
-                                                <div className="text-xs text-muted-foreground">ID Partido: {inmueble.partido_id}</div>
+                                                <div className="font-semibold">{inmueble.partido_id || "BAHIA BLANCA"}</div>
+                                                <div className="text-xs text-muted-foreground uppercase">Partido</div>
                                             </div>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono">
+                                    <TableCell className="font-mono font-bold text-blue-600">
                                         {inmueble.nro_partida}
                                     </TableCell>
-                                    <TableCell className="text-xs font-mono max-w-[200px] truncate">
-                                        {JSON.stringify(inmueble.nomenclatura_catastral)}
+                                    <TableCell className="text-xs font-mono max-w-[200px]">
+                                        {inmueble.nomenclatura || "Sin datos"}
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="text-sm font-medium">
-                                            ${inmueble.valuacion_fiscal?.impuesto_total || "0"}
+                                    <TableCell className="max-w-[300px]">
+                                        <div className="text-xs text-muted-foreground line-clamp-2 italic">
+                                            {inmueble.transcripcion_literal || "Sin transcripción literal"}
                                         </div>
-                                        <div className="text-[10px] text-muted-foreground uppercase">Impuesto Total</div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" className="group-hover:bg-slate-100">
+                                            <Button variant="ghost" size="icon" className="group-hover:bg-slate-100" title="Ver Transcripción">
                                                 <FileSearch size={16} />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="group-hover:bg-slate-100">

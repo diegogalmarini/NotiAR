@@ -57,35 +57,42 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
       ACTÚA COMO UN ESCRIBANO EXPERTO. Tienes el documento COMPLETO (puede tener 25+ páginas).
       Tu trabajo NO ES RESUMIR. Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
 
-      TU MISIÓN DE ESCANEO:
-      1. Localiza la sección donde se describe el INMUEBLE (busca anclas: "LOTE", "PARCELA", "MIDE", "LINDANDO", "DESLINDE"). Generalmente está hacia el final del documento o después de la descripción del acto.
-      2. Localiza la sección de los COMPARECIENTES (busca anclas: "COMPARECE", "DATOS PERSONALES", "ESTADO CIVIL").
-
-      REGLAS DE ORO DE EXTRACCIÓN:
-      1. PARA "transcripcion_literal" (INMUEBLES): BUSCA la descripción técnica completa. COPIA EL BLOQUE DE TEXTO EXACTO Y COMPLETO desde "Un lote de terreno..." hasta la superficie y linderos finales. NO RESUMAS NADA.
-      2. PARA "nombres_padres": Si la persona es soltera o se menciona su filiación, BUSCA la frase "hijo de... y de...". EXTRAE LOS NOMBRES COMPLETOS.
-      3. PARA "estado_civil": Extrae la condición completa (ej: "Casado en primeras nupcias con Maria Perez").
-      4. PARA "domicilio_real": Extrae la dirección completa.
+      TU MISIÓN DE ESCANEO (PASO 1):
+      1. COMPARECIENTES/PARTES: Localiza todas las personas intervinientes (físicas o jurídicas). Pueden ser: Vendedores, Compradores, Apoderados, Representantes, Cónyuges que prestan asentimiento, etc.
+         - Nombre y Apellidos completos.
+         - Nacionalidad.
+         - Fecha de nacimiento (formato YYYY-MM-DD).
+         - DNI y CUIT/CUIL.
+         - Estado civil (ej: Casado en 1ras nupcias con..., Divorciado de...). 
+         - SI ES SOLTERO/A: Extraer obligatoriamente nombres de los padres (hijo de... y de...).
+         - Domicilio real completo.
+         - Email y Teléfono (si figuran, si no pon null).
+      
+      2. INMUEBLE: Localiza la descripción técnica del inmueble.
+         - Transcripción literal completa (COPIA TEXTUAL DESDE "Un lote de terreno..." HASTA EL FINAL DE LINDEROS Y SUPERFICIE).
+         - Número de Partida Inmobiliaria.
+         - Partido / Departamento (ej: Bahía Blanca).
+         - Nomenclatura Catastral (Circ, Secc, Chacra, Manz, Parcela).
 
       ESQUEMA JSON (ESTRICTO):
       {
-        "resumen_acto": "string",
+        "resumen_acto": "string (ej: COMPRAVENTA)",
         "numero_escritura": "string o null",
         "fecha_escritura": "YYYY-MM-DD o null",
         "clientes": [
           {
-            "rol": "VENDEDOR" | "COMPRADOR",
+            "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE" | "REPRESENTANTE",
             "nombre_completo": "string",
             "dni": "string",
             "cuit": "string o null",
             "nacionalidad": "string",
             "fecha_nacimiento": "YYYY-MM-DD o null",
             "estado_civil": "string detallado",
-            "nombres_padres": "string o null",
+            "nombres_padres": "string o null (extraer si es soltero o si figura filiación)",
             "conyuge": "string o null",
             "domicilio_real": "string",
-            "email": null,
-            "telefono": null
+            "email": "string o null",
+            "telefono": "string o null"
           }
         ],
         "inmuebles": [
@@ -93,7 +100,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
             "partido": "string",
             "nomenclatura": "string",
             "partida_inmobiliaria": "string",
-            "transcripcion_literal": "TEXTO TEXTUAL LARGO Y COMPLETO",
+            "transcripcion_literal": "COPIA TEXTUAL COMPLETA Y LARGA DE LA DESCRIPCIÓN DEL INMUEBLE",
             "valuacion_fiscal": 0
           }
         ]
@@ -180,15 +187,19 @@ export async function POST(request: Request) {
         // 2. Inmuebles
         const propertyIds: string[] = [];
         for (const i of inmuebles) {
+            // Ensure we have Partido and Partida as they are often primary keys or unique identifiers
+            if (!i.partida_inmobiliaria) continue;
+
             const { data, error } = await supabase.from('inmuebles').upsert({
-                partido_id: i.partido || null,
-                nro_partida: i.partida_inmobiliaria || null,
-                nomenclatura_catastral: { literal: i.nomenclatura },
-                transcripcion_literal: i.transcripcion_literal || i.descripcion_tecnica || null,
+                partido_id: i.partido || 'BAHIA BLANCA', // Default or extracted
+                nro_partida: i.partida_inmobiliaria,
+                nomenclatura: i.nomenclatura || null,
+                transcripcion_literal: i.transcripcion_literal || null,
                 valuacion_fiscal: i.valuacion_fiscal || 0,
-                updated_at: new Date().toISOString(),
             }, { onConflict: 'partido_id,nro_partida' }).select().single();
+
             if (!error && data) propertyIds.push(data.id);
+            if (error) console.error("[INGEST] Error Inserting Inmueble:", error);
         }
 
         // 3. Escritura
@@ -206,13 +217,13 @@ export async function POST(request: Request) {
                 tipo_acto: resumen_acto || 'COMPRAVENTA'
             }]).select().single();
 
-            // 4. Clientes
+            // 4. Clientes & Fichas
             for (const c of clientes) {
                 const taxId = c.cuit || c.dni || null;
                 if (!taxId || !c.nombre_completo) continue;
 
-                // Create Persona
-                const { data: persona } = await supabase.from('personas').upsert({
+                // Create/Update Persona
+                const { data: persona, error: pError } = await supabase.from('personas').upsert({
                     tax_id: normalizeID(taxId),
                     nombre_completo: toTitleCase(c.nombre_completo),
                     dni: c.dni ? normalizeID(c.dni) : null,
@@ -228,16 +239,34 @@ export async function POST(request: Request) {
                         padres: c.nombres_padres,
                         conyuge: c.conyuge
                     },
-                    contacto: { email: null, telefono: null },
+                    contacto: { email: c.email || null, telefono: c.telefono || null },
                     origen_dato: 'IA_EXTRACCION_AGRESIVA',
                     updated_at: new Date().toISOString(),
                 }, { onConflict: 'tax_id' }).select().single();
 
-                if (persona && operacion) {
-                    await supabase.from('participantes_operacion').insert([{
-                        operacion_id: operacion.id,
+                if (pError) {
+                    console.error("[INGEST] Error Persona:", pError);
+                    continue;
+                }
+
+                if (persona) {
+                    // Create Operation Participant
+                    if (operacion) {
+                        await supabase.from('participantes_operacion').insert([{
+                            operacion_id: operacion.id,
+                            persona_id: persona.tax_id,
+                            rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                        }]);
+                    }
+
+                    // GENERATE TOKEN FOR FICHA
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
+
+                    await supabase.from('fichas_web_tokens').insert([{
                         persona_id: persona.tax_id,
-                        rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                        estado: 'PENDIENTE',
+                        expires_at: expiresAt.toISOString()
                     }]);
                 }
             }
