@@ -2,13 +2,26 @@ import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun } from "docx";
 import { jsPDF } from "jspdf";
 
-export const downloadAsTxt = (filename: string, content: string) => {
+const formatInmuebleContent = (inmueble: any): string => {
+    return `DETALLE DEL INMUEBLE
+
+Partido / Dpto: ${inmueble.partido_id || 'No especificado'}
+Nro. Partida: ${inmueble.nro_partida || 'No especificado'}
+Nomenclatura: ${inmueble.nomenclatura || 'No especificada'}
+
+Transcripción Literal:
+${inmueble.transcripcion_literal || 'No disponible'}`;
+};
+
+export const downloadAsTxt = (filename: string, inmueble: any) => {
+    const content = formatInmuebleContent(inmueble);
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     saveAs(blob, `${filename}.txt`);
 };
 
-export const downloadAsPdf = (filename: string, content: string) => {
+export const downloadAsPdf = (filename: string, inmueble: any) => {
     const doc = new jsPDF();
+    const content = formatInmuebleContent(inmueble);
 
     // Split text to fit page
     const splitText = doc.splitTextToSize(content, 180);
@@ -19,7 +32,9 @@ export const downloadAsPdf = (filename: string, content: string) => {
     doc.save(`${filename}.pdf`);
 };
 
-export const downloadAsDocx = async (filename: string, content: string) => {
+export const downloadAsDocx = async (filename: string, inmueble: any) => {
+    const content = formatInmuebleContent(inmueble);
+
     const doc = new Document({
         sections: [
             {

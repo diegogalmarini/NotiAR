@@ -18,7 +18,7 @@ interface VerInmuebleDialogProps {
 }
 
 export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
-    const filename = `transcripcion-${inmueble.nomenclatura || 'inmueble'}-${inmueble.nro_partida || 'sin-partida'}`;
+    const filename = `Inmueble_${inmueble.nro_partida || 'sin-partida'}`;
 
     return (
         <Dialog>
@@ -41,6 +41,19 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                     </div>
                 </DialogHeader>
 
+                <div className="space-y-3 mt-2">
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium">Partido / Dpto</p>
+                            <p className="font-semibold">{inmueble.partido_id || "No especificado"}</p>
+                        </div>
+                        <div>
+                            <p className="text-xs text-muted-foreground font-medium">Número Partida</p>
+                            <p className="font-semibold">{inmueble.nro_partida || "No especificado"}</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div className="flex-1 overflow-hidden mt-4 border rounded-md bg-slate-50 p-4">
                     <div className="flex justify-between items-center mb-2">
                         <p className="text-sm font-medium text-muted-foreground">Transcripción Literal:</p>
@@ -49,7 +62,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs gap-1"
-                                onClick={() => downloadAsTxt(filename, inmueble.transcripcion_literal || "")}
+                                onClick={() => downloadAsTxt(filename, inmueble)}
                                 title="Descargar como TXT"
                             >
                                 <FileText className="h-3 w-3" /> TXT
@@ -58,7 +71,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs gap-1"
-                                onClick={() => downloadAsPdf(filename, inmueble.transcripcion_literal || "")}
+                                onClick={() => downloadAsPdf(filename, inmueble)}
                                 title="Descargar como PDF"
                             >
                                 <File className="h-3 w-3" /> PDF
@@ -67,7 +80,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                                 variant="outline"
                                 size="sm"
                                 className="h-7 text-xs gap-1"
-                                onClick={() => downloadAsDocx(filename, inmueble.transcripcion_literal || "")}
+                                onClick={() => downloadAsDocx(filename, inmueble)}
                                 title="Descargar como DOCX"
                             >
                                 <FileType className="h-3 w-3" /> DOCX
