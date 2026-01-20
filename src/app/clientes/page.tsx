@@ -94,7 +94,7 @@ export default function ClientesPage() {
                         </TableHeader>
                         <TableBody>
                             {personas?.map((persona) => (
-                                <TableRow key={persona.tax_id} className="group">
+                                <TableRow key={persona.dni} className="group">
                                     <TableCell className="font-semibold">
                                         <div className="flex flex-col">
                                             <span>{persona.nombre_completo}</span>
@@ -106,7 +106,7 @@ export default function ClientesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="font-mono text-sm">
-                                        {persona.tax_id}
+                                        {persona.dni || 'N/A'}
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex gap-2">
@@ -132,7 +132,7 @@ export default function ClientesPage() {
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />
                                             <DeleteClienteDialog
-                                                personaId={persona.tax_id}
+                                                personaId={persona.dni}
                                                 personaNombre={persona.nombre_completo}
                                                 onClienteDeleted={fetchPersonas}
                                             />
