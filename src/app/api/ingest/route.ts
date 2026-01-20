@@ -73,6 +73,14 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
          - Número de Partida Inmobiliaria.
          - Partido / Departamento (ej: Bahía Blanca).
          - Nomenclatura Catastral (Circ, Secc, Chacra, Manz, Parcela).
+      
+      3. METADATOS DE LA ESCRITURA (CRÍTICO):
+         - numero_escritura: BUSCA "ESCRITURA NUMERO" y extrae el número. IMPORTANTE: Si está escrito en letras (ej: "DOSCIENTOS CUARENTA"), convierte a dígitos (240).
+         - fecha_escritura: Fecha del documento (formato YYYY-MM-DD).
+         - notario_interviniente: Nombre COMPLETO del escribano que autorizó el documento.
+         - registro_notario: Número de registro del escribano (ej: "Registro 30 de Bahía Blanca").
+         - numero_acto: Número del acto. IMPORTANTE: Puede estar escrito en letras, conviértelo a números.
+
 
       ESQUEMA JSON (ESTRICTO):
       {
