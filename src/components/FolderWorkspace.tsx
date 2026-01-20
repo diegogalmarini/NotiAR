@@ -396,7 +396,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                             if (!person) return <p className="text-red-500 text-xs text-center py-4">Error: Datos de persona no vinculados</p>;
 
                                             return (
-                                                <div className="p-4 space-y-3">
+                                                <div className="p-4 space-y-2">
                                                     {/* Full Name */}
                                                     <h3 className="text-base font-bold text-slate-800">{person.nombre_completo}</h3>
 
