@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
         .from('personas')
         .select('*')
-        .or(`nombre_completo.ilike.%${q}%,tax_id.ilike.%${q}%`)
+        .or(`nombre_completo.ilike.%${q}%,dni.ilike.%${q}%,cuit.ilike.%${q}%`)
         .limit(10);
 
     if (error) {

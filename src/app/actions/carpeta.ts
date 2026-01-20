@@ -171,7 +171,7 @@ export async function upsertPerson(data: any) {
             .upsert({
                 ...data,
                 updated_at: new Date().toISOString()
-            }, { onConflict: 'tax_id' })
+            }, { onConflict: 'dni' })
             .select()
             .single();
 

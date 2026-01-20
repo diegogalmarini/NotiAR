@@ -6,10 +6,9 @@ import { logAction } from "@/lib/logger";
 
 export async function createPersona(formData: {
     nombre_completo: string;
-    tax_id: string;
+    dni: string;
     email?: string;
     telefono?: string;
-    dni?: string;
     cuit?: string;
 }) {
     try {
@@ -17,13 +16,12 @@ export async function createPersona(formData: {
             .from("personas")
             .insert([{
                 nombre_completo: formData.nombre_completo,
-                tax_id: formData.tax_id,
+                dni: formData.dni,
+                cuit: formData.cuit || null,
                 contacto: {
                     email: formData.email,
                     telefono: formData.telefono
                 },
-                dni: formData.dni || null,
-                cuit: formData.cuit || null,
                 updated_at: new Date().toISOString()
             }])
             .select()
@@ -31,12 +29,12 @@ export async function createPersona(formData: {
 
         if (error) {
             if (error.code === '23505') {
-                throw new Error("Ya existe un cliente con ese CUIT/DNI.");
+                throw new Error("Ya existe un cliente con ese DNI.");
             }
             throw error;
         }
 
-        await logAction('CREATE', 'PERSONA', { id: data.tax_id, tax_id: data.tax_id });
+        await logAction('CREATE', 'PERSONA', { id: data.dni, dni: data.dni });
 
         revalidatePath('/clientes');
         return { success: true, data };
@@ -46,7 +44,7 @@ export async function createPersona(formData: {
     }
 }
 
-export async function updatePersona(taxId: string, formData: {
+export async function updatePersona(dni: string, formData: {
     nombre_completo: string;
     nacionalidad?: string;
     fecha_nacimiento?: string;
@@ -56,7 +54,6 @@ export async function updatePersona(taxId: string, formData: {
     domicilio?: string;
     email?: string;
     telefono?: string;
-    new_tax_id?: string;
     dni?: string;
     cuit?: string;
 }) {
@@ -73,25 +70,21 @@ export async function updatePersona(taxId: string, formData: {
                 email: formData.email,
                 telefono: formData.telefono
             },
-            dni: formData.dni || null,
+            dni: formData.dni || dni,
             cuit: formData.cuit || null,
             updated_at: new Date().toISOString()
         };
 
-        if (formData.new_tax_id && formData.new_tax_id !== taxId) {
-            updateData.tax_id = formData.new_tax_id;
-        }
-
         const { data, error } = await supabase
             .from("personas")
             .update(updateData)
-            .eq("tax_id", taxId)
+            .eq("dni", dni)
             .select()
             .single();
 
         if (error) throw error;
 
-        await logAction('UPDATE', 'PERSONA', { id: taxId, tax_id: taxId });
+        await logAction('UPDATE', 'PERSONA', { id: dni, dni: dni });
 
         revalidatePath('/clientes');
         return { success: true, data };
@@ -101,16 +94,16 @@ export async function updatePersona(taxId: string, formData: {
     }
 }
 
-export async function deletePersona(taxId: string) {
+export async function deletePersona(dni: string) {
     try {
         const { error } = await supabase
             .from("personas")
             .delete()
-            .eq("tax_id", taxId);
+            .eq("dni", dni);
 
         if (error) throw error;
 
-        await logAction('DELETE', 'PERSONA', { id: taxId, tax_id: taxId });
+        await logAction('DELETE', 'PERSONA', { id: dni, dni: dni });
 
         revalidatePath('/clientes');
         return { success: true };
