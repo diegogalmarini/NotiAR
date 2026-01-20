@@ -35,7 +35,7 @@ export async function getAllUsers() {
         }
 
         const { data, error } = await supabase
-            .from("user_profiles")
+            .from("admin_user_list")
             .select("*")
             .order("created_at", { ascending: false });
 
@@ -146,7 +146,7 @@ export async function getUserStats() {
         }
 
         const { data, error } = await supabase
-            .from("user_profiles")
+            .from("admin_user_list")
             .select("approval_status");
 
         if (error) throw error;
