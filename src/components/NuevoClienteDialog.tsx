@@ -1,6 +1,6 @@
+"use client";
 
 import { useRouter } from "next/navigation";
-
 import { useState } from "react";
 import {
     Dialog,
@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { UserPlus } from "lucide-react";
 import { createPersona } from "@/app/actions/personas";
 import { toast } from "sonner";
@@ -24,11 +25,17 @@ export function NuevoClienteDialog() {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         nombre_completo: "",
+        dni: "",
+        cuit: "",
         tax_id: "",
+        nacionalidad: "",
+        fecha_nacimiento: "",
+        domicilio: "",
         email: "",
         telefono: "",
-        dni: "",
-        cuit: ""
+        estado_civil: "",
+        nombres_padres: "",
+        nombre_conyuge: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -41,7 +48,20 @@ export function NuevoClienteDialog() {
         if (res.success) {
             toast.success("Cliente creado correctamente");
             setOpen(false);
-            setFormData({ nombre_completo: "", tax_id: "", email: "", telefono: "", dni: "", cuit: "" });
+            setFormData({
+                nombre_completo: "",
+                dni: "",
+                cuit: "",
+                tax_id: "",
+                nacionalidad: "",
+                fecha_nacimiento: "",
+                domicilio: "",
+                email: "",
+                telefono: "",
+                estado_civil: "",
+                nombres_padres: "",
+                nombre_conyuge: ""
+            });
             router.push(`/clientes/${res.data.tax_id}`);
         } else {
             toast.error(res.error || "Error al crear cliente");
@@ -56,18 +76,20 @@ export function NuevoClienteDialog() {
                     Nuevo Cliente
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <form onSubmit={handleSubmit}>
-                    <DialogHeader>
-                        <DialogTitle>Crear Nuevo Cliente</DialogTitle>
-                        <DialogDescription>
-                            Ingrese los datos básicos de la persona. El CUIT/DNI es obligatorio.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Crear Nuevo Cliente</DialogTitle>
+                    <DialogDescription>
+                        Ingrese los datos básicos de la persona. El CUIT/DNI y domicilio son obligatorios.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+                    <div className="grid gap-4 py-4 overflow-y-auto pr-2">
+                        {/* Nombre y Apellido */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nombre">Nombre</Label>
+                                <Label htmlFor="nombre">Nombre *</Label>
                                 <Input
                                     id="nombre"
                                     required
@@ -80,7 +102,7 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="apellido">Apellido</Label>
+                                <Label htmlFor="apellido">Apellido *</Label>
                                 <Input
                                     id="apellido"
                                     required
@@ -93,6 +115,8 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                         </div>
+
+                        {/* DNI y CUIT */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="dni">DNI</Label>
@@ -103,13 +127,14 @@ export function NuevoClienteDialog() {
                                         const val = e.target.value;
                                         setFormData({ ...formData, dni: val, tax_id: formData.cuit || val })
                                     }}
-                                    placeholder="DNI"
+                                    placeholder="Ej: 27.841.387"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit">CUIT</Label>
+                                <Label htmlFor="cuit">CUIT/CUIL *</Label>
                                 <Input
                                     id="cuit"
+                                    required
                                     value={formData.cuit}
                                     onChange={(e) => {
                                         const val = e.target.value;
@@ -119,27 +144,108 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                         </div>
+
+                        {/* Nacionalidad y Fecha de Nacimiento */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="nacionalidad">Nacionalidad *</Label>
+                                <Input
+                                    id="nacionalidad"
+                                    required
+                                    value={formData.nacionalidad}
+                                    onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
+                                    placeholder="Ej: Argentina"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="fecha_nac">Fecha Nacimiento</Label>
+                                <Input
+                                    id="fecha_nac"
+                                    type="date"
+                                    value={formData.fecha_nacimiento}
+                                    onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                                />
+                                {formData.fecha_nacimiento && (
+                                    <span className="text-xs text-muted-foreground">
+                                        {new Date(formData.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Domicilio Real */}
                         <div className="grid gap-2">
-                            <Label htmlFor="email">Email (Opcional)</Label>
-                            <Input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                placeholder="juan@ejemplo.com"
+                            <Label htmlFor="domicilio">Domicilio Real *</Label>
+                            <Textarea
+                                id="domicilio"
+                                required
+                                value={formData.domicilio}
+                                onChange={(e) => setFormData({ ...formData, domicilio: e.target.value })}
+                                placeholder="Dirección completa: calle, número, localidad, provincia"
+                                rows={2}
                             />
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="tel">Teléfono (Opcional)</Label>
-                            <Input
-                                id="tel"
-                                value={formData.telefono}
-                                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                placeholder="Ej: 11 1234-5678"
-                            />
+
+                        {/* Email y Teléfono */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="email">Email (Opcional)</Label>
+                                <Input
+                                    id="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                    placeholder="email@ejemplo.com"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="tel">Teléfono (Opcional)</Label>
+                                <Input
+                                    id="tel"
+                                    value={formData.telefono}
+                                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                                    placeholder="Cod. Área + Número"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Estado Civil y Filiación */}
+                        <div className="border-t pt-4">
+                            <p className="text-sm font-semibold text-indigo-700 mb-4 uppercase tracking-wider">Estado Civil y Filiación (Opcional)</p>
+
+                            <div className="grid gap-2 mb-3">
+                                <Label htmlFor="estado_civil">Estado Civil (Detalle)</Label>
+                                <Input
+                                    id="estado_civil"
+                                    value={formData.estado_civil}
+                                    onChange={(e) => setFormData({ ...formData, estado_civil: e.target.value })}
+                                    placeholder="Ej: Casado en primeras nupcias con... / Divorciado de... / Soltero"
+                                />
+                            </div>
+
+                            <div className="grid gap-2 mb-3">
+                                <Label htmlFor="padres">Filiación (Padres)</Label>
+                                <Input
+                                    id="padres"
+                                    value={formData.nombres_padres}
+                                    onChange={(e) => setFormData({ ...formData, nombres_padres: e.target.value })}
+                                    placeholder="Hijo de [Padre] y de [Madre]"
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="conyuge">Cónyuge (Nombre)</Label>
+                                <Input
+                                    id="conyuge"
+                                    value={formData.nombre_conyuge}
+                                    onChange={(e) => setFormData({ ...formData, nombre_conyuge: e.target.value })}
+                                    placeholder="Si es casado/a"
+                                />
+                            </div>
                         </div>
                     </div>
-                    <DialogFooter>
+
+                    <DialogFooter className="pt-4 border-t">
                         <Button type="submit" disabled={loading}>
                             {loading ? "Guardando..." : "Guardar Cliente"}
                         </Button>
