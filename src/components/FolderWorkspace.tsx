@@ -395,17 +395,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                             const person = p.persona || p.personas;
                                             if (!person) return <p className="text-red-500 text-xs text-center py-4">Error: Datos de persona no vinculados</p>;
 
-                                            // Extract simple estado civil (casada, divorciada, etc)
-                                            const extractEstadoCivil = (detalle: string | null | undefined) => {
-                                                if (!detalle) return "No informado";
-                                                const lower = detalle.toLowerCase();
-                                                if (lower.includes("casad")) return "Casado/a";
-                                                if (lower.includes("divorciad")) return "Divorciado/a";
-                                                if (lower.includes("solter")) return "Soltero/a";
-                                                if (lower.includes("viud")) return "Viudo/a";
-                                                return detalle.split(" ")[0]; // First word
-                                            };
-
                                             return (
                                                 <div className="p-4 space-y-3">
                                                     {/* Full Name */}
@@ -443,28 +432,28 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         </p>
                                                     </div>
 
-                                                    {/* Estado Civil y Cónyuge */}
-                                                    <div className="grid grid-cols-2 gap-3">
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Estado Civil</p>
-                                                            <p className="text-sm text-slate-700">
-                                                                {extractEstadoCivil(person.estado_civil_detalle || person.estado_civil)}
-                                                            </p>
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Cónyuge</p>
-                                                            <p className="text-sm text-indigo-700 font-semibold">
-                                                                {person.datos_conyuge?.nombre || "No aplica"}
-                                                            </p>
-                                                        </div>
+                                                    {/* Estado Civil - Párrafo completo literal */}
+                                                    <div>
+                                                        <p className="text-[10px] font-semibold uppercase text-slate-400">Estado Civil</p>
+                                                        <p className="text-sm text-slate-700">
+                                                            {person.estado_civil_detalle || person.estado_civil || "No informado"}
+                                                        </p>
                                                     </div>
 
-                                                    {/* Hijo de */}
-                                                    <div>
-                                                        <p className="text-[10px] font-semibold uppercase text-slate-400">Hijo de:</p>
-                                                        <p className="text-sm text-slate-700 font-medium">
-                                                            {person.nombres_padres || person.estado_civil_detallado?.padres || "No informado"}
-                                                        </p>
+                                                    {/* Cónyuge e Hijo de - Misma línea */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Cónyuge</p>
+                                                            <p className="text-sm text-slate-700">
+                                                                {person.datos_conyuge?.nombre || "No informado"}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Hijo de:</p>
+                                                            <p className="text-sm text-slate-700">
+                                                                {person.nombres_padres || person.estado_civil_detallado?.padres || "No informado"}
+                                                            </p>
+                                                        </div>
                                                     </div>
 
                                                     {/* Footer Action */}
