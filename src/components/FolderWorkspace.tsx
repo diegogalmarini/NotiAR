@@ -366,104 +366,109 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                             {optimisticOps.flatMap((op: any) =>
                                 op.participantes_operacion?.map((p: any) => (
                                     <Card key={p.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                                        <div className="px-3 py-1.5 border-b flex justify-between items-center bg-slate-50 text-slate-600">
-                                            <span className="text-[10px] font-medium uppercase tracking-wide">{p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}</span>
-                                            <Badge variant="outline" className="text-[9px] bg-white">{p.persona_id}</Badge>
+                                        {/* Header: Role + Actions */}
+                                        <div className="px-4 py-2 border-b flex justify-between items-center bg-slate-50">
+                                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-700">
+                                                {p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}
+                                            </span>
+                                            <div className="flex items-center gap-1">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                                                    onClick={(e) => { e.stopPropagation(); setEditingPerson(p.persona || p.personas); }}
+                                                >
+                                                    <Pencil className="h-3.5 w-3.5" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                    onClick={(e) => { e.stopPropagation(); handleUnlinkPerson(p.id); }}
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </Button>
+                                            </div>
                                         </div>
+
                                         {(() => {
                                             const person = p.persona || p.personas;
                                             if (!person) return <p className="text-red-500 text-xs text-center py-4">Error: Datos de persona no vinculados</p>;
 
+                                            // Extract simple estado civil (casada, divorciada, etc)
+                                            const extractEstadoCivil = (detalle: string | null | undefined) => {
+                                                if (!detalle) return "No informado";
+                                                const lower = detalle.toLowerCase();
+                                                if (lower.includes("casad")) return "Casado/a";
+                                                if (lower.includes("divorciad")) return "Divorciado/a";
+                                                if (lower.includes("solter")) return "Soltero/a";
+                                                if (lower.includes("viud")) return "Viudo/a";
+                                                return detalle.split(" ")[0]; // First word
+                                            };
+
                                             return (
-                                                <div className="p-4 space-y-4">
-                                                    {/* Header with Name and Actions */}
-                                                    <div className="flex justify-between items-start gap-4">
-                                                        <div className="space-y-1 overflow-hidden">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className="text-lg font-semibold text-slate-700 leading-tight truncate">{person.nombre_completo}</p>
-                                                                <Badge variant="secondary" className="text-[10px] font-medium py-0 h-5 shrink-0 bg-slate-100 text-slate-600">
-                                                                    {p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}
-                                                                </Badge>
-                                                            </div>
-                                                            <p className="text-[11px] font-mono text-slate-400">DNI: {person.tax_id || person.dni || p.persona_id}</p>
+                                                <div className="p-4 space-y-3">
+                                                    {/* Full Name */}
+                                                    <h3 className="text-base font-bold text-slate-800">{person.nombre_completo}</h3>
+
+                                                    {/* DNI y CUIT Grid */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">DNI</p>
+                                                            <p className="text-sm text-slate-700">{person.tax_id || person.dni || p.persona_id}</p>
                                                         </div>
-                                                        <div className="flex items-center gap-1 shrink-0">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-9 w-9 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                                                                onClick={(e) => { e.stopPropagation(); setEditingPerson(person); }}
-                                                            >
-                                                                <Pencil className="h-4 w-4" />
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-9 w-9 text-slate-400 hover:text-red-600 hover:bg-red-50"
-                                                                onClick={(e) => { e.stopPropagation(); handleUnlinkPerson(p.id); }}
-                                                            >
-                                                                <Trash2 className="h-4 w-4" />
-                                                            </Button>
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">CUIT / CUIL</p>
+                                                            <p className="text-sm text-slate-700">{person.cuit || "No informado"}</p>
                                                         </div>
                                                     </div>
 
-                                                    {/* Body: Notary Details */}
-                                                    <div className="grid grid-cols-1 gap-2.5 pt-3 border-t border-slate-100">
-                                                        {/* Nationality and Birth */}
-                                                        <div className="flex items-center gap-3">
-                                                            <div className="flex gap-4">
-                                                                <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacionalidad</p>
-                                                                    <p className="text-xs text-slate-600">{person.nacionalidad || "No consta"}</p>
-                                                                </div>
-                                                                <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-semibold uppercase text-slate-400 leading-none">Nacimiento</p>
-                                                                    <p className="text-xs text-slate-600">{formatDateInstructions(person.fecha_nacimiento)}</p>
-                                                                </div>
-                                                            </div>
+                                                    {/* Nacionalidad y Nacimiento */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Nacionalidad</p>
+                                                            <p className="text-sm text-slate-700">{person.nacionalidad || "No informado"}</p>
                                                         </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Nacimiento</p>
+                                                            <p className="text-sm text-slate-700">{formatDateInstructions(person.fecha_nacimiento)}</p>
+                                                        </div>
+                                                    </div>
 
-                                                        {/* Address */}
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="space-y-0.5">
-                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Domicilio Real</p>
-                                                                <p className="text-xs text-slate-700 font-medium leading-tight italic">
-                                                                    {person.domicilio_real?.literal || "No consta en el documento"}
-                                                                </p>
-                                                            </div>
-                                                        </div>
+                                                    {/* Domicilio Real */}
+                                                    <div>
+                                                        <p className="text-[10px] font-semibold uppercase text-slate-400">Domicilio Real</p>
+                                                        <p className="text-sm text-slate-700 italic">
+                                                            {person.domicilio_real?.literal || "No consta en el documento"}
+                                                        </p>
+                                                    </div>
 
-                                                        {/* Marital Status and Spouse */}
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="space-y-1">
-                                                                <div className="space-y-0.5">
-                                                                    <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Estado Civil</p>
-                                                                    <p className="text-xs text-slate-600 leading-tight">
-                                                                        {person.estado_civil_detalle || person.estado_civil || person.estado_civil_detallado?.estado || "No consta"}
-                                                                    </p>
-                                                                </div>
-                                                                {person.datos_conyuge?.nombre && (
-                                                                    <div className="flex items-center gap-2 px-2 py-1 bg-slate-50 border border-slate-100 rounded">
-                                                                        <span className="text-[10px] font-bold text-indigo-600">Cónyuge:</span>
-                                                                        <span className="text-xs text-slate-700 font-medium">{person.datos_conyuge.nombre}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                                    {/* Estado Civil y Cónyuge */}
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Estado Civil</p>
+                                                            <p className="text-sm text-slate-700">
+                                                                {extractEstadoCivil(person.estado_civil_detalle || person.estado_civil)}
+                                                            </p>
                                                         </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Cónyuge</p>
+                                                            <p className="text-sm text-indigo-700 font-semibold">
+                                                                {person.datos_conyuge?.nombre || "No aplica"}
+                                                            </p>
+                                                        </div>
+                                                    </div>
 
-                                                        {/* Parents (Filiation) */}
-                                                        <div className="flex items-start gap-3">
-                                                            <div className="space-y-0.5">
-                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Hijo de:</p>
-                                                                <p className="text-xs text-slate-700 font-bold leading-tight">
-                                                                    {person.nombres_padres || person.estado_civil_detallado?.padres || "No informado"}
-                                                                </p>
-                                                            </div>
-                                                        </div>
+                                                    {/* Hijo de */}
+                                                    <div>
+                                                        <p className="text-[10px] font-semibold uppercase text-slate-400">Hijo de:</p>
+                                                        <p className="text-sm text-slate-700 font-medium">
+                                                            {person.nombres_padres || person.estado_civil_detallado?.padres || "No informado"}
+                                                        </p>
                                                     </div>
 
                                                     {/* Footer Action */}
-                                                    <div className="pt-2 border-t border-slate-50 flex justify-end">
+                                                    <div className="pt-2 border-t border-slate-100">
                                                         <ClientOutreach personId={p.persona_id} personName={person.nombre_completo} />
                                                     </div>
                                                 </div>
@@ -475,7 +480,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         </div>
                     </div>
                 </div>
-            </TabsContent>
+            </TabsContent >
 
             <TabsContent value="draft" className="h-[calc(100vh-180px)] overflow-hidden">
                 {activeDeedId ? (
