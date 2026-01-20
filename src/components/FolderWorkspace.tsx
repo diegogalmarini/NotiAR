@@ -50,6 +50,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
     const [showTranscriptionDialog, setShowTranscriptionDialog] = useState(false);
     const [editingDeed, setEditingDeed] = useState<any>(null);
+    const [viewingDocument, setViewingDocument] = useState<string | null>(null);
 
     console.log("📂 FolderWorkspace Initial Data:", JSON.stringify(initialData, null, 2));
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
@@ -57,6 +58,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [editingPerson, setEditingPerson] = useState<any>(null);
     const router = useRouter();
+
 
 
 
@@ -222,7 +224,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 )}
                                 onClick={() => setActiveDeedId(escritura.id)}
                             >
-                                <CardHeader className="p-4 pb-2">
+                                <CardHeader className="p-4 pb-0">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="text-sm font-semibold text-slate-700">Datos actuales de Documento Original</CardTitle>
                                         <Button
@@ -297,12 +299,19 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         </div>
 
                                         {/* Action Buttons */}
-                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
+                                        <div className="grid grid-cols-3 gap-2 pt-2 border-t">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 className="h-7 text-[10px] font-medium text-slate-700 gap-1.5"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (escritura.pdf_url) {
+                                                        setViewingDocument(escritura.pdf_url);
+                                                    } else {
+                                                        toast.error("No hay documento disponible");
+                                                    }
+                                                }}
                                             >
                                                 <Eye className="h-3 w-3" />
                                                 Ver Documento
@@ -311,25 +320,29 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 variant="outline"
                                                 size="sm"
                                                 className="h-7 text-[10px] font-medium text-slate-700 gap-1.5"
-                                                onClick={(e) => e.stopPropagation()}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    if (escritura.pdf_url) {
+                                                        window.open(escritura.pdf_url, '_blank');
+                                                    } else {
+                                                        toast.error("No hay documento para descargar");
+                                                    }
+                                                }}
                                             >
                                                 <Download className="h-3 w-3" />
                                                 Descargar
                                             </Button>
-                                        </div>
-
-                                        {/* Transcription Button */}
-                                        <div className="pt-2">
                                             <Button
-                                                variant="ghost"
+                                                variant="outline"
                                                 size="sm"
-                                                className="w-full h-7 text-[10px] text-slate-600 hover:bg-slate-50"
+                                                className="h-7 text-[10px] font-medium text-slate-700 gap-1.5"
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setShowTranscriptionDialog(true);
                                                 }}
                                             >
-                                                Ver Transcripción Literal Completa
+                                                <FileText className="h-3 w-3" />
+                                                Transcripción
                                             </Button>
                                         </div>
                                     </div>
@@ -691,6 +704,32 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                             </div>
                         </form>
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Document Viewer Dialog - Fullscreen */}
+            <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
+                <DialogContent className="max-w-[98vw] max-h-[98vh] w-full h-full p-0">
+                    <div className="relative w-full h-full">
+                        {/* Close Button */}
+                        <button
+                            onClick={() => setViewingDocument(null)}
+                            className="absolute top-2 right-2 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-slate-100 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        {/* Document Viewer using Google Docs Viewer */}
+                        {viewingDocument && (
+                            <iframe
+                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
+                                className="w-full h-full border-0"
+                                title="Document Viewer"
+                            />
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </Tabs >
