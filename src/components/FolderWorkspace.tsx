@@ -295,21 +295,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 Descargar
                                             </Button>
                                         </div>
-
-                                        {/* Transcription Button */}
-                                        <div className="pt-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="w-full h-7 text-[10px] text-slate-600 hover:bg-slate-50"
-                                                onClick={() => {
-                                                    setActiveTranscriptionId(escritura.id);
-                                                    setShowTranscriptionDialog(true);
-                                                }}
-                                            >
-                                                Ver Transcripción Literal Completa
-                                            </Button>
-                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
