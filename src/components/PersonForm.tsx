@@ -20,7 +20,6 @@ interface PersonFormProps {
 export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps) {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
-        tax_id: initialData?.tax_id || "",
         nombre_completo: initialData?.nombre_completo || "",
         dni: initialData?.dni || "",
         cuit: initialData?.cuit || "",
@@ -38,8 +37,6 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
         e.preventDefault();
         setLoading(true);
         try {
-            const taxId = formData.cuit?.trim() ? formData.cuit : formData.dni;
-
             if (initialData) {
                 // Formatting for updatePersona
                 const updatePayload = {
@@ -52,12 +49,11 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     domicilio: formData.domicilio_real,
                     dni: formData.dni,
                     cuit: formData.cuit,
-                    new_tax_id: taxId,
                     email: formData.email,
                     telefono: formData.telefono
                 };
 
-                const res = await updatePersona(initialData.tax_id, updatePayload);
+                const res = await updatePersona(initialData.dni, updatePayload);
                 if (res.success) {
                     toast.success("Persona actualizada correctamente");
                     onSuccess(res.data);
@@ -67,10 +63,9 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
             } else {
                 // Formatting for upsertPerson (Create)
                 const payload = {
-                    tax_id: taxId,
-                    nombre_completo: formData.nombre_completo,
                     dni: formData.dni,
                     cuit: formData.cuit,
+                    nombre_completo: formData.nombre_completo,
                     nacionalidad: formData.nacionalidad,
                     fecha_nacimiento: formData.fecha_nacimiento || null,
                     domicilio_real: { literal: formData.domicilio_real },
@@ -139,7 +134,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         value={formData.dni}
                         onChange={e => {
                             const val = e.target.value;
-                            setFormData({ ...formData, dni: val, tax_id: formData.cuit || val })
+                            setFormData({ ...formData, dni: val })
                         }}
                         placeholder="DNI"
                     />
@@ -150,7 +145,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         value={formData.cuit}
                         onChange={e => {
                             const val = e.target.value;
-                            setFormData({ ...formData, cuit: val, tax_id: val || formData.dni })
+                            setFormData({ ...formData, cuit: val })
                         }}
                         placeholder="CUIT"
                     />

@@ -281,12 +281,15 @@ export async function POST(request: Request) {
 
             // 4. Clientes & Fichas
             for (const c of clientes) {
-                const taxId = c.cuit || c.dni || null;
-                if (!taxId || !c.nombre_completo) continue;
+                const dni = normalizeID(c.dni) || null;
+                const cuit = c.cuit ? normalizeID(c.cuit) : null;
+
+                if (!dni || !c.nombre_completo) continue;
 
                 // Create/Update Persona
                 const { data: persona, error: pError } = await supabase.from('personas').upsert({
-                    tax_id: normalizeID(taxId),
+                    dni: dni,
+                    cuit: cuit,
                     nombre_completo: toTitleCase(c.nombre_completo),
                     nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
                     fecha_nacimiento: c.fecha_nacimiento || null,
@@ -302,7 +305,7 @@ export async function POST(request: Request) {
                     contacto: { email: c.email || null, telefono: c.telefono || null },
                     origen_dato: 'IA_OCR',
                     updated_at: new Date().toISOString(),
-                }, { onConflict: 'tax_id' }).select().single();
+                }, { onConflict: 'dni' }).select().single();
 
                 if (pError) {
                     console.error("[INGEST] Error Persona:", pError);
@@ -314,7 +317,7 @@ export async function POST(request: Request) {
                     if (operacion) {
                         await supabase.from('participantes_operacion').insert([{
                             operacion_id: operacion.id,
-                            persona_id: persona.tax_id,
+                            persona_id: persona.dni,
                             rol: c.rol?.toUpperCase() || 'VENDEDOR'
                         }]);
                     }
@@ -324,7 +327,7 @@ export async function POST(request: Request) {
                     expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
 
                     await supabase.from('fichas_web_tokens').insert([{
-                        persona_id: persona.tax_id,
+                        persona_id: persona.dni,
                         estado: 'PENDIENTE',
                         expires_at: expiresAt.toISOString()
                     }]);

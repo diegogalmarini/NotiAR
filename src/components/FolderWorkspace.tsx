@@ -404,7 +404,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <div className="grid grid-cols-2 gap-3">
                                                         <div>
                                                             <p className="text-[10px] font-semibold uppercase text-slate-400">DNI</p>
-                                                            <p className="text-sm text-slate-700">{person.tax_id || person.dni || p.persona_id}</p>
+                                                            <p className="text-sm text-slate-700">{person.dni || p.persona_id}</p>
                                                         </div>
                                                         <div>
                                                             <p className="text-[10px] font-semibold uppercase text-slate-400">CUIT / CUIL</p>
