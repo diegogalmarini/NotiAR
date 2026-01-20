@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { upsertPerson } from "@/app/actions/carpeta";
 import { updatePersona } from "@/app/actions/personas";
@@ -216,10 +217,12 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                 <div className="space-y-4">
                     <div className="space-y-2">
                         <Label>Estado Civil (Detalle)</Label>
-                        <Input
+                        <Textarea
+                            rows={3}
                             value={formData.estado}
                             onChange={e => setFormData({ ...formData, estado: e.target.value })}
                             placeholder="Ej: Casado en primeras nupcias con..."
+                            className="resize-none"
                         />
                     </div>
                     <div className="space-y-2">

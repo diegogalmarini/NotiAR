@@ -489,7 +489,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
             {/* Editing Person Modal */}
             < Dialog open={!!editingPerson} onOpenChange={() => setEditingPerson(null)}>
-                <DialogContent className="sm:max-w-[600px]">
+                <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                     <DialogHeader>
                         <DialogTitle>Editar Persona</DialogTitle>
                         <DialogDescription>
