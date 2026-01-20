@@ -77,7 +77,7 @@ export default async function CarpetasPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-sm text-muted-foreground">
-                                        {new Date(carpeta.created_at).toLocaleDateString()}
+                                        {new Date(carpeta.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <Button variant="ghost" size="sm" asChild>
