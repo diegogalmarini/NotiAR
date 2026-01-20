@@ -46,6 +46,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isPersonSearchOpen, setIsPersonSearchOpen] = useState(false);
     const [isAssetSearchOpen, setIsAssetSearchOpen] = useState(false);
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
+    const [showTranscriptionDialog, setShowTranscriptionDialog] = useState(false);
 
     console.log("📂 FolderWorkspace Initial Data:", JSON.stringify(initialData, null, 2));
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
@@ -53,6 +54,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [editingPerson, setEditingPerson] = useState<any>(null);
     const router = useRouter();
+
 
     // Optimistic participants
     const [optimisticOps, addOptimisticParticipant] = useOptimistic(
@@ -295,6 +297,21 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 Descargar
                                             </Button>
                                         </div>
+
+                                        {/* Transcription Button */}
+                                        <div className="pt-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="w-full h-7 text-[10px] text-slate-600 hover:bg-slate-50"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setShowTranscriptionDialog(true);
+                                                }}
+                                            >
+                                                Ver Transcripción Literal Completa
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -469,6 +486,31 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                             onCancel={() => setEditingPerson(null)}
                         />
                     )}
+                </DialogContent>
+            </Dialog>
+
+            {/* Transcription Dialog */}
+            <Dialog open={showTranscriptionDialog} onOpenChange={setShowTranscriptionDialog}>
+                <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Transcripción Literal Completa del Inmueble</DialogTitle>
+                        <DialogDescription>
+                            Descripción técnica completa del inmueble extraída del documento original.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="mt-4">
+                        {currentEscritura?.inmuebles?.transcripcion_literal ? (
+                            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                                <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                    {currentEscritura.inmuebles.transcripcion_literal}
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="p-8 text-center text-slate-500">
+                                <p className="text-sm">No hay transcripción literal disponible para este documento.</p>
+                            </div>
+                        )}
+                    </div>
                 </DialogContent>
             </Dialog>
         </Tabs>

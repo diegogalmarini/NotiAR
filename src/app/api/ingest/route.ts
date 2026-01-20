@@ -79,7 +79,8 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
          - fecha_escritura: Fecha del documento (formato YYYY-MM-DD).
          - notario_interviniente: Nombre COMPLETO del escribano que autorizó el documento.
          - registro_notario: Número de registro del escribano (ej: "Registro 30 de Bahía Blanca").
-         - numero_acto: Número del acto. IMPORTANTE: Puede estar escrito en letras, conviértelo a números.
+         - numero_acto: BUSCA "Código" que aparece al lado del tipo de acto (ej: "COMPRAVENTA (Código 100-00)"). Extrae SOLO el código numérico (ej: "100-00"). IMPORTANTE: En los documentos se llama "Código" NO "número de acto".
+
 
 
       ESQUEMA JSON (ESTRICTO):
