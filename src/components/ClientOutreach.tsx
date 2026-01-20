@@ -10,12 +10,13 @@ import {
     DialogDescription,
     DialogFooter
 } from "@/components/ui/dialog";
-import { Link as LinkIcon, MessageCircle, Copy, Check, ExternalLink } from "lucide-react";
+import { Link as LinkIcon, MessageCircle, Copy, Check, ExternalLink, AlertCircle } from "lucide-react";
 import { createFichaToken } from "@/app/actions/ficha";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-export function ClientOutreach({ personId, personName }: { personId: string; personName: string }) {
+export function ClientOutreach({ personId, personName, personPhone }: { personId: string; personName: string; personPhone?: string }) {
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [url, setUrl] = useState<string | null>(null);
@@ -43,10 +44,12 @@ export function ClientOutreach({ personId, personName }: { personId: string; per
     };
 
     const handleWhatsApp = () => {
-        if (url) {
+        if (url && personPhone) {
             const message = `Hola ${personName}, por favor completa tus datos para la escritura ingresando en este enlace seguro: ${url}`;
             const encodedMessage = encodeURIComponent(message);
-            window.open(`https://wa.me/?text=${encodedMessage}`, "_blank");
+            // Remove any non-numeric characters from phone number
+            const cleanPhone = personPhone.replace(/\D/g, '');
+            window.open(`https://wa.me/${cleanPhone}?text=${encodedMessage}`, "_blank");
         }
     };
 
@@ -85,11 +88,21 @@ export function ClientOutreach({ personId, personName }: { personId: string; per
                         </Button>
                     </div>
 
+                    {!personPhone && (
+                        <Alert variant="destructive" className="bg-amber-50 border-amber-200">
+                            <AlertCircle className="h-4 w-4 !text-amber-600" />
+                            <AlertDescription className="text-amber-800">
+                                Este cliente no tiene un teléfono registrado. No se puede enviar por WhatsApp.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+
                     <DialogFooter className="sm:justify-start gap-2">
                         <Button
                             type="button"
                             className="bg-green-600 hover:bg-green-700 text-white flex-1"
                             onClick={handleWhatsApp}
+                            disabled={!personPhone}
                         >
                             <MessageCircle className="mr-2 h-4 w-4" />
                             Enviar por WhatsApp

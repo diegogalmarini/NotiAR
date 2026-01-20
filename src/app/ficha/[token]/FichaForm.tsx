@@ -74,17 +74,40 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                     <CardContent className="grid gap-4 pt-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="nombre">Nombre y Apellido Completo</Label>
+                                <Label htmlFor="nombre">Nombre</Label>
                                 <Input
                                     id="nombre"
                                     required
-                                    value={formData.nombre_completo}
-                                    onChange={e => setFormData({ ...formData, nombre_completo: e.target.value })}
-                                    placeholder="Como figura en su DNI"
+                                    value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
+                                    onChange={e => {
+                                        const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
+                                    }}
+                                    placeholder="Nombres"
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label>DNI / CUIT (No editable)</Label>
+                                <Label htmlFor="apellido">Apellido</Label>
+                                <Input
+                                    id="apellido"
+                                    required
+                                    value={formData.nombre_completo.split(" ").slice(-1)[0]}
+                                    onChange={e => {
+                                        const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
+                                    }}
+                                    placeholder="Apellidos"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>DNI (No editable)</Label>
+                                <Input value={persona.tax_id?.length === 11 ? persona.tax_id.slice(2, 10) : persona.tax_id} disabled className="bg-slate-50 font-mono" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>CUIT (No editable)</Label>
                                 <Input value={persona.tax_id} disabled className="bg-slate-50 font-mono" />
                             </div>
                         </div>

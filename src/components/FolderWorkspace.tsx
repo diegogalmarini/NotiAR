@@ -229,7 +229,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         Protocolo #{escritura.nro_protocolo || "Draft"}
                                     </CardTitle>
                                     <CardDescription>
-                                        {escritura.fecha_escritura || "Fecha pendiente"}
+                                        {escritura.fecha_escritura ?
+                                            new Date(escritura.fecha_escritura + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+                                            : "Fecha pendiente"}
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="p-4 pt-0">
@@ -255,11 +257,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
-                                                        className="w-full text-[10px] h-7 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-bold uppercase text-indigo-700 shadow-sm"
+                                                        className="w-full text-[10px] h-7 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-medium uppercase text-slate-700 shadow-sm"
                                                         onClick={(e) => e.stopPropagation()}
                                                     >
-                                                        <FileText className="h-3 w-3" />
-                                                        📜 Ver Transcripción
+                                                        Ver Transcripción
                                                     </Button>
                                                 </DialogTrigger>
                                                 <DialogContent className="max-w-2xl max-h-[80vh]">
