@@ -16,9 +16,11 @@ import { MinutaGenerator } from "./MinutaGenerator";
 import { AMLCompliance } from "./AMLCompliance";
 import { InscriptionTracker } from "./InscriptionTracker";
 import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed, deleteCarpeta, unlinkPersonFromOperation } from "@/app/actions/carpeta";
+import { updateEscritura, updateOperacion, updateInmueble } from "@/app/actions/escritura";
 import { ClientOutreach } from "./ClientOutreach";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { cn, formatDateInstructions } from "@/lib/utils";
 import {
     AlertDialog,
@@ -47,6 +49,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isAssetSearchOpen, setIsAssetSearchOpen] = useState(false);
     const [activeOpId, setActiveOpId] = useState<string | null>(null);
     const [showTranscriptionDialog, setShowTranscriptionDialog] = useState(false);
+    const [editingDeed, setEditingDeed] = useState<any>(null);
 
     console.log("📂 FolderWorkspace Initial Data:", JSON.stringify(initialData, null, 2));
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
@@ -54,6 +57,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isDeleting, setIsDeleting] = useState(false);
     const [editingPerson, setEditingPerson] = useState<any>(null);
     const router = useRouter();
+
 
 
     // Optimistic participants
@@ -219,7 +223,23 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 onClick={() => setActiveDeedId(escritura.id)}
                             >
                                 <CardHeader className="p-4 pb-2">
-                                    <CardTitle className="text-sm font-semibold text-slate-700">Datos actuales de Documento Original</CardTitle>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="text-sm font-semibold text-slate-700">Datos actuales de Documento Original</CardTitle>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-6 w-6 p-0"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setEditingDeed({
+                                                    ...escritura,
+                                                    operacion: escritura.operaciones?.[0]
+                                                });
+                                            }}
+                                        >
+                                            <Pencil className="h-3 w-3 text-slate-500" />
+                                        </Button>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="p-4 pt-2">
                                     <div className="space-y-2.5 text-xs">
@@ -513,6 +533,166 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     </div>
                 </DialogContent>
             </Dialog>
-        </Tabs>
+
+            {/* Edit Deed Metadata Dialog */}
+            <Dialog open={!!editingDeed} onOpenChange={() => setEditingDeed(null)}>
+                <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                        <DialogTitle>Editar Datos del Documento</DialogTitle>
+                        <DialogDescription>
+                            Modifica los metadatos extraídos por IA. Los cambios se guardarán en la base de datos.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {editingDeed && (
+                        <form
+                            onSubmit={async (e) => {
+                                e.preventDefault();
+                                const formData = new FormData(e.currentTarget);
+
+                                // Update escritura
+                                const escrituraResult = await updateEscritura(editingDeed.id, {
+                                    nro_protocolo: formData.get("nro_protocolo") ? parseInt(formData.get("nro_protocolo") as string) : null,
+                                    fecha_escritura: formData.get("fecha_escritura") as string || null,
+                                    notario_interviniente: formData.get("notario_interviniente") as string || null,
+                                    registro: formData.get("registro") as string || null,
+                                });
+
+                                // Update operacion
+                                if (editingDeed.operacion?.id) {
+                                    await updateOperacion(editingDeed.operacion.id, {
+                                        tipo_acto: formData.get("tipo_acto") as string,
+                                        nro_acto: formData.get("nro_acto") as string || null,
+                                    });
+                                }
+
+                                // Update inmueble
+                                if (editingDeed.inmuebles?.id) {
+                                    await updateInmueble(editingDeed.inmuebles.id, {
+                                        partido_id: formData.get("partido_id") as string,
+                                        nro_partida: formData.get("nro_partida") as string,
+                                    });
+                                }
+
+                                if (escrituraResult.success) {
+                                    toast.success("Datos actualizados correctamente");
+                                    setEditingDeed(null);
+                                    router.refresh();
+                                } else {
+                                    toast.error("Error al actualizar: " + escrituraResult.error);
+                                }
+                            }}
+                            className="space-y-4 mt-4"
+                        >
+                            {/* Inmueble Data */}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-slate-700">Datos del Inmueble</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="partido_id">Partido / Dpto</Label>
+                                        <Input
+                                            id="partido_id"
+                                            name="partido_id"
+                                            defaultValue={editingDeed.inmuebles?.partido_id || ""}
+                                            placeholder="Ej: Bahía Blanca"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nro_partida">Nro. Partida</Label>
+                                        <Input
+                                            id="nro_partida"
+                                            name="nro_partida"
+                                            defaultValue={editingDeed.inmuebles?.nro_partida || ""}
+                                            placeholder="Ej: 186.636"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Operacion Data */}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-slate-700">Datos de la Operación</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="tipo_acto">Tipo de Acto</Label>
+                                        <Input
+                                            id="tipo_acto"
+                                            name="tipo_acto"
+                                            defaultValue={editingDeed.operacion?.tipo_acto || "COMPRAVENTA"}
+                                            placeholder="Ej: COMPRAVENTA"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nro_acto">Nº de Acto (Código)</Label>
+                                        <Input
+                                            id="nro_acto"
+                                            name="nro_acto"
+                                            defaultValue={editingDeed.operacion?.nro_acto || ""}
+                                            placeholder="Ej: 100-00"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Escritura Data */}
+                            <div className="space-y-3">
+                                <h4 className="text-sm font-semibold text-slate-700">Datos de la Escritura</h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="nro_protocolo">Escritura Nº</Label>
+                                        <Input
+                                            id="nro_protocolo"
+                                            name="nro_protocolo"
+                                            type="number"
+                                            defaultValue={editingDeed.nro_protocolo || ""}
+                                            placeholder="Ej: 240"
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="fecha_escritura">Fecha</Label>
+                                        <Input
+                                            id="fecha_escritura"
+                                            name="fecha_escritura"
+                                            type="date"
+                                            defaultValue={editingDeed.fecha_escritura || ""}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="notario_interviniente">Escribano</Label>
+                                    <Input
+                                        id="notario_interviniente"
+                                        name="notario_interviniente"
+                                        defaultValue={editingDeed.notario_interviniente || ""}
+                                        placeholder="Nombre completo del escribano"
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="registro">Registro número</Label>
+                                    <Input
+                                        id="registro"
+                                        name="registro"
+                                        defaultValue={editingDeed.registro || ""}
+                                        placeholder="Ej: Registro 30 de Bahía Blanca"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-4">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setEditingDeed(null)}
+                                >
+                                    Cancelar
+                                </Button>
+                                <Button type="submit">
+                                    Guardar Cambios
+                                </Button>
+                            </div>
+                        </form>
+                    )}
+                </DialogContent>
+            </Dialog>
+        </Tabs >
     );
 }
