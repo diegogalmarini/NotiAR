@@ -12,7 +12,8 @@ async function getPdfParser() {
 }
 
 async function getMammoth() {
-    return await import("mammoth");
+    const mammoth = await import("mammoth") as any;
+    return mammoth.default || mammoth;
 }
 
 async function extractTextFromFile(file: File): Promise<string> {
@@ -163,7 +164,15 @@ export async function POST(request: Request) {
         const file = formData.get('file') as File;
         if (!file) return NextResponse.json({ error: "No se encontró el archivo" }, { status: 400 });
 
-        console.log(`[INGEST] Overhaul Agresivo para: ${file.name}`);
+        console.log(`[INGEST] Iniciando procesamiento para: ${file.name}`);
+
+        // Debug env
+        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error("[INGEST] CRÍTICO: SUPABASE_SERVICE_ROLE_KEY no está definido");
+        }
+        if (!process.env.GEMINI_API_KEY) {
+            console.error("[INGEST] CRÍTICO: GEMINI_API_KEY no está definido");
+        }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -248,8 +257,7 @@ export async function POST(request: Request) {
                 }
             }
         } catch (uploadErr: any) {
-            console.error("[INGEST] Error in file upload:", uploadErr);
-            // Continue even if upload fails
+            console.error("[INGEST] Error en upload (catch):", uploadErr);
         }
 
         // 3. Escritura
