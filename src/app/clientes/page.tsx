@@ -1,4 +1,7 @@
+"use client";
+
 import { supabase } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
 import {
     Table,
     TableBody,
@@ -17,11 +20,44 @@ import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
 
-export default async function ClientesPage() {
-    const { data: personas, error } = await supabase
-        .from("personas")
-        .select("*")
-        .order("nombre_completo", { ascending: true });
+export default function ClientesPage() {
+    const [personas, setPersonas] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        async function fetchPersonas() {
+            try {
+                const { data, error } = await supabase
+                    .from("personas")
+                    .select("*")
+                    .order("nombre_completo", { ascending: true });
+
+                if (error) {
+                    console.error("Error fetching personas:", error);
+                } else if (data) {
+                    console.log("Fetched", data.length, "personas");
+                    setPersonas(data);
+                }
+            } catch (err) {
+                console.error("Exception fetching personas:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchPersonas();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="p-8">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+                    <div className="h-64 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">

@@ -1,4 +1,7 @@
+"use client";
+
 import { supabase } from "@/lib/supabaseClient";
+import { useEffect, useState } from "react";
 import {
     Table,
     TableBody,
@@ -14,12 +17,43 @@ import { Search, Building2, Edit2, MapPinned, FileSearch } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { NuevoInmuebleDialog } from "@/components/NuevoInmuebleDialog";
 
-export default async function InmueblesPage() {
-    const { data: inmuebles, error } = await supabase
-        .from("inmuebles")
-        .select("*");
+export default function InmueblesPage() {
+    const [inmuebles, setInmuebles] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    console.log("🏠 INMUEBLES FETCHED:", inmuebles?.length, "ERROR:", error);
+    useEffect(() => {
+        async function fetchInmuebles() {
+            try {
+                const { data, error } = await supabase
+                    .from("inmuebles")
+                    .select("*");
+
+                if (error) {
+                    console.error("Error fetching inmuebles:", error);
+                } else if (data) {
+                    console.log("🏠 Fetched", data.length, "inmuebles");
+                    setInmuebles(data);
+                }
+            } catch (err) {
+                console.error("Exception fetching inmuebles:", err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        fetchInmuebles();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="p-8">
+                <div className="animate-pulse">
+                    <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+                    <div className="h-64 bg-gray-200 rounded"></div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="p-8 space-y-8 animate-in fade-in duration-500">
@@ -55,35 +89,31 @@ export default async function InmueblesPage() {
                         <TableBody>
                             {inmuebles?.map((inmueble) => (
                                 <TableRow key={inmueble.id} className="group">
-                                    <TableCell>
-                                        <div className="flex items-start gap-2">
-                                            <MapPinned className="h-4 w-4 mt-0.5 text-primary opacity-70" />
-                                            <div>
-                                                <div className="font-semibold">{inmueble.partido_id || "BAHIA BLANCA"}</div>
-                                                <div className="text-xs text-muted-foreground uppercase">Partido</div>
-                                            </div>
+                                    <TableCell className="font-semibold">
+                                        <div className="flex items-center gap-2">
+                                            <MapPinned className="h-4 w-4 text-blue-600" />
+                                            {inmueble.partido_id || 'N/A'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono font-bold text-blue-600">
-                                        {inmueble.nro_partida}
+                                    <TableCell className="font-mono text-sm">
+                                        {inmueble.nro_partida || 'N/A'}
                                     </TableCell>
-                                    <TableCell className="text-xs font-mono max-w-[200px]">
-                                        {inmueble.nomenclatura || "Sin datos"}
+                                    <TableCell>
+                                        <div className="text-sm">
+                                            {inmueble.nomenclatura || 'Sin nomenclatura'}
+                                        </div>
                                     </TableCell>
-                                    <TableCell className="max-w-[300px]">
-                                        <div className="text-xs text-muted-foreground line-clamp-2 italic">
-                                            {inmueble.transcripcion_literal || "Sin transcripción literal"}
+                                    <TableCell>
+                                        <div className="text-sm text-muted-foreground line-clamp-2">
+                                            {inmueble.transcripcion_literal ?
+                                                inmueble.transcripcion_literal.substring(0, 100) + '...' :
+                                                'No disponible'}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1">
-                                            <Button variant="ghost" size="icon" className="group-hover:bg-slate-100" title="Ver Transcripción">
-                                                <FileSearch size={16} />
-                                            </Button>
-                                            <Button variant="ghost" size="icon" className="group-hover:bg-slate-100">
-                                                <Edit2 size={16} />
-                                            </Button>
-                                        </div>
+                                        <Button variant="ghost" size="icon">
+                                            <FileSearch className="h-4 w-4" />
+                                        </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}
