@@ -158,14 +158,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
                     <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <FileText className="h-4 w-4" />
-                        Acciones
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-2">
-                        <Download className="h-4 w-4" />
-                        Descarga
-                    </Button>
 
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
