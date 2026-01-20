@@ -203,13 +203,19 @@ export async function POST(request: Request) {
         }
 
         // 3. Escritura
-        const { data: escritura } = await supabase.from('escrituras').insert([{
+        const nroProtocolo = numero_escritura ? parseInt(numero_escritura, 10) : null;
+        const { data: escritura, error: escError } = await supabase.from('escrituras').insert([{
             carpeta_id: carpeta.id,
-            nro_protocolo: numero_escritura,
+            nro_protocolo: isNaN(nroProtocolo!) ? null : nroProtocolo,
             fecha_escritura: fecha_escritura,
             inmueble_princ_id: propertyIds[0] || null,
             contenido_borrador: `Borrador generado para: ${resumen_acto}`
         }]).select().single();
+
+        if (escError) {
+            console.error("[INGEST] Error creating escritura:", escError);
+            throw new Error(`Error creando escritura: ${escError.message}`);
+        }
 
         if (escritura) {
             const { data: operacion } = await supabase.from('operaciones').insert([{
