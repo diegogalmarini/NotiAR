@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabaseClient';
+import { supabase, supabaseAdmin } from '@/lib/supabaseClient';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getLatestModel } from '@/lib/aiConfig';
@@ -225,7 +225,7 @@ export async function POST(request: Request) {
             const storagePath = `documents/${timestamp}_${safeFileName}`;
 
             // Upload to Supabase Storage
-            const { data: uploadData, error: uploadError } = await supabase.storage
+            const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
                 .from('escrituras')
                 .upload(storagePath, buffer, {
                     contentType: file.type,
@@ -236,7 +236,7 @@ export async function POST(request: Request) {
                 console.error("[INGEST] Error uploading file:", uploadError);
             } else {
                 // Generate signed URL with expiration (1 year = 31536000 seconds)
-                const { data: signedUrlData, error: urlError } = await supabase.storage
+                const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
                     .from('escrituras')
                     .createSignedUrl(storagePath, 31536000); // 1 year expiration
 
