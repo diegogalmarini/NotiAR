@@ -140,7 +140,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label>CUIT</Label>
+                    <Label>CUIT / CUIL</Label>
                     <Input
                         value={formData.cuit}
                         onChange={e => {
