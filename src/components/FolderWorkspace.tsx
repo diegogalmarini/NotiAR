@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus, Download } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
 import { PersonForm } from "./PersonForm";
 import { AssetSearch } from "./AssetSearch";
@@ -158,6 +158,14 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
                     <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
+                    <Button variant="outline" size="sm" className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        Acciones
+                    </Button>
+                    <Button variant="outline" size="sm" className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Descarga
+                    </Button>
 
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -212,7 +220,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 key={escritura.id}
                                 className={cn(
                                     "cursor-pointer transition-all hover:shadow-md",
-                                    activeDeedId === escritura.id ? "ring-2 ring-primary" : "opacity-80"
+                                    activeDeedId === escritura.id ? "shadow-lg border-slate-300" : "opacity-80"
                                 )}
                                 onClick={() => setActiveDeedId(escritura.id)}
                             >
@@ -296,8 +304,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 <CardHeader className="pb-3 border-b bg-indigo-50/30">
                                     <div className="flex justify-between items-center">
                                         <div>
-                                            <CardTitle className="text-xl font-black text-indigo-900 tracking-tight">{op.tipo_acto}</CardTitle>
-                                            <CardDescription className="text-indigo-600 font-medium">Monto: ${op.monto_operacion || "0.00"}</CardDescription>
+                                            <CardTitle className="text-xl font-semibold text-slate-700 tracking-tight">{op.tipo_acto}</CardTitle>
                                         </div>
                                         <Button variant="outline" size="sm" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50" onClick={() => {
                                             setActiveOpId(op.id);
@@ -314,12 +321,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {op.participantes_operacion?.map((p: any) => (
                                                 <Card key={p.id} className="overflow-hidden border-slate-200 shadow-none hover:shadow-md transition-shadow">
-                                                    <div className={cn(
-                                                        "px-3 py-1.5 border-b flex justify-between items-center",
-                                                        p.rol === 'VENDEDOR' ? "bg-red-50 text-red-700" : "bg-blue-50 text-blue-700"
-                                                    )}>
-                                                        <span className="text-[10px] font-black uppercase tracking-widest">{p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}</span>
-                                                        <Badge variant="outline" className="text-[9px] bg-white border-current">{p.persona_id}</Badge>
+                                                    <div className="px-3 py-1.5 border-b flex justify-between items-center bg-slate-50 text-slate-600">
+                                                        <span className="text-[10px] font-medium uppercase tracking-wide">{p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}</span>
+                                                        <Badge variant="outline" className="text-[9px] bg-white">{p.persona_id}</Badge>
                                                     </div>
                                                     {(() => {
                                                         const person = p.persona || p.personas;
@@ -331,12 +335,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <div className="flex justify-between items-start gap-4">
                                                                     <div className="space-y-1 overflow-hidden">
                                                                         <div className="flex items-center gap-2">
-                                                                            <p className="text-lg font-black text-slate-900 leading-tight truncate">{person.nombre_completo}</p>
-                                                                            <Badge variant="secondary" className="text-[10px] font-bold py-0 h-5 shrink-0 bg-indigo-50 text-indigo-700 border-indigo-100">
+                                                                            <p className="text-lg font-semibold text-slate-700 leading-tight truncate">{person.nombre_completo}</p>
+                                                                            <Badge variant="secondary" className="text-[10px] font-medium py-0 h-5 shrink-0 bg-slate-100 text-slate-600">
                                                                                 {p.rol === 'VENDEDOR' ? 'Transmitente' : 'Adquirente'}
                                                                             </Badge>
                                                                         </div>
-                                                                        <p className="text-[11px] font-mono text-slate-400">DNI/ID: {person.tax_id || person.dni || p.persona_id}</p>
+                                                                        <p className="text-[11px] font-mono text-slate-400">DNI: {person.tax_id || person.dni || p.persona_id}</p>
                                                                     </div>
                                                                     <div className="flex items-center gap-1 shrink-0">
                                                                         <Button
@@ -362,22 +366,20 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                                 <div className="grid grid-cols-1 gap-2.5 pt-3 border-t border-slate-100">
                                                                     {/* Nationality and Birth */}
                                                                     <div className="flex items-center gap-3">
-                                                                        <Activity className="h-4 w-4 text-indigo-500 shrink-0" />
                                                                         <div className="flex gap-4">
                                                                             <div className="space-y-0.5">
                                                                                 <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacionalidad</p>
-                                                                                <p className="text-xs text-slate-700 font-bold">{person.nacionalidad || "No consta"}</p>
+                                                                                <p className="text-xs text-slate-600">{person.nacionalidad || "No consta"}</p>
                                                                             </div>
                                                                             <div className="space-y-0.5">
-                                                                                <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Nacimiento</p>
-                                                                                <p className="text-xs text-slate-700 font-bold">{formatDateInstructions(person.fecha_nacimiento)}</p>
+                                                                                <p className="text-[9px] font-semibold uppercase text-slate-400 leading-none">Nacimiento</p>
+                                                                                <p className="text-xs text-slate-600">{formatDateInstructions(person.fecha_nacimiento)}</p>
                                                                             </div>
                                                                         </div>
                                                                     </div>
 
                                                                     {/* Address */}
                                                                     <div className="flex items-start gap-3">
-                                                                        <Home className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                         <div className="space-y-0.5">
                                                                             <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Domicilio Real</p>
                                                                             <p className="text-xs text-slate-700 font-medium leading-tight italic">
@@ -388,11 +390,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
                                                                     {/* Marital Status and Spouse */}
                                                                     <div className="flex items-start gap-3">
-                                                                        <FileSignature className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                         <div className="space-y-1">
                                                                             <div className="space-y-0.5">
                                                                                 <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Estado Civil</p>
-                                                                                <p className="text-xs text-slate-700 font-bold leading-tight uppercase">
+                                                                                <p className="text-xs text-slate-600 leading-tight">
                                                                                     {person.estado_civil_detalle || person.estado_civil || person.estado_civil_detallado?.estado || "No consta"}
                                                                                 </p>
                                                                             </div>
