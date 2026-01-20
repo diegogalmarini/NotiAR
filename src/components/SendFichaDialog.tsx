@@ -17,7 +17,7 @@ import { generateFichaLink } from "@/app/actions/fichas";
 
 interface SendFichaDialogProps {
     persona: {
-        tax_id: string;
+        dni: string;
         nombre_completo: string;
     };
 }
@@ -30,7 +30,7 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
 
     const handleGenerate = async () => {
         setLoading(true);
-        const res = await generateFichaLink(persona.tax_id);
+        const res = await generateFichaLink(persona.dni);
         setLoading(false);
 
         if (res.success && res.link) {

@@ -62,7 +62,7 @@ export function NuevoClienteDialog() {
                 nombres_padres: "",
                 nombre_conyuge: ""
             });
-            router.push(`/clientes/${res.data.tax_id}`);
+            router.push(`/clientes`); // Redirect to list as specific pages might not exist yet for temp IDs
         } else {
             toast.error(res.error || "Error al crear cliente");
         }
@@ -80,7 +80,7 @@ export function NuevoClienteDialog() {
                 <DialogHeader>
                     <DialogTitle>Crear Nuevo Cliente</DialogTitle>
                     <DialogDescription>
-                        Ingrese los datos básicos de la persona. El CUIT/DNI y domicilio son obligatorios.
+                        Ingrese los datos básicos de la persona. Nombre es obligatorio; el resto podrá ser completado por el cliente mediante el link de la Ficha.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -119,26 +119,25 @@ export function NuevoClienteDialog() {
                         {/* DNI y CUIT */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni">DNI</Label>
+                                <Label htmlFor="dni">DNI (Opcional)</Label>
                                 <Input
                                     id="dni"
                                     value={formData.dni}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFormData({ ...formData, dni: val, tax_id: formData.cuit || val })
+                                        setFormData({ ...formData, dni: val })
                                     }}
                                     placeholder="Ej: 27.841.387"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit">CUIT/CUIL *</Label>
+                                <Label htmlFor="cuit">CUIT/CUIL (Opcional)</Label>
                                 <Input
                                     id="cuit"
-                                    required
                                     value={formData.cuit}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFormData({ ...formData, cuit: val, tax_id: val || formData.dni })
+                                        setFormData({ ...formData, cuit: val })
                                     }}
                                     placeholder="Ej: 27-27841387-5"
                                 />
@@ -148,10 +147,9 @@ export function NuevoClienteDialog() {
                         {/* Nacionalidad y Fecha de Nacimiento */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nacionalidad">Nacionalidad *</Label>
+                                <Label htmlFor="nacionalidad">Nacionalidad</Label>
                                 <Input
                                     id="nacionalidad"
-                                    required
                                     value={formData.nacionalidad}
                                     onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
                                     placeholder="Ej: Argentina"
@@ -175,10 +173,9 @@ export function NuevoClienteDialog() {
 
                         {/* Domicilio Real */}
                         <div className="grid gap-2">
-                            <Label htmlFor="domicilio">Domicilio Real *</Label>
+                            <Label htmlFor="domicilio">Domicilio Real (Opcional)</Label>
                             <Textarea
                                 id="domicilio"
-                                required
                                 value={formData.domicilio}
                                 onChange={(e) => setFormData({ ...formData, domicilio: e.target.value })}
                                 placeholder="Dirección completa: calle, número, localidad, provincia"

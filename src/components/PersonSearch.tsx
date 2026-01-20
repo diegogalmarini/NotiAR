@@ -23,7 +23,7 @@ import { PersonForm } from "./PersonForm";
 import { Plus } from "lucide-react";
 
 interface Person {
-    tax_id: string;
+    dni: string;
     nombre_completo: string;
 }
 
@@ -91,17 +91,17 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
                         <CommandGroup heading="Resultados">
                             {results.map((person) => (
                                 <CommandItem
-                                    key={person.tax_id}
+                                    key={person.dni}
                                     value={person.nombre_completo}
                                     onSelect={() => {
-                                        onSelect(person.tax_id);
+                                        onSelect(person.dni);
                                         setOpen(false);
                                     }}
                                 >
                                     <User className="mr-2 h-4 w-4" />
                                     <div className="flex flex-col">
                                         <span>{person.nombre_completo}</span>
-                                        <span className="text-xs text-muted-foreground">{person.tax_id}</span>
+                                        <span className="text-xs text-muted-foreground">{person.dni}</span>
                                     </div>
                                 </CommandItem>
                             ))}
@@ -129,7 +129,7 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
                         <PersonForm
                             initialData={{ nombre_completo: query }}
                             onSuccess={(person) => {
-                                onSelect(person.tax_id);
+                                onSelect(person.dni);
                                 setIsCreating(false);
                                 setOpen(false);
                             }}

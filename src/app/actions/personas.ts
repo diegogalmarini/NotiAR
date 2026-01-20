@@ -12,11 +12,16 @@ export async function createPersona(formData: {
     cuit?: string;
 }) {
     try {
+        // Generate a temporary DNI if not provided
+        const finalDni = formData.dni?.trim()
+            ? formData.dni.trim()
+            : `SIN-DNI-${Date.now()}`;
+
         const { data, error } = await supabase
             .from("personas")
             .insert([{
                 nombre_completo: formData.nombre_completo,
-                dni: formData.dni,
+                dni: finalDni,
                 cuit: formData.cuit || null,
                 contacto: {
                     email: formData.email,

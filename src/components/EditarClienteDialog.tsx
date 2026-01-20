@@ -19,7 +19,8 @@ import { updatePersona } from "@/app/actions/personas";
 import { toast } from "sonner";
 
 interface Persona {
-    tax_id: string;
+    dni: string;
+    cuit?: string;
     nombre_completo: string;
     nacionalidad?: string;
     fecha_nacimiento?: string;
@@ -41,35 +42,10 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
-    // Deducir DNI y CUIT del tax_id si no están presentes
-    const deduceDniCuit = () => {
-        const personaAny = persona as any;
-        let dni = personaAny.dni || "";
-        let cuit = personaAny.cuit || "";
-
-        // Si no hay DNI ni CUIT, pero hay tax_id, intentar deducirlos
-        if (!dni && !cuit && persona.tax_id) {
-            const taxId = persona.tax_id.replace(/[-\s]/g, '');
-
-            // Si el tax_id tiene 11 dígitos, es un CUIT
-            if (taxId.length === 11) {
-                cuit = persona.tax_id;
-                // El DNI son los dígitos centrales (del 3 al 10)
-                dni = taxId.slice(2, 10);
-            }
-            // Si tiene 8 dígitos o menos, es un DNI
-            else if (taxId.length <= 8) {
-                dni = persona.tax_id;
-            }
-        }
-
-        return { dni, cuit };
-    };
-
-    const { dni: deducedDni, cuit: deducedCuit } = deduceDniCuit();
-
     const [formData, setFormData] = useState({
         nombre_completo: persona.nombre_completo,
+        dni: persona.dni,
+        cuit: persona.cuit || "",
         nacionalidad: persona.nacionalidad || "",
         fecha_nacimiento: persona.fecha_nacimiento || "",
         estado_civil: persona.estado_civil_detalle || "",
@@ -77,17 +53,14 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
         nombre_conyuge: persona.datos_conyuge?.nombre || "",
         domicilio: persona.domicilio_real?.literal || "",
         email: persona.contacto?.email || "",
-        telefono: persona.contacto?.telefono || "",
-        dni: deducedDni,
-        cuit: deducedCuit,
-        new_tax_id: persona.tax_id
+        telefono: persona.contacto?.telefono || ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        const res = await updatePersona(persona.tax_id, formData);
+        const res = await updatePersona(persona.dni, formData);
 
         setLoading(false);
         if (res.success) {
@@ -154,9 +127,9 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                     value={formData.dni}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFormData({ ...formData, dni: val, new_tax_id: formData.cuit?.trim() ? formData.cuit : val })
+                                        setFormData({ ...formData, dni: val })
                                     }}
-                                    placeholder="Ej: 27.841.387"
+                                    placeholder="Ej: 27841387"
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -166,7 +139,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                                     value={formData.cuit}
                                     onChange={(e) => {
                                         const val = e.target.value;
-                                        setFormData({ ...formData, cuit: val, new_tax_id: val?.trim() ? val : formData.dni })
+                                        setFormData({ ...formData, cuit: val })
                                     }}
                                     placeholder="Ej: 27-27841387-5"
                                 />

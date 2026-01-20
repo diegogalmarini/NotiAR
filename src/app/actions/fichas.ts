@@ -29,13 +29,15 @@ export async function getFichaByToken(tokenId: string) {
     }
 }
 
-export async function submitFichaData(tokenId: string, taxId: string, formData: any) {
+export async function submitFichaData(tokenId: string, oldDni: string, formData: any) {
     try {
-        // 1. Update Persona
+        // 1. Update Persona (DNI is PK, but ON UPDATE CASCADE handles references)
         const { error: pError } = await supabase
             .from("personas")
             .update({
                 nombre_completo: formData.nombre_completo,
+                dni: formData.dni, // New DNI from the form
+                cuit: formData.cuit,
                 nacionalidad: formData.nacionalidad,
                 fecha_nacimiento: formData.fecha_nacimiento,
                 domicilio_real: { literal: formData.domicilio },
@@ -47,7 +49,7 @@ export async function submitFichaData(tokenId: string, taxId: string, formData: 
                 },
                 updated_at: new Date().toISOString()
             })
-            .eq("tax_id", taxId);
+            .eq("dni", oldDni);
 
         if (pError) throw pError;
 

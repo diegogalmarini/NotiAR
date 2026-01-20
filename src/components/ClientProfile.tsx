@@ -64,7 +64,7 @@ export function ClientProfile({ persona }: { persona: any }) {
                             <h1 className="text-3xl font-bold text-slate-900">{data.nombre_completo}</h1>
                             <div className="flex items-center gap-2 mt-2 text-slate-500">
                                 <span className="font-mono bg-slate-100 px-2 py-0.5 rounded text-sm text-slate-600 border border-slate-200">
-                                    {data.tax_id}
+                                    {data.dni}
                                 </span>
                                 {data.nacionalidad && (
                                     <Badge variant="outline" className="text-slate-600 bg-white">

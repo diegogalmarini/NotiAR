@@ -16,6 +16,8 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
 
     const [formData, setFormData] = useState({
         nombre_completo: persona.nombre_completo || "",
+        dni: (persona.dni?.startsWith("SIN-DNI-") ? "" : persona.dni) || "",
+        cuit: persona.cuit || "",
         nacionalidad: persona.nacionalidad || "Argentina",
         fecha_nacimiento: persona.fecha_nacimiento || "",
         domicilio: persona.domicilio_real?.literal || "",
@@ -29,7 +31,7 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
         e.preventDefault();
         setLoading(true);
 
-        const res = await submitFichaData(tokenData.id, persona.tax_id, formData);
+        const res = await submitFichaData(tokenData.id, persona.dni, formData);
 
         setLoading(false);
         if (res.success) {
@@ -103,12 +105,25 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>DNI (No editable)</Label>
-                                <Input value={persona.tax_id?.length === 11 ? persona.tax_id.slice(2, 10) : persona.tax_id} disabled className="bg-slate-50 font-mono" />
+                                <Label htmlFor="dni">DNI</Label>
+                                <Input
+                                    id="dni"
+                                    required
+                                    value={formData.dni}
+                                    onChange={e => setFormData({ ...formData, dni: e.target.value })}
+                                    placeholder="Ej: 27841387"
+                                    className="font-mono"
+                                />
                             </div>
                             <div className="space-y-2">
-                                <Label>CUIT (No editable)</Label>
-                                <Input value={persona.tax_id} disabled className="bg-slate-50 font-mono" />
+                                <Label htmlFor="cuit">CUIT / CUIL</Label>
+                                <Input
+                                    id="cuit"
+                                    value={formData.cuit}
+                                    onChange={e => setFormData({ ...formData, cuit: e.target.value })}
+                                    placeholder="Ej: 27-27841387-5"
+                                    className="font-mono"
+                                />
                             </div>
                         </div>
 
