@@ -49,7 +49,10 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
         nombre_conyuge: persona.datos_conyuge?.nombre || "",
         domicilio: persona.domicilio_real?.literal || "",
         email: persona.contacto?.email || "",
-        telefono: persona.contacto?.telefono || ""
+        telefono: persona.contacto?.telefono || "",
+        dni: (persona as any).dni || "",
+        cuit: (persona as any).cuit || "",
+        new_tax_id: persona.tax_id
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -85,15 +88,61 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         {/* Nombre Completo */}
-                        <div className="grid gap-2">
-                            <Label htmlFor="nombre">Nombre y Apellidos Completos *</Label>
-                            <Input
-                                id="nombre"
-                                required
-                                value={formData.nombre_completo}
-                                onChange={(e) => setFormData({ ...formData, nombre_completo: e.target.value })}
-                                placeholder="Como figura en el documento"
-                            />
+                        {/* Nombre y Apellido Split */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="nombre">Nombre</Label>
+                                <Input
+                                    id="nombre"
+                                    required
+                                    value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
+                                    onChange={(e) => {
+                                        const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
+                                    }}
+                                    disabled={loading}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="apellido">Apellido</Label>
+                                <Input
+                                    id="apellido"
+                                    required
+                                    value={formData.nombre_completo.split(" ").slice(-1)[0]}
+                                    onChange={(e) => {
+                                        const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
+                                    }}
+                                    disabled={loading}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mb-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="dni">DNI (Editable)</Label>
+                                <Input
+                                    id="dni"
+                                    value={formData.dni}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, dni: val, new_tax_id: formData.cuit?.trim() ? formData.cuit : val })
+                                    }}
+                                    placeholder="DNI"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="cuit">CUIT (Editable)</Label>
+                                <Input
+                                    id="cuit"
+                                    value={formData.cuit}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, cuit: val, new_tax_id: val?.trim() ? val : formData.dni })
+                                    }}
+                                    placeholder="CUIT"
+                                />
+                            </div>
                         </div>
 
                         {/* Nacionalidad */}

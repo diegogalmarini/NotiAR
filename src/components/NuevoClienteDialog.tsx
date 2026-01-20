@@ -1,4 +1,5 @@
-"use client";
+
+import { useRouter } from "next/navigation";
 
 import { useState } from "react";
 import {
@@ -18,13 +19,16 @@ import { createPersona } from "@/app/actions/personas";
 import { toast } from "sonner";
 
 export function NuevoClienteDialog() {
+    const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         nombre_completo: "",
         tax_id: "",
         email: "",
-        telefono: ""
+        telefono: "",
+        dni: "",
+        cuit: ""
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -37,8 +41,8 @@ export function NuevoClienteDialog() {
         if (res.success) {
             toast.success("Cliente creado correctamente");
             setOpen(false);
-            setFormData({ nombre_completo: "", tax_id: "", email: "", telefono: "" });
-            // revalidatePath is called in the action, so table should refresh
+            setFormData({ nombre_completo: "", tax_id: "", email: "", telefono: "", dni: "", cuit: "" });
+            router.push(`/clientes/${res.data.tax_id}`);
         } else {
             toast.error(res.error || "Error al crear cliente");
         }
@@ -61,25 +65,59 @@ export function NuevoClienteDialog() {
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <Label htmlFor="nombre">Nombre Completo</Label>
-                            <Input
-                                id="nombre"
-                                required
-                                value={formData.nombre_completo}
-                                onChange={(e) => setFormData({ ...formData, nombre_completo: e.target.value })}
-                                placeholder="Ej: Juan Pérez"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="nombre">Nombre</Label>
+                                <Input
+                                    id="nombre"
+                                    required
+                                    value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
+                                    onChange={(e) => {
+                                        const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
+                                    }}
+                                    placeholder="Nombres"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="apellido">Apellido</Label>
+                                <Input
+                                    id="apellido"
+                                    required
+                                    value={formData.nombre_completo.split(" ").slice(-1)[0]}
+                                    onChange={(e) => {
+                                        const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
+                                        setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
+                                    }}
+                                    placeholder="Apellidos"
+                                />
+                            </div>
                         </div>
-                        <div className="grid gap-2">
-                            <Label htmlFor="tax_id">CUIT / DNI</Label>
-                            <Input
-                                id="tax_id"
-                                required
-                                value={formData.tax_id}
-                                onChange={(e) => setFormData({ ...formData, tax_id: e.target.value })}
-                                placeholder="Sin guiones ni puntos"
-                            />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-2">
+                                <Label htmlFor="dni">DNI</Label>
+                                <Input
+                                    id="dni"
+                                    value={formData.dni}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, dni: val, tax_id: formData.cuit || val })
+                                    }}
+                                    placeholder="DNI"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="cuit">CUIT</Label>
+                                <Input
+                                    id="cuit"
+                                    value={formData.cuit}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        setFormData({ ...formData, cuit: val, tax_id: val || formData.dni })
+                                    }}
+                                    placeholder="CUIT (usado como ID)"
+                                />
+                            </div>
                         </div>
                         <div className="grid gap-2">
                             <Label htmlFor="email">Email (Opcional)</Label>

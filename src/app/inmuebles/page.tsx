@@ -17,6 +17,7 @@ import { Search, Building2, Edit2, MapPinned, FileSearch } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { NuevoInmuebleDialog } from "@/components/NuevoInmuebleDialog";
 import { VerInmuebleDialog, DownloadInmuebleButton } from "@/components/VerInmuebleDialog";
+import { DeleteInmuebleDialog } from "@/components/DeleteInmuebleDialog";
 
 export default function InmueblesPage() {
     const [inmuebles, setInmuebles] = useState<any[]>([]);
@@ -92,7 +93,6 @@ export default function InmueblesPage() {
                                 <TableRow key={inmueble.id} className="group">
                                     <TableCell className="font-semibold align-top truncate" title={inmueble.partido_id}>
                                         <div className="flex items-center gap-2 truncate">
-                                            <MapPinned className="h-4 w-4 text-blue-600 shrink-0" />
                                             <span className="truncate">{inmueble.partido_id || 'N/A'}</span>
                                         </div>
                                     </TableCell>
@@ -112,7 +112,11 @@ export default function InmueblesPage() {
                                     <TableCell className="text-right align-top">
                                         <div className="flex justify-end items-center gap-1">
                                             <VerInmuebleDialog inmueble={inmueble} />
-                                            <DownloadInmuebleButton inmueble={inmueble} />
+                                            <DeleteInmuebleDialog
+                                                inmuebleId={inmueble.id}
+                                                nomenclatura={inmueble.nomenclatura}
+                                                onInmuebleDeleted={() => window.location.reload()}
+                                            />
                                         </div>
                                     </TableCell>
                                 </TableRow>

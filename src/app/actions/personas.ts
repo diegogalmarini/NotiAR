@@ -9,6 +9,8 @@ export async function createPersona(formData: {
     tax_id: string;
     email?: string;
     telefono?: string;
+    dni?: string;
+    cuit?: string;
 }) {
     try {
         const { data, error } = await supabase
@@ -20,6 +22,8 @@ export async function createPersona(formData: {
                     email: formData.email,
                     telefono: formData.telefono
                 },
+                dni: formData.dni || null,
+                cuit: formData.cuit || null,
                 updated_at: new Date().toISOString()
             }])
             .select()
@@ -52,24 +56,35 @@ export async function updatePersona(taxId: string, formData: {
     domicilio?: string;
     email?: string;
     telefono?: string;
+    new_tax_id?: string;
+    dni?: string;
+    cuit?: string;
 }) {
     try {
+        const updateData: any = {
+            nombre_completo: formData.nombre_completo,
+            nacionalidad: formData.nacionalidad || null,
+            fecha_nacimiento: formData.fecha_nacimiento || null,
+            estado_civil_detalle: formData.estado_civil || null,
+            nombres_padres: formData.nombres_padres || null,
+            datos_conyuge: formData.nombre_conyuge ? { nombre: formData.nombre_conyuge } : null,
+            domicilio_real: formData.domicilio ? { literal: formData.domicilio } : null,
+            contacto: {
+                email: formData.email,
+                telefono: formData.telefono
+            },
+            dni: formData.dni || null,
+            cuit: formData.cuit || null,
+            updated_at: new Date().toISOString()
+        };
+
+        if (formData.new_tax_id && formData.new_tax_id !== taxId) {
+            updateData.tax_id = formData.new_tax_id;
+        }
+
         const { data, error } = await supabase
             .from("personas")
-            .update({
-                nombre_completo: formData.nombre_completo,
-                nacionalidad: formData.nacionalidad || null,
-                fecha_nacimiento: formData.fecha_nacimiento || null,
-                estado_civil_detalle: formData.estado_civil || null,
-                nombres_padres: formData.nombres_padres || null,
-                datos_conyuge: formData.nombre_conyuge ? { nombre: formData.nombre_conyuge } : null,
-                domicilio_real: formData.domicilio ? { literal: formData.domicilio } : null,
-                contacto: {
-                    email: formData.email,
-                    telefono: formData.telefono
-                },
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq("tax_id", taxId)
             .select()
             .single();

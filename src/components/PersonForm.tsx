@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { upsertPerson } from "@/app/actions/carpeta";
+import { updatePersona } from "@/app/actions/personas";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { formatDateInstructions } from "@/lib/utils";
@@ -28,36 +29,70 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
         estado: initialData?.estado_civil_detalle || initialData?.estado_civil_detallado?.estado || "",
         padres: initialData?.nombres_padres || initialData?.estado_civil_detallado?.padres || "",
         conyuge: initialData?.datos_conyuge?.nombre || initialData?.estado_civil_detallado?.conyuge || "",
+        email: initialData?.contacto?.email || "",
+        telefono: initialData?.contacto?.telefono || "",
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            const payload = {
-                tax_id: formData.tax_id,
-                nombre_completo: formData.nombre_completo,
-                dni: formData.dni,
-                cuit: formData.cuit,
-                nacionalidad: formData.nacionalidad,
-                fecha_nacimiento: formData.fecha_nacimiento || null,
-                domicilio_real: { literal: formData.domicilio_real },
-                estado_civil_detalle: formData.estado,
-                nombres_padres: formData.padres,
-                datos_conyuge: { nombre: formData.conyuge },
-                estado_civil_detallado: { // Legacy
-                    estado: formData.estado,
-                    padres: formData.padres,
-                    conyuge: formData.conyuge
-                }
-            };
+            const taxId = formData.cuit?.trim() ? formData.cuit : formData.dni;
 
-            const res = await upsertPerson(payload);
-            if (res.success) {
-                toast.success("Persona guardada correctamente");
-                onSuccess(res.data);
+            if (initialData) {
+                // Formatting for updatePersona
+                const updatePayload = {
+                    nombre_completo: formData.nombre_completo,
+                    nacionalidad: formData.nacionalidad,
+                    fecha_nacimiento: formData.fecha_nacimiento,
+                    estado_civil: formData.estado,
+                    nombres_padres: formData.padres,
+                    nombre_conyuge: formData.conyuge,
+                    domicilio: formData.domicilio_real,
+                    dni: formData.dni,
+                    cuit: formData.cuit,
+                    new_tax_id: taxId,
+                    email: formData.email,
+                    telefono: formData.telefono
+                };
+
+                const res = await updatePersona(initialData.tax_id, updatePayload);
+                if (res.success) {
+                    toast.success("Persona actualizada correctamente");
+                    onSuccess(res.data);
+                } else {
+                    toast.error("Error al actualizar: " + res.error);
+                }
             } else {
-                toast.error("Error al guardar: " + res.error);
+                // Formatting for upsertPerson (Create)
+                const payload = {
+                    tax_id: taxId,
+                    nombre_completo: formData.nombre_completo,
+                    dni: formData.dni,
+                    cuit: formData.cuit,
+                    nacionalidad: formData.nacionalidad,
+                    fecha_nacimiento: formData.fecha_nacimiento || null,
+                    domicilio_real: { literal: formData.domicilio_real },
+                    estado_civil_detalle: formData.estado,
+                    nombres_padres: formData.padres,
+                    datos_conyuge: { nombre: formData.conyuge },
+                    estado_civil_detallado: { // Legacy
+                        padres: formData.padres,
+                        conyuge: formData.conyuge
+                    },
+                    contacto: {
+                        email: formData.email,
+                        telefono: formData.telefono
+                    }
+                };
+
+                const res = await upsertPerson(payload);
+                if (res.success) {
+                    toast.success("Persona guardada correctamente");
+                    onSuccess(res.data);
+                } else {
+                    toast.error("Error al guardar: " + res.error);
+                }
             }
         } catch (err: any) {
             toast.error(err.message);
@@ -67,25 +102,31 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
     };
 
     return (
+    return (
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label>DNI / CUIT (Tax ID)</Label>
+                    <Label>Nombre</Label>
                     <Input
                         required
-                        value={formData.tax_id}
-                        onChange={e => setFormData({ ...formData, tax_id: e.target.value })}
-                        placeholder="Ej: 20384445551"
-                        disabled={!!initialData}
+                        value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
+                        onChange={(e) => {
+                            const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
+                            setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
+                        }}
+                        placeholder="Nombres"
                     />
                 </div>
                 <div className="space-y-2">
-                    <Label>Nombre Completo</Label>
+                    <Label>Apellido</Label>
                     <Input
                         required
-                        value={formData.nombre_completo}
-                        onChange={e => setFormData({ ...formData, nombre_completo: e.target.value })}
-                        placeholder="Nombre y Apellido"
+                        value={formData.nombre_completo.split(" ").slice(-1)[0]}
+                        onChange={(e) => {
+                            const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
+                            setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
+                        }}
+                        placeholder="Apellidos"
                     />
                 </div>
             </div>
@@ -95,7 +136,10 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <Label>DNI</Label>
                     <Input
                         value={formData.dni}
-                        onChange={e => setFormData({ ...formData, dni: e.target.value })}
+                        onChange={e => {
+                            const val = e.target.value;
+                            setFormData({ ...formData, dni: val, tax_id: formData.cuit || val })
+                        }}
                         placeholder="DNI"
                     />
                 </div>
@@ -103,7 +147,10 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <Label>CUIT</Label>
                     <Input
                         value={formData.cuit}
-                        onChange={e => setFormData({ ...formData, cuit: e.target.value })}
+                        onChange={e => {
+                            const val = e.target.value;
+                            setFormData({ ...formData, cuit: val, tax_id: val || formData.dni })
+                        }}
                         placeholder="CUIT"
                     />
                 </div>
@@ -141,6 +188,27 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     onChange={e => setFormData({ ...formData, domicilio_real: e.target.value })}
                     placeholder="Calle, Nro, Ciudad..."
                 />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input
+                        type="email"
+                        value={formData.email}
+                        onChange={e => setFormData({ ...formData, email: e.target.value })}
+                        placeholder="email@ejemplo.com"
+                    />
+                </div>
+                <div className="space-y-2">
+                    <Label>Teléfono</Label>
+                    <Input
+                        type="tel"
+                        value={formData.telefono}
+                        onChange={e => setFormData({ ...formData, telefono: e.target.value })}
+                        placeholder="Cod. Área + Número"
+                    />
+                </div>
             </div>
 
             <div className="border-t pt-4 mt-2">

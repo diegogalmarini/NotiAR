@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { Button } from "@/components/ui/button";
 import {
     Table,
@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils";
 import { DeleteFolderButton } from "@/components/DeleteFolderButton";
 
 export default async function DashboardPage() {
+    const supabase = await createClient();
     const { data: carpetas, error } = await supabase
         .from("carpetas")
         .select("*")
