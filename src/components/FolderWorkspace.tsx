@@ -216,34 +216,65 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 )}
                                 onClick={() => setActiveDeedId(escritura.id)}
                             >
-                                <CardHeader className="p-4">
-                                    <CardTitle className="text-base flex justify-between">
-                                        Protocolo #{escritura.nro_protocolo || "Draft"}
-                                    </CardTitle>
-                                    <CardDescription>
-                                        {escritura.fecha_escritura ?
-                                            new Date(escritura.fecha_escritura + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
-                                            : "Fecha pendiente"}
-                                    </CardDescription>
+                                <CardHeader className="p-4 pb-2">
+                                    <CardTitle className="text-sm font-semibold text-slate-700">Datos actuales de Documento Original</CardTitle>
                                 </CardHeader>
-                                <CardContent className="p-4 pt-0">
-                                    <div className="rounded-md border bg-slate-50 p-2 space-y-2">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                <Home className="h-3 w-3 text-muted-foreground shrink-0" />
-                                                <p className="text-xs truncate font-medium">
-                                                    {escritura.inmuebles ? `${escritura.inmuebles.partido_id} - ${escritura.inmuebles.nro_partida}` : "Sin inmueble vincul."}
+                                <CardContent className="p-4 pt-2">
+                                    <div className="space-y-2.5 text-xs">
+                                        {/* Partido y Partida */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Partido / Dpto</p>
+                                                <p className="text-slate-700">{escritura.inmuebles?.partido_id || "No especificado"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Nro. Partida</p>
+                                                <p className="text-slate-700">{escritura.inmuebles?.nro_partida || "No especificado"}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Tipo de Acto y Número */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Tipo de Acto</p>
+                                                <p className="text-slate-700">{escritura.operaciones?.[0]?.tipo_acto || "COMPRAVENTA"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Nº de Acto</p>
+                                                <p className="text-slate-700">{escritura.operaciones?.[0]?.nro_acto || "No especificado"}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Escritura Nº y Fecha */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Escritura Nº</p>
+                                                <p className="text-slate-700">{escritura.nro_protocolo || "Draft"}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-[10px] font-semibold uppercase text-slate-400">Fecha</p>
+                                                <p className="text-slate-700">
+                                                    {escritura.fecha_escritura ?
+                                                        new Date(escritura.fecha_escritura + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+                                                        : "Fecha pendiente"}
                                                 </p>
                                             </div>
-                                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={(e) => {
-                                                e.stopPropagation();
-                                                setActiveDeedId(escritura.id);
-                                                setIsAssetSearchOpen(true);
-                                            }}>
-                                                <Plus className="h-3 w-3" />
-                                            </Button>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2">
+
+                                        {/* Escribano */}
+                                        <div>
+                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Escribano</p>
+                                            <p className="text-slate-700">{escritura.escribano || "No especificado"}</p>
+                                        </div>
+
+                                        {/* Registro */}
+                                        <div>
+                                            <p className="text-[10px] font-semibold uppercase text-slate-400">Registro número</p>
+                                            <p className="text-slate-700">{escritura.registro || "No especificado"}</p>
+                                        </div>
+
+                                        {/* Action Buttons */}
+                                        <div className="grid grid-cols-2 gap-2 pt-2 border-t">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
@@ -263,36 +294,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 Descargar
                                             </Button>
                                         </div>
-                                        {escritura.inmuebles?.transcripcion_literal && (
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full text-[10px] h-7 border bg-white hover:bg-slate-100 flex items-center justify-center gap-1.5 font-medium uppercase text-slate-700 shadow-sm"
-                                                        onClick={(e) => e.stopPropagation()}
-                                                    >
-                                                        Ver Transcripción
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent className="max-w-2xl max-h-[80vh]">
-                                                    <DialogHeader>
-                                                        <DialogTitle className="text-xl font-bold text-indigo-900 flex items-center gap-2">
-                                                            <Home className="h-5 w-5" />
-                                                            Descripción Técnica Inmueble
-                                                        </DialogTitle>
-                                                        <DialogDescription>
-                                                            Bloque de texto literal extraído del documento original.
-                                                        </DialogDescription>
-                                                    </DialogHeader>
-                                                    <ScrollArea className="mt-4 h-[50vh] rounded-xl border border-indigo-100 bg-slate-50 p-5 shadow-inner">
-                                                        <div className="font-serif text-sm leading-relaxed whitespace-pre-line text-slate-800">
-                                                            {escritura.inmuebles.transcripcion_literal}
-                                                        </div>
-                                                    </ScrollArea>
-                                                </DialogContent>
-                                            </Dialog>
-                                        )}
                                     </div>
                                 </CardContent>
                             </Card>
@@ -421,7 +422,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
                                                                     {/* Parents (Filiation) */}
                                                                     <div className="flex items-start gap-3">
-                                                                        <Users className="h-4 w-4 text-indigo-500 mt-0.5 shrink-0" />
                                                                         <div className="space-y-0.5">
                                                                             <p className="text-[9px] font-black uppercase text-slate-400 leading-none">Hijo de:</p>
                                                                             <p className="text-xs text-slate-700 font-bold leading-tight">
