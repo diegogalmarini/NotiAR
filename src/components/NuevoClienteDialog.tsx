@@ -115,7 +115,7 @@ export function NuevoClienteDialog() {
                                         const val = e.target.value;
                                         setFormData({ ...formData, cuit: val, tax_id: val || formData.dni })
                                     }}
-                                    placeholder="CUIT (usado como ID)"
+                                    placeholder="Ej: 27-27841387-5"
                                 />
                             </div>
                         </div>

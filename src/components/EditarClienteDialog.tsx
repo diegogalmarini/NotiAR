@@ -148,7 +148,7 @@ export function EditarClienteDialog({ persona }: EditarClienteDialogProps) {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni">DNI (Documento Nacional de Identidad)</Label>
+                                <Label htmlFor="dni">DNI</Label>
                                 <Input
                                     id="dni"
                                     value={formData.dni}
