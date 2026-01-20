@@ -480,7 +480,11 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                             </div>
                                                             {/* WhatsApp button */}
                                                             <div className="pb-0.5">
-                                                                <ClientOutreach personId={p.persona_id} personName={person.nombre_completo} />
+                                                                <ClientOutreach
+                                                                    personId={p.persona_id}
+                                                                    personName={person.nombre_completo}
+                                                                    personPhone={person.contacto?.telefono}
+                                                                />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -763,12 +767,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 }
 
                                 if (isDocx) {
-                                    // Microsoft Office Viewer is usually better for DOCX than Google Docs Viewer
+                                    // Reverting to Google Docs Viewer as Microsoft Office Online doesn't handle Supabase Signed URLs (tokens) well
                                     return (
                                         <iframe
-                                            src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(viewingDocument)}`}
+                                            src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
                                             className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
-                                            title="Office Viewer"
+                                            title="Document Viewer"
                                         />
                                     );
                                 }
