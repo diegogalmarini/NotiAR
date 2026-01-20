@@ -720,26 +720,62 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
             {/* Document Viewer Dialog - Fullscreen */}
             <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-                <DialogContent className="max-w-[98vw] max-h-[98vh] w-full h-full p-0">
-                    <div className="relative w-full h-full">
-                        {/* Close Button */}
-                        <button
-                            onClick={() => setViewingDocument(null)}
-                            className="absolute top-2 right-2 z-10 bg-white rounded-full p-2 shadow-lg hover:bg-slate-100 transition-colors"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-slate-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-[95vh] p-0 overflow-hidden bg-slate-900 border-slate-800">
+                    <div className="relative w-full h-full flex flex-col">
+                        {/* Header with filename and close button */}
+                        <div className="flex justify-between items-center p-3 bg-slate-900 border-b border-slate-800 text-white">
+                            <h3 className="text-sm font-medium truncate pr-10">
+                                {viewingDocument?.split('/').pop()?.split('_').slice(1).join('_') || "Visualizador de Documento"}
+                            </h3>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setViewingDocument(null)}
+                                className="text-slate-400 hover:text-white hover:bg-slate-800"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </Button>
+                        </div>
 
-                        {/* Document Viewer using Google Docs Viewer */}
-                        {viewingDocument && (
-                            <iframe
-                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
-                                className="w-full h-full border-0"
-                                title="Document Viewer"
-                            />
-                        )}
+                        {/* Document Viewer Container */}
+                        <div className="flex-1 bg-slate-800 flex justify-center overflow-auto p-4 md:p-8">
+                            {viewingDocument && (() => {
+                                const isPdf = viewingDocument.toLowerCase().includes(".pdf");
+                                const isDocx = viewingDocument.toLowerCase().includes(".docx") || viewingDocument.toLowerCase().includes(".doc");
+
+                                if (isPdf) {
+                                    return (
+                                        <iframe
+                                            src={viewingDocument}
+                                            className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
+                                            title="PDF Viewer"
+                                        />
+                                    );
+                                }
+
+                                if (isDocx) {
+                                    // Microsoft Office Viewer is usually better for DOCX than Google Docs Viewer
+                                    return (
+                                        <iframe
+                                            src={`https://view.officeapps.live.com/op/view.aspx?src=${encodeURIComponent(viewingDocument)}`}
+                                            className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
+                                            title="Office Viewer"
+                                        />
+                                    );
+                                }
+
+                                // Fallback to Google Docs Viewer if not PDF/DOCX or if Microsoft fails
+                                return (
+                                    <iframe
+                                        src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
+                                        className="w-full max-w-5xl h-full bg-white shadow-2xl rounded-sm"
+                                        title="Google Docs Viewer"
+                                    />
+                                );
+                            })()}
+                        </div>
                     </div>
                 </DialogContent>
             </Dialog>
