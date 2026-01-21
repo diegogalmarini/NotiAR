@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
 
@@ -10,16 +10,30 @@ const SUPER_ADMIN_EMAIL = "diegogalmarini@gmail.com";
  * Verify if the current user is a super admin
  */
 async function isAdmin(): Promise<boolean> {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return false;
+    const supabase = await createClient();
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-    // Check by email bypass (Super Admin) or by role in database
-    if (session.user.email === SUPER_ADMIN_EMAIL) return true;
+    if (userError || !user) {
+        // Fallback to session for performance or if getUser is too strict
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return false;
+
+        if (session.user.email === SUPER_ADMIN_EMAIL) return true;
+
+        const { data: profile } = await supabase
+            .from("user_profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+        return profile?.role === "admin";
+    }
+
+    if (user.email === SUPER_ADMIN_EMAIL) return true;
 
     const { data: profile } = await supabase
         .from("user_profiles")
         .select("role")
-        .eq("id", session.user.id)
+        .eq("id", user.id)
         .single();
 
     return profile?.role === "admin";
@@ -34,6 +48,7 @@ export async function getAllUsers() {
             return { success: false, error: "Unauthorized", data: [] };
         }
 
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("admin_user_list")
             .select("*")
@@ -57,13 +72,14 @@ export async function approveUser(userId: string) {
             return { success: false, error: "Unauthorized" };
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
         const { error } = await supabase
             .from("user_profiles")
             .update({
                 approval_status: "approved",
-                approved_by: session?.user?.id,
+                approved_by: user?.id,
                 approved_at: new Date().toISOString(),
             })
             .eq("id", userId);
@@ -90,13 +106,14 @@ export async function rejectUser(userId: string) {
             return { success: false, error: "Unauthorized" };
         }
 
-        const { data: { session } } = await supabase.auth.getSession();
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
         const { error } = await supabase
             .from("user_profiles")
             .update({
                 approval_status: "rejected",
-                approved_by: session?.user?.id,
+                approved_by: user?.id,
                 approved_at: new Date().toISOString(),
             })
             .eq("id", userId);
@@ -145,6 +162,7 @@ export async function getUserStats() {
             return { success: false, error: "Unauthorized", data: null };
         }
 
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("admin_user_list")
             .select("approval_status");
@@ -174,6 +192,7 @@ export async function preCreateUser(email: string, fullName: string) {
             return { success: false, error: "Unauthorized" };
         }
 
+        const supabase = await createClient();
         // We insert into user_profiles directly. 
         // When the user signs up with this email, the trigger/logic will match it.
         // OR we just set them as approved so when they join, they are already in.

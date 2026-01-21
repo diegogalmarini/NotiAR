@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 
 export type Escribano = {
@@ -19,6 +19,7 @@ export type Escribano = {
 
 export async function getEscribanos() {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("escribanos")
             .select("*")
@@ -34,6 +35,7 @@ export async function getEscribanos() {
 
 export async function getDefaultEscribano() {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("escribanos")
             .select("*")
@@ -50,6 +52,7 @@ export async function getDefaultEscribano() {
 
 export async function createEscribano(data: Omit<Escribano, 'id' | 'is_default'>) {
     try {
+        const supabase = await createClient();
         const { data: newEscribano, error } = await supabase
             .from("escribanos")
             .insert([data])
@@ -68,6 +71,7 @@ export async function createEscribano(data: Omit<Escribano, 'id' | 'is_default'>
 
 export async function updateEscribano(id: string, data: Partial<Escribano>) {
     try {
+        const supabase = await createClient();
         const { data: updated, error } = await supabase
             .from("escribanos")
             .update(data)
@@ -87,6 +91,7 @@ export async function updateEscribano(id: string, data: Partial<Escribano>) {
 
 export async function deleteEscribano(id: string) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from("escribanos")
             .delete()
@@ -104,6 +109,7 @@ export async function deleteEscribano(id: string) {
 
 export async function setDefaultEscribano(id: string) {
     try {
+        const supabase = await createClient();
         // Since we have a unique index on is_default = true, 
         // we must first unset the existing default if any.
 

@@ -1,11 +1,12 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
 
 export async function createFolder(caratula?: string) {
     try {
+        const supabase = await createClient();
         // 1. Crear la Carpeta
         const { data: carpeta, error: carpetaError } = await supabase
             .from('carpetas')

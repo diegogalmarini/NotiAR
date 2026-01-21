@@ -1,9 +1,10 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 
 export async function getClientWithRelations(dni: string) {
     try {
+        const supabase = await createClient();
         // 1. Get the client (persona) data
         const { data: persona, error: personaError } = await supabase
             .from("personas")

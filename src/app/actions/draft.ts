@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getLatestModel } from "@/lib/aiConfig";
 
@@ -8,6 +8,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 export async function generateDeedDraft(escrituraId: string, escribanoId?: string) {
     try {
+        const supabase = await createClient();
         const modelName = await getLatestModel();
         const model = genAI.getGenerativeModel({ model: modelName });
 
@@ -108,6 +109,7 @@ export async function generateDeedDraft(escrituraId: string, escribanoId?: strin
 }
 
 export async function saveDeedDraft(escrituraId: string, content: string) {
+    const supabase = await createClient();
     const { error } = await supabase
         .from("escrituras")
         .update({ contenido_borrador: content })
