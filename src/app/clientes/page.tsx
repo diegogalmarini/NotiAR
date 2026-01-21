@@ -147,29 +147,41 @@ export default function ClientesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <div className="flex flex-wrap gap-1.5">
+                                        <div className="flex flex-wrap gap-2">
                                             {persona.contacto?.telefono && (
-                                                <Badge variant="secondary" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-100 hover:bg-green-100">
-                                                    <Phone size={10} className="fill-green-700/20" /> {persona.contacto.telefono}
-                                                </Badge>
+                                                <a
+                                                    href={`tel:${persona.contacto.telefono}`}
+                                                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-xs font-medium"
+                                                    title="Llamar por teléfono"
+                                                >
+                                                    <Phone size={12} className="text-slate-400" />
+                                                    {persona.contacto.telefono}
+                                                </a>
                                             )}
                                             {persona.contacto?.email && (
-                                                <Badge variant="secondary" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100">
-                                                    <Mail size={10} className="fill-blue-700/20" /> {persona.contacto.email}
-                                                </Badge>
+                                                <a
+                                                    href={`mailto:${persona.contacto.email}`}
+                                                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-xs font-medium"
+                                                    title="Enviar correo electrónico"
+                                                >
+                                                    <Mail size={12} className="text-slate-400" />
+                                                    {persona.contacto.email}
+                                                </a>
                                             )}
                                             {!persona.contacto?.telefono && !persona.contacto?.email && (
-                                                <span className="text-xs text-slate-400 italic">Sin datos</span>
+                                                <span className="text-xs text-slate-400 italic font-normal">Sin datos</span>
                                             )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <Badge variant={persona.origen_dato === 'IA_OCR' ? "outline" : "outline"} className={cn(
-                                            "text-[10px] uppercase font-bold tracking-tighter px-1.5 py-0",
-                                            persona.origen_dato === 'IA_OCR' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500"
+                                        <div className={cn(
+                                            "inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight border",
+                                            persona.origen_dato === 'IA_OCR'
+                                                ? "bg-slate-100 text-slate-600 border-slate-200"
+                                                : "bg-white text-slate-400 border-slate-100"
                                         )}>
                                             {persona.origen_dato || 'Manual'}
-                                        </Badge>
+                                        </div>
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1 px-2">
