@@ -20,7 +20,7 @@ export async function getClientWithRelations(dni: string) {
         const { data: participaciones, error: partError } = await supabase
             .from("participantes_operacion")
             .select("*")
-            .eq("persona_dni", dni);
+            .eq("persona_id", dni);
 
         if (partError) {
             console.error("Error fetching participaciones:", partError);
