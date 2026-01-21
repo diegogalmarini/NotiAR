@@ -19,78 +19,78 @@ export async function getClientWithRelations(dni: string) {
         // 2. Get participaciones in operaciones
         const { data: participaciones, error: partError } = await supabase
             .from("participantes_operacion")
-            .select(`
-                rol,
-                operacion:operaciones (
-                    id,
-                    tipo,
-                    escritura:escrituras (
-                        id,
-                        numero,
-                        tipo,
-                        carpeta:carpetas (
-                            id,
-                            numero,
-                            observaciones
-                        )
-                    )
-                )
-            `)
+            .select("*")
             .eq("persona_dni", dni);
 
         if (partError) {
             console.error("Error fetching participaciones:", partError);
         }
 
-        // 3. Process and organize the relationships
-        const carpetas = new Map();
-        const escrituras = new Map();
-        const operaciones: any[] = [];
+        console.log("[DEBUG] Participaciones for DNI", dni, ":", participaciones);
 
-        participaciones?.forEach((part: any) => {
-            if (part.operacion) {
-                // Add operación with role
-                operaciones.push({
-                    id: part.operacion.id,
-                    tipo: part.operacion.tipo,
-                    rol: part.rol,
-                    escritura: part.operacion.escritura
-                });
+        // 3. Get operaciones details
+        const operacionIds = participaciones?.map(p => p.operacion_id).filter(Boolean) || [];
+        const { data: operacionesData } = await supabase
+            .from("operaciones")
+            .select("*")
+            .in("id", operacionIds);
 
-                // Add escritura if exists
-                if (part.operacion.escritura) {
-                    const esc = part.operacion.escritura;
-                    if (!escrituras.has(esc.id)) {
-                        escrituras.set(esc.id, {
-                            id: esc.id,
-                            numero: esc.numero,
-                            tipo: esc.tipo,
-                            carpeta: esc.carpeta
-                        });
-                    }
+        console.log("[DEBUG] Operaciones:", operacionesData);
 
-                    // Add carpeta if exists
-                    if (esc.carpeta) {
-                        const carp = esc.carpeta;
-                        if (!carpetas.has(carp.id)) {
-                            carpetas.set(carp.id, {
-                                id: carp.id,
-                                numero: carp.numero,
-                                observaciones: carp.observaciones
-                            });
-                        }
-                    }
-                }
-            }
-        });
+        // 4. Get escrituras details
+        const escrituraIds = operacionesData?.map(o => o.escritura_id).filter(Boolean) || [];
+        const { data: escriturasData } = await supabase
+            .from("escrituras")
+            .select("*")
+            .in("id", escrituraIds);
+
+        console.log("[DEBUG] Escrituras:", escriturasData);
+
+        // 5. Get carpetas details
+        const carpetaIds = escriturasData?.map(e => e.carpeta_id).filter(Boolean) || [];
+        const { data: carpetasData } = await supabase
+            .from("carpetas")
+            .select("*")
+            .in("id", carpetaIds);
+
+        console.log("[DEBUG] Carpetas:", carpetasData);
+
+        // 6. Build the relationships
+        const operaciones = participaciones?.map(part => {
+            const op = operacionesData?.find(o => o.id === part.operacion_id);
+            const esc = escriturasData?.find(e => e.id === op?.escritura_id);
+            return {
+                id: op?.id,
+                tipo: op?.tipo,
+                rol: part.rol,
+                escritura: esc ? {
+                    id: esc.id,
+                    numero: esc.numero,
+                    tipo: esc.tipo,
+                    carpeta_id: esc.carpeta_id
+                } : null
+            };
+        }).filter(op => op.id) || [];
+
+        const carpetas = carpetasData?.map(c => ({
+            id: c.id,
+            numero: c.numero,
+            observaciones: c.observaciones || c.descripcion
+        })) || [];
+
+        const escrituras = escriturasData?.map(e => ({
+            id: e.id,
+            numero: e.numero,
+            tipo: e.tipo
+        })) || [];
 
         return {
             success: true,
             data: {
                 persona,
                 operaciones,
-                escrituras: Array.from(escrituras.values()),
-                carpetas: Array.from(carpetas.values())
+                escrituras,
+                carpetas
             }
         };
     } catch (error: any) {
