@@ -67,27 +67,27 @@ export default async function DashboardPage() {
                 <div className="flex flex-col gap-6">
                     <Card className="flex-1 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-xl">
                         <CardHeader>
-                            <CardTitle className="text-xl flex items-center gap-2">
-                                <History size={20} className="text-primary" />
+                            <CardTitle className="text-lg font-normal flex items-center gap-2">
+                                <History size={18} className="text-primary" />
                                 Acceso Rápido
                             </CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <p className="text-slate-400 text-sm">
-                                Continúa trabajando en tus expedientes más recientes o crea uno nuevo manualmente.
+                            <p className="text-slate-400 text-xs font-light leading-relaxed">
+                                Continúa trabajando en tus expedientes más recientes.
                             </p>
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                                 {carpetas?.slice(0, 3).map(c => (
                                     <Link
                                         key={c.id}
                                         href={`/carpeta/${c.id}`}
-                                        className="flex items-center justify-between p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
+                                        className="flex items-center justify-between p-2.5 rounded-lg bg-white/5 hover:bg-white/10 transition-colors group"
                                     >
                                         <div className="truncate pr-4">
-                                            <div className="text-sm font-medium truncate">{c.caratula || "Sin título"}</div>
-                                            <div className="text-[10px] text-slate-500 uppercase tracking-wider">Carpeta #{c.nro_carpeta_interna}</div>
+                                            <div className="text-xs font-light truncate text-slate-100">{c.caratula || "Sin título"}</div>
+                                            <div className="text-[9px] text-slate-500 font-light tracking-wide">#{c.nro_carpeta_interna}</div>
                                         </div>
-                                        <ArrowRight size={14} className="text-slate-600 group-hover:text-primary transition-colors" />
+                                        <ArrowRight size={12} className="text-slate-600 group-hover:text-primary transition-colors flex-shrink-0" />
                                     </Link>
                                 ))}
                             </div>
@@ -116,28 +116,29 @@ export default async function DashboardPage() {
                     <Table>
                         <TableHeader className="bg-slate-50">
                             <TableRow>
-                                <TableHead className="w-[100px]">ID</TableHead>
-                                <TableHead>Carátula / Operación</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Última Actividad</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
+                                <TableHead className="w-[80px] text-xs font-normal text-muted-foreground">ID</TableHead>
+                                <TableHead className="text-xs font-normal text-muted-foreground">Carátula / Operación</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Estado</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Última Actividad</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {carpetas?.map((carpeta) => (
                                 <TableRow key={carpeta.id} className="hover:bg-slate-50/50 transition-colors">
-                                    <TableCell className="font-mono text-xs text-muted-foreground">
+                                    <TableCell className="font-mono text-[10px] text-muted-foreground">
                                         #{carpeta.nro_carpeta_interna}
                                     </TableCell>
                                     <TableCell>
-                                        <div className="font-semibold text-slate-900">
+                                        <div className="text-sm font-normal text-slate-700">
                                             {carpeta.caratula || "Sin carátula"}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-right">
                                         <Badge
                                             variant={carpeta.estado === "ABIERTA" ? "secondary" : "default"}
                                             className={cn(
+                                                "text-[10px] px-2 py-0.5 h-5 font-normal",
                                                 carpeta.estado === "FIRMADA" && "bg-green-100 text-green-700 hover:bg-green-200 border-none",
                                                 carpeta.estado === "EN_REDACCION" && "bg-blue-100 text-blue-700 hover:bg-blue-200 border-none"
                                             )}
@@ -145,13 +146,13 @@ export default async function DashboardPage() {
                                             {carpeta.estado}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-sm text-slate-500">
-                                        {new Date(carpeta.updated_at).toLocaleDateString()}
+                                    <TableCell className="text-right text-[11px] font-light text-muted-foreground">
+                                        {new Date(carpeta.updated_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" asChild className="hover:text-primary">
+                                        <Button variant="ghost" size="sm" asChild className="h-7 text-[11px] font-normal hover:text-primary">
                                             <Link href={`/carpeta/${carpeta.id}`}>
-                                                <FileText className="h-4 w-4 mr-2" />
+                                                <FileText className="h-3.5 w-3.5 mr-1" />
                                                 Abrir
                                             </Link>
                                         </Button>
