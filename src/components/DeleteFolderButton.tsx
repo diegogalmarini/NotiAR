@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import {
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 
 export function DeleteFolderButton({ folderId, folderName }: { folderId: string, folderName?: string }) {
     const [isDeleting, setIsDeleting] = useState(false);
+    const router = useRouter();
 
     const handleDelete = async () => {
         setIsDeleting(true);
@@ -27,6 +29,7 @@ export function DeleteFolderButton({ folderId, folderName }: { folderId: string,
 
         if (res.success) {
             toast.success("Carpeta eliminada");
+            router.refresh(); // Force UI refresh
         } else {
             toast.error(res.error || "Error al eliminar");
         }
