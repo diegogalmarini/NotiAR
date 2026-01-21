@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export async function createFolder(caratula?: string) {
     try {
@@ -133,21 +134,29 @@ export async function deleteCarpeta(carpetaId: string) {
                 .filter((url): url is string => !!url);
 
             if (pdfUrls.length > 0) {
-                // Extract file paths from URLs
-                // URL format: https://[project].supabase.co/storage/v1/object/public/escrituras/[path]
+                // Extract clean file paths from URLs (ignoring query params/tokens)
                 const filePaths = pdfUrls.map(url => {
-                    const match = url.match(/\/escrituras\/(.+)$/);
-                    return match ? match[1] : null;
+                    try {
+                        const parts = url.split('/escrituras/');
+                        if (parts.length < 2) return null;
+
+                        // The relative path is in parts[1], but we must strip query params
+                        const pathWithQuery = parts[1];
+                        return pathWithQuery.split('?')[0].split('#')[0].split('%3F')[0];
+                    } catch (e) {
+                        return null;
+                    }
                 }).filter((path): path is string => !!path);
 
                 if (filePaths.length > 0) {
-                    const { error: storageError } = await supabase.storage
+                    console.log(`[STORAGE] Attempting to delete ${filePaths.length} files:`, filePaths);
+                    // Use supabaseAdmin to bypass any RLS storage restrictions
+                    const { error: storageError } = await supabaseAdmin.storage
                         .from('escrituras')
                         .remove(filePaths);
 
                     if (storageError) {
-                        console.warn('Error deleting files from storage:', storageError);
-                        // Continue with deletion even if storage cleanup fails
+                        console.error('[STORAGE] Error deleting files:', storageError);
                     }
                 }
             }
