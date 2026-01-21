@@ -68,7 +68,7 @@ function chunkText(text: string, size: number = 1000, overlap: number = 200): st
 }
 
 /**
- * Indexes a document into the Knowledge Base
+ * Indexes a document into the Knowledge Base (Optimized with batching)
  */
 export async function indexDocument(fileBuffer: Buffer, fileName: string, category: KnowledgeCategory) {
     console.log(`[RAG] Indexing ${fileName} (${category})...`);
@@ -76,36 +76,65 @@ export async function indexDocument(fileBuffer: Buffer, fileName: string, catego
     const text = await extractText(fileBuffer, fileName);
     const chunks = chunkText(text);
 
-    console.log(`[RAG] Generated ${chunks.length} chunks for ${fileName}`);
+    console.log(`[RAG] Generated ${chunks.length} chunks for ${fileName}. Starting batch indexing...`);
 
-    for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        if (chunk.length < 20) continue; // Skip tiny chunks
+    const BATCH_SIZE = 50;
+    const allDataToInsert: any[] = [];
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        const batchChunks = chunks.slice(i, i + BATCH_SIZE);
 
         try {
-            // Generate Embedding
-            const result = await embeddingModel.embedContent(chunk);
-            const embedding = result.embedding.values;
-
-            // Save to Supabase
-            const { error } = await supabaseAdmin.from('knowledge_base').insert({
-                content: chunk,
-                embedding: embedding,
-                metadata: {
-                    source_file: fileName,
-                    category: category,
-                    chunk_index: i,
-                    indexed_at: new Date().toISOString()
-                }
+            // 1. Batch Generate Embeddings
+            const embeddingResult = await embeddingModel.batchEmbedContents({
+                requests: batchChunks.map(chunk => ({
+                    content: { role: 'user', parts: [{ text: chunk }] },
+                    taskType: "RETRIEVAL_DOCUMENT" as any
+                }))
             });
 
-            if (error) throw error;
-        } catch (err) {
-            console.error(`[RAG] Error indexing chunk ${i} of ${fileName}:`, err);
+            const embeddings = embeddingResult.embeddings;
+
+            // 2. Prepare data for Supabase
+            batchChunks.forEach((chunk, index) => {
+                if (chunk.length < 20) return;
+
+                allDataToInsert.push({
+                    content: chunk,
+                    embedding: embeddings[index].values,
+                    metadata: {
+                        source_file: fileName,
+                        category: category,
+                        chunk_index: i + index,
+                        indexed_at: new Date().toISOString()
+                    }
+                });
+            });
+
+            console.log(`[RAG] Processed batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(chunks.length / BATCH_SIZE)}`);
+        } catch (err: any) {
+            console.error(`[RAG] Error in batch processing for ${fileName}:`, err);
+            throw new Error(`Error en generación de embeddings: ${err.message}`);
         }
     }
 
-    console.log(`[RAG] Completed indexing for ${fileName}`);
+    // 3. Bulk insert to Supabase (limit per insert to avoid large payloads)
+    if (allDataToInsert.length > 0) {
+        console.log(`[RAG] Inserting ${allDataToInsert.length} records into Supabase...`);
+
+        // Insert in smaller chunks to avoid Supabase/PostgREST limits
+        const DB_BATCH = 100;
+        for (let i = 0; i < allDataToInsert.length; i += DB_BATCH) {
+            const batch = allDataToInsert.slice(i, i + DB_BATCH);
+            const { error } = await supabaseAdmin.from('knowledge_base').insert(batch);
+            if (error) {
+                console.error(`[RAG] DB Insert error for ${fileName} at batch ${i}:`, error);
+                throw new Error(`Error al guardar en base de datos: ${error.message}`);
+            }
+        }
+    }
+
+    console.log(`[RAG] Successfully indexed ${fileName}`);
     return { success: true, chunks: chunks.length };
 }
 

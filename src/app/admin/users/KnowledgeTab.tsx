@@ -73,8 +73,9 @@ export function KnowledgeTab() {
             } else {
                 toast.error(res.error || "Error al subir el archivo");
             }
-        } catch (err) {
-            toast.error("Error en el proceso de indexación");
+        } catch (err: any) {
+            console.error("Index error:", err);
+            toast.error(`Error en el proceso de indexación: ${err.message || 'Error desconocido'}`);
         } finally {
             setUploading(false);
         }
