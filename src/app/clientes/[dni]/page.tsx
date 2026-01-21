@@ -7,8 +7,8 @@ import { User, Folder, FileText, Activity } from "lucide-react";
 import { redirect } from "next/navigation";
 import { formatDateInstructions } from "@/lib/utils";
 
-export default async function ClientDetailPage({ params }: { params: { dni: string } }) {
-    const { dni } = params;
+export default async function ClientDetailPage({ params }: { params: Promise<{ dni: string }> }) {
+    const { dni } = await params;
 
     // Fetch client data with all relationships
     const result = await getClientWithRelations(dni);
