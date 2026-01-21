@@ -110,89 +110,83 @@ export default function ClientesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-slate-50/50">
-                                <TableHead className="w-[30%]">Nombre Completo</TableHead>
-                                <TableHead className="w-[20%]">Documento</TableHead>
-                                <TableHead className="w-[25%]">Contacto</TableHead>
-                                <TableHead className="w-[10%] text-center">Origen</TableHead>
-                                <TableHead className="text-right w-[15%]">Acciones</TableHead>
+                                <TableHead className="w-[30%] text-[11px] font-bold uppercase tracking-wider h-10">Nombre Completo</TableHead>
+                                <TableHead className="w-[20%] text-[11px] font-bold uppercase tracking-wider h-10">Documento</TableHead>
+                                <TableHead className="w-[25%] text-[11px] font-bold uppercase tracking-wider h-10">Contacto</TableHead>
+                                <TableHead className="w-[10%] text-center text-[11px] font-bold uppercase tracking-wider h-10">Origen</TableHead>
+                                <TableHead className="text-right w-[15%] text-[11px] font-bold uppercase tracking-wider h-10">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {filteredPersonas?.map((persona) => (
                                 <TableRow key={persona.dni} className="group hover:bg-slate-50/50">
-                                    <TableCell className="font-semibold py-4">
+                                    <TableCell className="py-2.5">
                                         <div className="flex flex-col">
-                                            <span className="text-slate-900">{persona.nombre_completo}</span>
+                                            <span className="text-[12px] font-bold text-slate-900 leading-tight uppercase">{persona.nombre_completo}</span>
                                             {persona.fecha_nacimiento && (
-                                                <span className="text-[10px] text-muted-foreground font-normal uppercase tracking-wider">
+                                                <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-tighter">
                                                     Nac: {formatDateInstructions(persona.fecha_nacimiento)}
                                                 </span>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-1">
+                                    <TableCell className="py-2.5">
+                                        <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] uppercase font-bold text-slate-400">DNI</span>
-                                                <span className="font-mono text-xs text-slate-700">
+                                                <span className="text-[9px] uppercase font-bold text-slate-400">DNI</span>
+                                                <span className="font-mono text-[11px] font-medium text-slate-700">
                                                     {persona.dni && persona.dni.startsWith('SIN-DNI-')
-                                                        ? <Badge variant="outline" className="font-mono text-[10px] bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
+                                                        ? <Badge variant="outline" className="font-mono text-[9px] px-1 py-0 h-4 bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
                                                         : (persona.dni || 'N/A')}
                                                 </span>
                                             </div>
                                             {persona.cuit && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[10px] uppercase font-bold text-slate-400">CUIT</span>
-                                                    <span className="font-mono text-xs text-slate-700">{persona.cuit}</span>
+                                                    <span className="text-[9px] uppercase font-bold text-slate-400">CUIT</span>
+                                                    <span className="font-mono text-[11px] font-medium text-slate-700">{persona.cuit}</span>
                                                 </div>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-wrap gap-2">
+                                    <TableCell className="py-2.5">
+                                        <div className="flex flex-wrap gap-1">
                                             {persona.contacto?.telefono && (
                                                 <a
                                                     href={`tel:${persona.contacto.telefono}`}
-                                                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-xs font-medium"
-                                                    title="Llamar por teléfono"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-medium"
+                                                    title="Llamar"
                                                 >
-                                                    <Phone size={12} className="text-slate-400" />
+                                                    <Phone size={10} className="text-slate-400" />
                                                     {persona.contacto.telefono}
                                                 </a>
                                             )}
                                             {persona.contacto?.email && (
                                                 <a
                                                     href={`mailto:${persona.contacto.email}`}
-                                                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-xs font-medium"
-                                                    title="Enviar correo electrónico"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-medium"
+                                                    title="Email"
                                                 >
-                                                    <Mail size={12} className="text-slate-400" />
+                                                    <Mail size={10} className="text-slate-400" />
                                                     {persona.contacto.email}
                                                 </a>
                                             )}
-                                            {!persona.contacto?.telefono && !persona.contacto?.email && (
-                                                <span className="text-xs text-slate-400 italic font-normal">Sin datos</span>
-                                            )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-center">
-                                        <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
+                                    <TableCell className="text-center py-2.5">
+                                        <div className="inline-flex items-center px-1 py-0 h-4 rounded text-[9px] font-bold uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
                                             {persona.origen_dato || 'Manual'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <div className="flex justify-end gap-1 px-2">
+                                    <TableCell className="text-right py-2.5">
+                                        <div className="flex justify-end gap-0.5 px-1">
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() => {
-                                                    console.log("Navigating to:", `/clientes/${persona.dni}`);
-                                                    router.push(`/clientes/${persona.dni}`);
-                                                }}
-                                                className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+                                                onClick={() => router.push(`/clientes/${persona.dni}`)}
+                                                className="h-7 w-7 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md"
                                                 title="Ver detalles"
                                             >
-                                                <Eye size={16} />
+                                                <Eye size={14} />
                                             </Button>
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />

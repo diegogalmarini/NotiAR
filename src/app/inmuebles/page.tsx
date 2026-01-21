@@ -78,38 +78,38 @@ export default function InmueblesPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table className="table-fixed">
+                    <Table className="table-fixed border-collapse">
                         <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[15%]">Partido / Dpto</TableHead>
-                                <TableHead className="w-[15%]">Nro. Partida</TableHead>
-                                <TableHead className="w-[20%]">Nomenclatura</TableHead>
-                                <TableHead className="w-[35%]">Transcripción Literal</TableHead>
-                                <TableHead className="text-right w-[15%]">Acciones</TableHead>
+                            <TableRow className="bg-slate-50/50">
+                                <TableHead className="w-[15%] text-[11px] font-bold uppercase tracking-wider h-10">Partido / Dpto</TableHead>
+                                <TableHead className="w-[15%] text-[11px] font-bold uppercase tracking-wider h-10">Nro. Partida</TableHead>
+                                <TableHead className="w-[20%] text-[11px] font-bold uppercase tracking-wider h-10">Nomenclatura</TableHead>
+                                <TableHead className="w-[38%] text-[11px] font-bold uppercase tracking-wider h-10">Transcripción Literal</TableHead>
+                                <TableHead className="text-right w-[12%] text-[11px] font-bold uppercase tracking-wider h-10">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {inmuebles?.map((inmueble) => (
-                                <TableRow key={inmueble.id} className="group">
-                                    <TableCell className="font-semibold align-top truncate" title={inmueble.partido_id}>
-                                        <div className="flex items-center gap-2 truncate">
+                                <TableRow key={inmueble.id} className="group hover:bg-slate-50/50">
+                                    <TableCell className="py-2 align-top truncate" title={inmueble.partido_id}>
+                                        <div className="flex items-center gap-2 truncate text-[12px] font-bold text-slate-900 uppercase">
                                             <span className="truncate">{inmueble.partido_id || 'N/A'}</span>
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono text-sm align-top">
+                                    <TableCell className="font-mono text-[11px] font-medium align-top py-2 text-slate-600">
                                         {inmueble.nro_partida || 'N/A'}
                                     </TableCell>
-                                    <TableCell className="align-top">
-                                        <div className="text-sm line-clamp-3">
+                                    <TableCell className="align-top py-2">
+                                        <div className="text-[11px] line-clamp-2 leading-tight font-medium text-slate-700">
                                             {inmueble.nomenclatura || 'Sin nomenclatura'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="align-top">
-                                        <div className="text-sm text-muted-foreground line-clamp-2 max-w-md" title={inmueble.transcripcion_literal}>
+                                    <TableCell className="align-top py-2">
+                                        <div className="text-[11px] text-muted-foreground line-clamp-2 leading-snug max-w-md" title={inmueble.transcripcion_literal}>
                                             {inmueble.transcripcion_literal || 'No disponible'}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="text-right align-top">
+                                    <TableCell className="text-right align-top py-2">
                                         <div className="flex justify-end items-center gap-1">
                                             <VerInmuebleDialog inmueble={inmueble} />
                                             <DeleteInmuebleDialog

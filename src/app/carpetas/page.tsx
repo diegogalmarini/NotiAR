@@ -58,16 +58,17 @@ export default async function CarpetasPage() {
                         <TableBody>
                             {carpetas?.map((carpeta) => (
                                 <TableRow key={carpeta.id} className="group">
-                                    <TableCell className="font-mono text-xs text-muted-foreground">
+                                    <TableCell className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
                                         #{carpeta.nro_carpeta_interna}
                                     </TableCell>
-                                    <TableCell className="font-semibold">
+                                    <TableCell className="font-bold text-[12px] py-1.5 uppercase leading-tight max-w-[400px]">
                                         {carpeta.caratula || "Sin carátula"}
                                     </TableCell>
                                     <TableCell>
                                         <Badge
                                             variant={carpeta.estado === "ABIERTA" ? "secondary" : "default"}
                                             className={cn(
+                                                "text-[10px] px-1.5 py-0 h-5",
                                                 carpeta.estado === "FIRMADA" && "bg-green-100 text-green-700 hover:bg-green-200 border-none",
                                                 carpeta.estado === "EN_REDACCION" && "bg-blue-100 text-blue-700 hover:bg-blue-200 border-none",
                                                 carpeta.estado === "PARA_FIRMA" && "bg-amber-100 text-amber-700 hover:bg-amber-200 border-none"
@@ -76,14 +77,14 @@ export default async function CarpetasPage() {
                                             {carpeta.estado}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-sm text-muted-foreground">
+                                    <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
                                         {new Date(carpeta.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" asChild>
+                                        <Button variant="ghost" size="sm" asChild className="h-7 text-[11px]">
                                             <Link href={`/carpeta/${carpeta.id}`}>
-                                                <FileText className="h-4 w-4 mr-2" />
-                                                Mesa de Trabajo
+                                                <FileText className="h-3.5 w-3.5 mr-1" />
+                                                Mesa
                                             </Link>
                                         </Button>
                                     </TableCell>
