@@ -136,6 +136,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
             console.log(`[AI] Intento ${attempt + 1}/${MAX_RETRIES}...`);
             const result = await model.generateContent(contents);
             const responseText = result.response.text();
+            if (!responseText) throw new Error("Respuesta vacía de la IA");
             const cleanJson = responseText.replace(/```json|```/g, "").trim();
             const parsedData = JSON.parse(cleanJson);
             console.log("🔥 AI EXTRACTED DATA SUCCESS");
@@ -206,7 +207,8 @@ export async function POST(request: Request) {
         // 3. Upload File
         let fileUrl: string | null = null;
         try {
-            const path = `documents/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+            const safeName = (file.name || "documento").replace(/[^a-zA-Z0-9.-]/g, '_');
+            const path = `documents/${Date.now()}_${safeName}`;
             const { error: uploadError } = await supabaseAdmin.storage.from('escrituras').upload(path, buffer);
             if (!uploadError) {
                 const { data: signed } = await supabaseAdmin.storage.from('escrituras').createSignedUrl(path, 31536000);
