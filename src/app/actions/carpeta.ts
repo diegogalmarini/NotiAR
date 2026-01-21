@@ -118,16 +118,43 @@ export async function updateFolderStatus(folderId: string, newStatus: string) {
 export async function deleteCarpeta(carpetaId: string) {
     try {
         const supabase = await createClient();
-        // 1. Get folder details for logging before deletion
+
+        // 1. Get folder details and all associated escrituras with PDF URLs
         const { data: folder } = await supabase
             .from('carpetas')
-            .select('caratula')
+            .select('caratula, escrituras(pdf_url)')
             .eq('id', carpetaId)
             .single();
 
-        // 2. Perform deletion
+        // 2. Delete all PDF files from Storage
+        if (folder?.escrituras && Array.isArray(folder.escrituras)) {
+            const pdfUrls = folder.escrituras
+                .map((e: any) => e.pdf_url)
+                .filter((url): url is string => !!url);
+
+            if (pdfUrls.length > 0) {
+                // Extract file paths from URLs
+                // URL format: https://[project].supabase.co/storage/v1/object/public/escrituras/[path]
+                const filePaths = pdfUrls.map(url => {
+                    const match = url.match(/\/escrituras\/(.+)$/);
+                    return match ? match[1] : null;
+                }).filter((path): path is string => !!path);
+
+                if (filePaths.length > 0) {
+                    const { error: storageError } = await supabase.storage
+                        .from('escrituras')
+                        .remove(filePaths);
+
+                    if (storageError) {
+                        console.warn('Error deleting files from storage:', storageError);
+                        // Continue with deletion even if storage cleanup fails
+                    }
+                }
+            }
+        }
+
+        // 3. Perform database deletion
         // We rely on Supabase CASCADE for escrituras -> operaciones -> participantes
-        // But we explicitly delete the main folder record.
         const { error } = await supabase
             .from('carpetas')
             .delete()
@@ -135,7 +162,7 @@ export async function deleteCarpeta(carpetaId: string) {
 
         if (error) throw error;
 
-        // 3. Log action
+        // 4. Log action
         await logAction('DELETE', 'CARPETA', {
             id: carpetaId,
             caratula: folder?.caratula
