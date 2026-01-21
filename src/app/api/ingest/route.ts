@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabaseClient';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
@@ -328,6 +329,12 @@ export async function POST(request: Request) {
                 }
             }
         }
+
+        // Revalidate all affected pages to show new data immediately
+        revalidatePath('/carpetas');
+        revalidatePath('/dashboard');
+        revalidatePath('/clientes');
+        revalidatePath('/inmuebles');
 
         return NextResponse.json({
             success: true,
