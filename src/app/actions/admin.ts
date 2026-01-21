@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabaseServer";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
 
@@ -48,8 +49,7 @@ export async function getAllUsers() {
             return { success: false, error: "Unauthorized", data: [] };
         }
 
-        const supabase = await createClient();
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from("admin_user_list")
             .select("*")
             .order("created_at", { ascending: false });
@@ -75,7 +75,7 @@ export async function approveUser(userId: string) {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_profiles")
             .update({
                 approval_status: "approved",
@@ -109,7 +109,7 @@ export async function rejectUser(userId: string) {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_profiles")
             .update({
                 approval_status: "rejected",
@@ -138,7 +138,7 @@ export async function deleteUser(userId: string) {
         }
 
         // Delete from user_profiles (auth.users will cascade delete via trigger)
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_profiles")
             .delete()
             .eq("id", userId);
@@ -162,8 +162,7 @@ export async function getUserStats() {
             return { success: false, error: "Unauthorized", data: null };
         }
 
-        const supabase = await createClient();
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from("admin_user_list")
             .select("approval_status");
 
@@ -196,7 +195,7 @@ export async function preCreateUser(email: string, fullName: string) {
         // We insert into user_profiles directly. 
         // When the user signs up with this email, the trigger/logic will match it.
         // OR we just set them as approved so when they join, they are already in.
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("user_profiles")
             .insert([{
                 email,

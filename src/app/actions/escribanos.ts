@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabaseServer";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 
 export type Escribano = {
@@ -19,8 +20,7 @@ export type Escribano = {
 
 export async function getEscribanos() {
     try {
-        const supabase = await createClient();
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from("escribanos")
             .select("*")
             .order("nombre_completo", { ascending: true });
@@ -35,8 +35,7 @@ export async function getEscribanos() {
 
 export async function getDefaultEscribano() {
     try {
-        const supabase = await createClient();
-        const { data, error } = await supabase
+        const { data, error } = await supabaseAdmin
             .from("escribanos")
             .select("*")
             .eq("is_default", true)
@@ -52,8 +51,7 @@ export async function getDefaultEscribano() {
 
 export async function createEscribano(data: Omit<Escribano, 'id' | 'is_default'>) {
     try {
-        const supabase = await createClient();
-        const { data: newEscribano, error } = await supabase
+        const { data: newEscribano, error } = await supabaseAdmin
             .from("escribanos")
             .insert([data])
             .select()
@@ -71,8 +69,7 @@ export async function createEscribano(data: Omit<Escribano, 'id' | 'is_default'>
 
 export async function updateEscribano(id: string, data: Partial<Escribano>) {
     try {
-        const supabase = await createClient();
-        const { data: updated, error } = await supabase
+        const { data: updated, error } = await supabaseAdmin
             .from("escribanos")
             .update(data)
             .eq("id", id)
@@ -91,8 +88,7 @@ export async function updateEscribano(id: string, data: Partial<Escribano>) {
 
 export async function deleteEscribano(id: string) {
     try {
-        const supabase = await createClient();
-        const { error } = await supabase
+        const { error } = await supabaseAdmin
             .from("escribanos")
             .delete()
             .eq("id", id);
@@ -109,13 +105,7 @@ export async function deleteEscribano(id: string) {
 
 export async function setDefaultEscribano(id: string) {
     try {
-        const supabase = await createClient();
-        // Since we have a unique index on is_default = true, 
-        // we must first unset the existing default if any.
-
-        // Transaction-like behavior: 
-        // 1. Unset all defaults
-        const { error: unsetError } = await supabase
+        const { error: unsetError } = await supabaseAdmin
             .from("escribanos")
             .update({ is_default: false })
             .eq("is_default", true);
@@ -123,7 +113,7 @@ export async function setDefaultEscribano(id: string) {
         if (unsetError) throw unsetError;
 
         // 2. Set the new default
-        const { data: updated, error: setError } = await supabase
+        const { data: updated, error: setError } = await supabaseAdmin
             .from("escribanos")
             .update({ is_default: true })
             .eq("id", id)
