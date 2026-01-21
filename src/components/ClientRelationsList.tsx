@@ -91,7 +91,7 @@ export function ClientRelationsList({ operaciones, carpetas }: ClientRelationsLi
                                 className="shrink-0 bg-slate-900 hover:bg-slate-800 gap-2"
                             >
                                 Ver Carpeta
-                                <Arrow Right size={16} />
+                                <ArrowRight size={16} />
                             </Button>
                         </div>
                     </CardHeader>
@@ -146,9 +146,5 @@ export function ClientRelationsList({ operaciones, carpetas }: ClientRelationsLi
                 </Card>
             ))}
         </div>
-    );
-}
-
-        </div >
     );
 }

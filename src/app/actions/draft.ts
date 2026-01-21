@@ -6,7 +6,7 @@ import { getLatestModel } from "@/lib/aiConfig";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-export async function generateDeedDraft(escrituraId: string) {
+export async function generateDeedDraft(escrituraId: string, escribanoId?: string) {
     try {
         const modelName = await getLatestModel();
         const model = genAI.getGenerativeModel({ model: modelName });
@@ -32,7 +32,18 @@ export async function generateDeedDraft(escrituraId: string) {
             return { success: false, error: "No se pudieron obtener los datos de la escritura" };
         }
 
-        // 2. Format Data for AI
+        // 2. Fetch Notary Data if provided
+        let escribanoDetails = null;
+        if (escribanoId) {
+            const { data: escData } = await supabase
+                .from("escribanos")
+                .select("*")
+                .eq("id", escribanoId)
+                .single();
+            escribanoDetails = escData;
+        }
+
+        // 3. Format Data for AI
         const promptData = {
             tipo_acto: escritura.operaciones[0]?.tipo_acto || "Escritura",
             monto: escritura.operaciones[0]?.monto_operacion,
@@ -43,10 +54,17 @@ export async function generateDeedDraft(escrituraId: string) {
                 rol: p.rol,
                 domicilio: p.personas.direccion_completa,
                 estado_civil: p.personas.estado_civil_detalle || "de estado civil soltero"
-            }))
+            })),
+            escribano: escribanoDetails ? {
+                nombre: escribanoDetails.nombre_completo,
+                caracter: escribanoDetails.caracter,
+                registro: escribanoDetails.numero_registro,
+                distrito: escribanoDetails.distrito_notarial,
+                titulo: escribanoDetails.genero_titulo
+            } : null
         };
 
-        // 3. Prompt Engineering
+        // 4. Prompt Engineering
         const prompt = `
       Actúa como un Escribano Público Argentino experto en redacción de escrituras.
       Tu tarea es redactar el borrador de una escritura de ${promptData.tipo_acto}.
@@ -56,10 +74,13 @@ export async function generateDeedDraft(escrituraId: string) {
       
       REGLAS DE REDACCIÓN:
       1. Usa lenguaje jurídico formal y solemne.
-      2. Respeta estrictamente las concordancias de género y número. Si hay varios vendedores masculinos usa "LOS VENDEDORES", si es una mujer "LA VENDEDORA", etc.
+      2. Respeta estrictamente las concordancias de género y número.
       3. ESTRUCTURA:
          - ENCABEZADO: Lugar (Ciudad de Buenos Aires) y fecha actual.
-         - COMPARECENCIA: Individualización completa de los comparecientes según los datos.
+         - COMPARECENCIA ANTE NOTARIO: ${promptData.escribano ?
+                `Debe iniciar con: "ANTE MÍ, ${promptData.escribano.nombre}, ${promptData.escribano.titulo} ${promptData.escribano.caracter} del Registro número ${promptData.escribano.registro} de este Distrito Notarial ${promptData.escribano.distrito}..."` :
+                `Inicia con la comparecencia ante el escribano autorizante (usa datos genéricos si no hay).`}
+         - COMPARECIENTES: Individualización completa según los datos provistos.
          - INTERVENCIÓN: Indicar por quién actúan.
          - OBJETO O ACTO: La descripción del inmueble (usa las medidas y linderos provistos).
          - PRECIO Y FORMA DE PAGO: Detallar el monto y que se recibe en este acto.
@@ -71,7 +92,7 @@ export async function generateDeedDraft(escrituraId: string) {
         const result = await model.generateContent(prompt);
         const draftContent = result.response.text();
 
-        // 4. Persist in DB
+        // 5. Persist in DB
         const { error: updateError } = await supabase
             .from("escrituras")
             .update({ contenido_borrador: draftContent })
