@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Edit2, UserPlus, Phone, Mail, MapPin, Users } from "lucide-react";
+import { Search, Edit2, UserPlus, Phone, Mail, MapPin, Users, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
@@ -180,6 +180,15 @@ export default function ClientesPage() {
                                     </TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex justify-end gap-1 px-2">
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                onClick={() => router.push(`/clientes/${persona.dni}`)}
+                                                className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
+                                                title="Ver detalles"
+                                            >
+                                                <Eye size={16} />
+                                            </Button>
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />
                                             <DeleteClienteDialog
