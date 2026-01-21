@@ -19,9 +19,11 @@ import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
+import { useRouter } from "next/navigation";
 import { cn, formatDateInstructions } from "@/lib/utils";
 
 export default function ClientesPage() {
+    const router = useRouter();
     const [personas, setPersonas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
