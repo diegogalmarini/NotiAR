@@ -63,15 +63,15 @@ export async function getClientWithRelations(dni: string) {
 
             return {
                 id: op?.id || '',
-                tipo: op?.tipo || '',
+                tipo: op?.tipo_acto || '',
                 rol: part.rol || '',
                 escritura: esc ? {
                     id: esc.id,
-                    numero: esc.numero,
-                    tipo: esc.tipo,
+                    numero: esc.nro_protocolo,
+                    tipo: op?.tipo_acto,
                     carpeta: carp ? {
                         id: carp.id,
-                        numero: carp.numero
+                        numero: carp.nro_carpeta_interna
                     } : undefined
                 } : undefined
             };
@@ -79,14 +79,14 @@ export async function getClientWithRelations(dni: string) {
 
         const carpetas = carpetasData?.map(c => ({
             id: c.id,
-            numero: c.numero,
+            numero: c.nro_carpeta_interna,
             observaciones: c.observaciones || c.descripcion || ''
         })) || [];
 
         const escrituras = escriturasData?.map(e => ({
             id: e.id,
-            numero: e.numero,
-            tipo: e.tipo
+            numero: e.nro_protocolo,
+            tipo: e.tipo // This might still be null, but let's keep it for now
         })) || [];
 
         return {
