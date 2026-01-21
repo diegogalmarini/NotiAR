@@ -3,7 +3,7 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Folder, ExternalLink } from "lucide-react";
+import { FileText, Folder, ExternalLink, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
@@ -43,79 +43,97 @@ export function ClientRelationsList({ operaciones, carpetas }: ClientRelationsLi
     if (carpetas.length === 0) {
         return (
             <Card className="border-slate-200 shadow-sm">
-                <CardContent className="py-12 text-center">
-                    <Folder className="mx-auto h-12 w-12 opacity-20 text-slate-400 mb-4" />
-                    <p className="text-slate-500 text-sm">Este cliente no aparece en ninguna carpeta todavía.</p>
+                <CardContent className="py-16 text-center">
+                    <Folder className="mx-auto h-16 w-16 opacity-10 text-slate-400 mb-4" />
+                    <p className="text-slate-500 text-sm font-medium">Este cliente no aparece en ninguna carpeta todavía.</p>
+                    <p className="text-slate-400 text-xs mt-2">Las relaciones con carpetas y escrituras aparecerán aquí cuando se agreguen.</p>
                 </CardContent>
             </Card>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
+            <div className="text-sm text-slate-600">
+                <span className="font-bold">Total:</span> {carpetas.length} {carpetas.length === 1 ? 'carpeta' : 'carpetas'}
+            </div>
+
             {carpetasWithOps.map((carpeta) => (
-                <Card key={carpeta.id} className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-                    <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-slate-100 rounded-lg">
-                                    <Folder size={18} className="text-slate-600" />
+                <Card key={carpeta.id} className="border-slate-200 shadow-sm hover:shadow-md transition-all duration-200">
+                    <CardHeader className="pb-4 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-4 flex-1">
+                                <div className="p-3 bg-white rounded-xl border-2 border-slate-200 shadow-sm">
+                                    <Folder size={24} className="text-slate-600" />
                                 </div>
-                                <div>
-                                    <CardTitle className="text-base font-bold text-slate-900">
-                                        Carpeta #{carpeta.numero}
-                                    </CardTitle>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <CardTitle className="text-xl font-bold text-slate-900">
+                                            Carpeta N° {carpeta.numero || 'Sin número'}
+                                        </CardTitle>
+                                    </div>
                                     {carpeta.observaciones && (
-                                        <p className="text-xs text-slate-500 mt-0.5">{carpeta.observaciones}</p>
+                                        <p className="text-sm text-slate-600 mt-1 line-clamp-2">
+                                            {carpeta.observaciones}
+                                        </p>
                                     )}
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <Badge variant="outline" className="text-xs bg-slate-50">
+                                            {carpeta.operaciones.length} {carpeta.operaciones.length === 1 ? 'operación' : 'operaciones'}
+                                        </Badge>
+                                    </div>
                                 </div>
                             </div>
                             <Button
-                                size="sm"
-                                variant="outline"
+                                variant="default"
+                                size="default"
                                 onClick={() => router.push(`/carpeta/${carpeta.id}`)}
-                                className="h-8 text-xs"
+                                className="shrink-0 bg-slate-900 hover:bg-slate-800 gap-2"
                             >
-                                <ExternalLink size={14} className="mr-1.5" />
-                                Abrir
+                                Ver Carpeta
+                                <Arrow Right size={16} />
                             </Button>
                         </div>
                     </CardHeader>
-                    <CardContent className="pt-3">
-                        {carpeta.operaciones.length > 0 ? (
-                            <div className="space-y-2">
-                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-                                    Participación en esta carpeta
-                                </p>
+
+                    {carpeta.operaciones.length > 0 && (
+                        <CardContent className="pt-5">
+                            <div className="space-y-3">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                    Participación del cliente
+                                </h4>
                                 {carpeta.operaciones.map((op, idx) => (
                                     <div
                                         key={idx}
-                                        className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100"
+                                        className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <FileText size={16} className="text-slate-400" />
+                                        <div className="flex items-center gap-4">
+                                            <div className="p-2 bg-white rounded-lg border border-slate-200">
+                                                <FileText size={20} className="text-slate-500" />
+                                            </div>
                                             <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-sm font-medium text-slate-900">
-                                                        {op.tipo || 'Operación'}
+                                                <div className="flex items-center gap-3 mb-1">
+                                                    <span className="text-base font-semibold text-slate-900">
+                                                        {op.tipo || 'Operación sin tipo'}
                                                     </span>
                                                     <Badge
                                                         variant="outline"
                                                         className={cn(
-                                                            "text-[10px] font-bold px-1.5 py-0",
-                                                            op.rol?.toLowerCase().includes("compra")
-                                                                ? "bg-green-50 text-green-700 border-green-200"
-                                                                : op.rol?.toLowerCase().includes("vend")
-                                                                    ? "bg-blue-50 text-blue-700 border-blue-200"
-                                                                    : "bg-slate-50 text-slate-600 border-slate-200"
+                                                            "text-[11px] font-bold px-2 py-0.5",
+                                                            op.rol?.toUpperCase().includes("COMPRA") || op.rol?.toUpperCase().includes("ADQUIR")
+                                                                ? "bg-green-50 text-green-700 border-green-300"
+                                                                : op.rol?.toUpperCase().includes("VEND") || op.rol?.toUpperCase().includes("TRANSMIT")
+                                                                    ? "bg-blue-50 text-blue-700 border-blue-300"
+                                                                    : "bg-slate-100 text-slate-700 border-slate-300"
                                                         )}
                                                     >
-                                                        {op.rol || 'Participante'}
+                                                        {op.rol || 'Rol no especificado'}
                                                     </Badge>
                                                 </div>
                                                 {op.escritura && (
-                                                    <p className="text-xs text-slate-500 mt-0.5">
-                                                        Escritura #{op.escritura.numero} - {op.escritura.tipo}
+                                                    <p className="text-sm text-slate-600">
+                                                        <span className="font-medium">Escritura:</span> N° {op.escritura.numero || 'Sin número'}
+                                                        {op.escritura.tipo && <span className="text-slate-500"> • {op.escritura.tipo}</span>}
                                                     </p>
                                                 )}
                                             </div>
@@ -123,12 +141,14 @@ export function ClientRelationsList({ operaciones, carpetas }: ClientRelationsLi
                                     </div>
                                 ))}
                             </div>
-                        ) : (
-                            <p className="text-xs text-slate-400 italic">Sin operaciones registradas</p>
-                        )}
-                    </CardContent>
+                        </CardContent>
+                    )}
                 </Card>
             ))}
         </div>
+    );
+}
+
+        </div >
     );
 }
