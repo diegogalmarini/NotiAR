@@ -7,12 +7,22 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { submitFichaData } from "@/app/actions/fichas";
 import { toast } from "sonner";
-import { FileText, User, MapPin, Phone, Mail, CheckCircle2 } from "lucide-react";
+import { FileText, User, MapPin, Phone, Mail, CheckCircle2, Calendar, AlertCircle } from "lucide-react";
+import { isValidCUIT, cn } from "@/lib/utils";
 
 export function FichaForm({ tokenData }: { tokenData: any }) {
     const [loading, setLoading] = useState(false);
     const [submitted, setSubmitted] = useState(false);
+    const [cuitError, setCuitError] = useState(false);
+
     const persona = tokenData.personas;
+
+    // Calculate remaining days
+    const expiresAt = new Date(tokenData.expires_at);
+    const today = new Date();
+    const diffTime = expiresAt.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isLastDays = diffDays <= 5;
 
     const [formData, setFormData] = useState({
         nombre_completo: persona.nombre_completo || "",
@@ -29,6 +39,15 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // CUIT Validation
+        if (formData.cuit && !isValidCUIT(formData.cuit)) {
+            setCuitError(true);
+            toast.error("El CUIT/CUIL ingresado no es válido");
+            return;
+        }
+
+        setCuitError(false);
         setLoading(true);
 
         const res = await submitFichaData(tokenData.id, persona.dni, formData);
@@ -63,6 +82,17 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                 </div>
                 <h1 className="text-3xl font-bold text-slate-900">Ficha de Datos Personales</h1>
                 <p className="text-slate-500 mt-2">Por favor, completa o verifica tus datos para la confección del trámite.</p>
+
+                {/* Countdown Countdown */}
+                <div className={cn(
+                    "mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-sm border",
+                    isLastDays
+                        ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
+                        : "bg-amber-50 text-amber-600 border-amber-100"
+                )}>
+                    <Calendar size={16} />
+                    <span>Tienes {diffDays} {diffDays === 1 ? 'día' : 'días'} para completar tu ficha</span>
+                </div>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -116,14 +146,21 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cuit">CUIT / CUIL</Label>
+                                <Label htmlFor="cuit" className={cn(cuitError && "text-red-500 font-bold flex items-center gap-1")}>
+                                    {cuitError && <AlertCircle size={12} />}
+                                    CUIT / CUIL
+                                </Label>
                                 <Input
                                     id="cuit"
                                     value={formData.cuit}
-                                    onChange={e => setFormData({ ...formData, cuit: e.target.value })}
+                                    onChange={e => {
+                                        setFormData({ ...formData, cuit: e.target.value });
+                                        if (cuitError) setCuitError(false);
+                                    }}
                                     placeholder="Ej: 27-27841387-5"
-                                    className="font-mono"
+                                    className={cn("font-mono", cuitError && "border-red-500 focus-visible:ring-red-500")}
                                 />
+                                {cuitError && <p className="text-[10px] text-red-500 font-medium ml-1">El CUIT ingresado no es válido. Por favor, revísalo.</p>}
                             </div>
                         </div>
 

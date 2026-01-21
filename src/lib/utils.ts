@@ -24,3 +24,30 @@ export function formatDateInstructions(dateString: string | null | undefined): s
     year: "numeric"
   }).format(dateToFormat);
 }
+
+/**
+ * Valida un CUIT/CUIL de Argentina mediante el algoritmo de dígito verificador.
+ */
+export function isValidCUIT(cuit: string): boolean {
+  if (!cuit) return true; // Opcional, permitimos vacío si el campo lo es
+
+  // Limpiar caracteres no numéricos
+  const cleanCUIT = cuit.replace(/\D/g, "");
+
+  if (cleanCUIT.length !== 11) return false;
+
+  const digits = cleanCUIT.split("").map(Number);
+  const verifier = digits[10];
+
+  const coeff = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += digits[i] * coeff[i];
+  }
+
+  let calculatedVerifier = 11 - (sum % 11);
+  if (calculatedVerifier === 11) calculatedVerifier = 0;
+  if (calculatedVerifier === 10) calculatedVerifier = 9; // Aunque técnicamente se reinicia el prefijo, 9 es el fallback común
+
+  return verifier === calculatedVerifier;
+}

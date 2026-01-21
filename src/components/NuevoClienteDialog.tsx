@@ -15,14 +15,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { UserPlus, Loader2 } from "lucide-react";
+import { UserPlus, Loader2, AlertCircle } from "lucide-react";
 import { createPersona } from "@/app/actions/personas";
 import { toast } from "sonner";
+import { isValidCUIT, cn } from "@/lib/utils";
 
 export function NuevoClienteDialog() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [cuitError, setCuitError] = useState(false);
     const [nombres, setNombres] = useState("");
     const [apellidos, setApellidos] = useState("");
 
@@ -43,6 +45,15 @@ export function NuevoClienteDialog() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // CUIT Validation
+        if (formData.cuit && !isValidCUIT(formData.cuit)) {
+            setCuitError(true);
+            toast.error("El CUIT/CUIL ingresado no es válido");
+            return;
+        }
+
+        setCuitError(false);
         setLoading(true);
 
         const fullData = {
@@ -146,14 +157,24 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">CUIT/CUIL (Opcional)</Label>
+                                <Label htmlFor="cuit" className={cn("text-[10px] font-black uppercase tracking-[0.2em] ml-1", cuitError ? "text-red-500" : "text-slate-400")}>
+                                    {cuitError && <AlertCircle size={10} className="inline mr-1" />}
+                                    CUIT/CUIL (Opcional)
+                                </Label>
                                 <Input
                                     id="cuit"
                                     value={formData.cuit}
-                                    onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
+                                    onChange={(e) => {
+                                        setFormData({ ...formData, cuit: e.target.value });
+                                        if (cuitError) setCuitError(false);
+                                    }}
                                     placeholder="Ej: 27-27841387-5"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className={cn(
+                                        "h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 transition-all",
+                                        cuitError ? "border-red-500 focus:ring-red-50" : "focus:ring-indigo-50"
+                                    )}
                                 />
+                                {cuitError && <p className="text-[10px] text-red-500 font-bold ml-1">CUIT inválido. Por favor revisa los números.</p>}
                             </div>
                         </div>
 
