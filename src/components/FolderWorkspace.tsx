@@ -80,8 +80,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
             // Since we don't have a strict folder ID in storage path yet, 
             // we look for files that match filenames in existing escrituras
             const related = res.data.filter((f: any) =>
-                carpeta.escrituras.some((e: any) => e.pdf_url?.includes(f.name)) ||
-                f.name.includes("8203") // Specific hardcoded check for the user's issue case if needed
+                carpeta.escrituras.some((e: any) => e.pdf_url?.includes(f.name))
             );
             setStorageFiles(related);
         }
