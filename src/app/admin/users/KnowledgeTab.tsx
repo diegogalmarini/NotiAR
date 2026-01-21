@@ -23,8 +23,10 @@ export function KnowledgeTab() {
         setLoading(true);
         try {
             const res = await getKnowledgeFiles();
-            if (res.success) {
+            if (res.success && res.data) {
                 setFiles(res.data);
+            } else if (res.success) {
+                setFiles([]);
             } else {
                 toast.error("Error al cargar archivos: " + res.error);
             }
