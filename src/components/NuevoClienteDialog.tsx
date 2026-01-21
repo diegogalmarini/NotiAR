@@ -98,48 +98,47 @@ export function NuevoClienteDialog() {
             }
         }}>
             <DialogTrigger asChild>
-                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-lg shadow-indigo-100 flex items-center gap-2">
+                <Button className="bg-slate-900 hover:bg-slate-800 text-white rounded-lg shadow-sm flex items-center gap-2">
                     <UserPlus size={18} />
                     <span>Nuevo Cliente</span>
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden border border-slate-200 shadow-xl rounded-xl bg-white">
                 <div className="p-8 bg-white overflow-y-auto">
                     <DialogHeader className="mb-8">
-                        <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-3">
-                            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-2xl shadow-inner">
-                                <UserPlus size={26} />
+                        <DialogTitle className="text-xl font-bold tracking-tight flex items-center gap-3 text-slate-900">
+                            <div className="p-2 bg-slate-100 text-slate-600 rounded-lg">
+                                <UserPlus size={22} />
                             </div>
                             Nuevo Cliente
                         </DialogTitle>
-                        <DialogDescription className="text-slate-500 text-base">
-                            Ingrese los datos básicos del cliente. Los campos con **(*)** son obligatorios.
+                        <DialogDescription className="text-slate-500 text-sm">
+                            Ingrese los datos completos del cliente. Todos los campos son obligatorios según requerimiento notarial.
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} id="nuevo-cliente-form" className="space-y-6">
-                        {/* Nombre y Apellido */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nombre" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Nombres *</Label>
+                                <Label htmlFor="nombre" className="text-xs font-semibold text-slate-600 ml-1">Nombres</Label>
                                 <Input
                                     id="nombre"
                                     required
                                     value={nombres}
                                     onChange={(e) => setNombres(e.target.value)}
                                     placeholder="Ej: Juan Ignacio"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="apellido" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Apellidos *</Label>
+                                <Label htmlFor="apellido" className="text-xs font-semibold text-slate-600 ml-1">Apellidos</Label>
                                 <Input
                                     id="apellido"
                                     required
                                     value={apellidos}
                                     onChange={(e) => setApellidos(e.target.value)}
                                     placeholder="Ej: Pérez García"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all font-medium"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                         </div>
@@ -147,22 +146,23 @@ export function NuevoClienteDialog() {
                         {/* DNI y CUIT */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">DNI (Opcional)</Label>
+                                <Label htmlFor="dni" className="text-xs font-semibold text-slate-600 ml-1">DNI</Label>
                                 <Input
                                     id="dni"
+                                    required
                                     value={formData.dni}
                                     onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
                                     placeholder="Ej: 27.841.387"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="cuit" className={cn("text-[10px] font-black uppercase tracking-[0.2em] ml-1", cuitError ? "text-red-500" : "text-slate-400")}>
-                                    {cuitError && <AlertCircle size={10} className="inline mr-1" />}
-                                    CUIT/CUIL (Opcional)
+                                <Label htmlFor="cuit" className={cn("text-xs font-semibold ml-1", cuitError ? "text-red-500" : "text-slate-600")}>
+                                    CUIT/CUIL
                                 </Label>
                                 <Input
                                     id="cuit"
+                                    required
                                     value={formData.cuit}
                                     onChange={(e) => {
                                         setFormData({ ...formData, cuit: e.target.value });
@@ -170,112 +170,118 @@ export function NuevoClienteDialog() {
                                     }}
                                     placeholder="Ej: 27-27841387-5"
                                     className={cn(
-                                        "h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 transition-all",
-                                        cuitError ? "border-red-500 focus:ring-red-50" : "focus:ring-indigo-50"
+                                        "h-11 rounded-xl border-slate-200 bg-white focus:ring-2 transition-all",
+                                        cuitError ? "border-red-500 focus:ring-red-500/10" : "focus:ring-indigo-500/10"
                                     )}
                                 />
                                 {cuitError && <p className="text-[10px] text-red-500 font-bold ml-1">CUIT inválido. Por favor revisa los números.</p>}
                             </div>
                         </div>
 
-                        {/* Nacionalidad y Fecha de Nacimiento */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nacionalidad" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Nacionalidad</Label>
+                                <Label htmlFor="nacionalidad" className="text-xs font-semibold text-slate-600 ml-1">Nacionalidad</Label>
                                 <Input
                                     id="nacionalidad"
+                                    required
                                     value={formData.nacionalidad}
                                     onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
                                     placeholder="Ej: Argentina"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="fecha_nac" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Fecha Nacimiento</Label>
+                                <Label htmlFor="fecha_nac" className="text-xs font-semibold text-slate-600 ml-1">Fecha Nacimiento</Label>
                                 <Input
                                     id="fecha_nac"
                                     type="date"
+                                    required
                                     value={formData.fecha_nacimiento}
                                     onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                         </div>
 
-                        {/* Domicilio Real */}
                         <div className="grid gap-2">
-                            <Label htmlFor="domicilio" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Domicilio Real (Opcional)</Label>
+                            <Label htmlFor="domicilio" className="text-xs font-semibold text-slate-600 ml-1">Domicilio Real</Label>
                             <Textarea
                                 id="domicilio"
+                                required
                                 value={formData.domicilio}
                                 onChange={(e) => setFormData({ ...formData, domicilio: e.target.value })}
                                 placeholder="Dirección completa: calle, número, localidad, provincia"
                                 rows={2}
-                                className="rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all resize-none"
+                                className="rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all resize-none"
                             />
                         </div>
 
-                        {/* Email y Teléfono */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Email (Opcional)</Label>
+                                <Label htmlFor="email" className="text-xs font-semibold text-slate-600 ml-1">Email</Label>
                                 <Input
                                     id="email"
                                     type="email"
+                                    required
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="email@ejemplo.com"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="tel" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Teléfono (Opcional)</Label>
+                                <Label htmlFor="tel" className="text-xs font-semibold text-slate-600 ml-1">Teléfono</Label>
                                 <Input
                                     id="tel"
+                                    required
                                     value={formData.telefono}
                                     onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                                     placeholder="Cod. Área + Número"
-                                    className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                    className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                 />
                             </div>
                         </div>
 
                         {/* Estado Civil y Filiación */}
                         <div className="pt-6 border-t border-slate-100">
-                            <p className="text-[10px] font-black text-indigo-500 mb-6 uppercase tracking-[0.3em]">Estado Civil y Filiación</p>
+                            <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">Estado Civil y Filiación</p>
 
                             <div className="grid gap-6">
                                 <div className="grid gap-2">
-                                    <Label htmlFor="estado_civil" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Estado Civil (Detalle)</Label>
+                                    <Label htmlFor="estado_civil" className="text-xs font-semibold text-slate-600 ml-1">Estado Civil (Detalle)</Label>
                                     <Input
                                         id="estado_civil"
+                                        required
                                         value={formData.estado_civil}
                                         onChange={(e) => setFormData({ ...formData, estado_civil: e.target.value })}
                                         placeholder="Ej: Casado en primeras nupcias con..."
-                                        className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                        className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="grid gap-2">
-                                        <Label htmlFor="padres" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Filiación (Padres)</Label>
+                                        <Label htmlFor="padres" className="text-xs font-semibold text-slate-600 ml-1">
+                                            Filiación (Padres) {formData.estado_civil?.toLowerCase().includes("solter") && "*"}
+                                        </Label>
                                         <Input
                                             id="padres"
+                                            required={formData.estado_civil?.toLowerCase().includes("solter")}
                                             value={formData.nombres_padres}
                                             onChange={(e) => setFormData({ ...formData, nombres_padres: e.target.value })}
                                             placeholder="Hijo de [Padre] y de [Madre]"
-                                            className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                            className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                         />
                                     </div>
 
                                     <div className="grid gap-2">
-                                        <Label htmlFor="conyuge" className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Cónyuge (Nombre)</Label>
+                                        <Label htmlFor="conyuge" className="text-xs font-semibold text-slate-600 ml-1">Cónyuge (Nombre)</Label>
                                         <Input
                                             id="conyuge"
                                             value={formData.nombre_conyuge}
                                             onChange={(e) => setFormData({ ...formData, nombre_conyuge: e.target.value })}
                                             placeholder="Si aplica"
-                                            className="h-12 rounded-2xl border-slate-100 bg-slate-50/50 focus:bg-white focus:ring-4 focus:ring-indigo-50 transition-all"
+                                            className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
                                         />
                                     </div>
                                 </div>
@@ -284,13 +290,13 @@ export function NuevoClienteDialog() {
                     </form>
                 </div>
 
-                <div className="px-8 py-5 bg-slate-50/80 backdrop-blur-sm border-t border-slate-100 flex justify-end gap-3">
+                <div className="px-8 py-5 bg-slate-50 border-t border-slate-200 flex justify-end gap-3">
                     <Button
                         type="button"
                         variant="ghost"
                         onClick={() => setOpen(false)}
                         disabled={loading}
-                        className="rounded-xl text-slate-400 hover:text-slate-600 font-bold text-xs uppercase tracking-widest"
+                        className="rounded-xl text-slate-500 font-semibold"
                     >
                         Cancelar
                     </Button>
@@ -298,7 +304,7 @@ export function NuevoClienteDialog() {
                         type="submit"
                         form="nuevo-cliente-form"
                         disabled={loading}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[160px] h-12 rounded-xl font-bold text-sm shadow-lg shadow-indigo-100 hover:shadow-indigo-200 transition-all active:scale-95"
+                        className="bg-slate-900 hover:bg-slate-800 text-white min-w-[140px] h-11 rounded-lg font-semibold shadow-sm transition-all"
                     >
                         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Guardar Cliente"}
                     </Button>

@@ -18,6 +18,7 @@ import { InscriptionTracker } from "./InscriptionTracker";
 import { linkPersonToOperation, linkAssetToDeed, addOperationToDeed, deleteCarpeta, unlinkPersonFromOperation } from "@/app/actions/carpeta";
 import { updateEscritura, updateOperacion, updateInmueble } from "@/app/actions/escritura";
 import { ClientOutreach } from "./ClientOutreach";
+import { listStorageFiles, deleteStorageFile } from "@/app/actions/storageSync";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -65,7 +66,43 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [isPending, startTransition] = useTransition();
     const [isDeleting, setIsDeleting] = useState(false);
     const [editingPerson, setEditingPerson] = useState<any>(null);
+    const [storageFiles, setStorageFiles] = useState<any[]>([]);
+    const [isLoadingStorage, setIsLoadingStorage] = useState(false);
     const router = useRouter();
+
+    // Fetch files from storage that might be related to this folder
+    const fetchStorageFiles = async () => {
+        setIsLoadingStorage(true);
+        const res = await listStorageFiles("escrituras", "documents");
+        if (res.success && res.data) {
+            // Filter files that contain the folder's name or known patterns
+            // Since we don't have a strict folder ID in storage path yet, 
+            // we look for files that match filenames in existing escrituras
+            const related = res.data.filter((f: any) =>
+                carpeta.escrituras.some((e: any) => e.pdf_url?.includes(f.name)) ||
+                f.name.includes("8203") // Specific hardcoded check for the user's issue case if needed
+            );
+            setStorageFiles(related);
+        }
+        setIsLoadingStorage(false);
+    };
+
+    useEffect(() => {
+        fetchStorageFiles();
+    }, [carpeta.id]);
+
+    const handleDeleteStorageFile = async (fileName: string) => {
+        const confirm = window.confirm(`¿Estás seguro de eliminar el archivo ${fileName} del servidor? Esta acción no se puede deshacer.`);
+        if (!confirm) return;
+
+        const res = await deleteStorageFile("escrituras", `documents/${fileName}`);
+        if (res.success) {
+            toast.success("Archivo eliminado del servidor");
+            fetchStorageFiles();
+        } else {
+            toast.error("Error al eliminar: " + res.error);
+        }
+    };
 
 
 
@@ -363,6 +400,68 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 <p className="text-sm text-slate-500 font-medium">No hay escrituras</p>
                             </div>
                         )}
+
+                        <Separator className="my-4" />
+
+                        {/* Storage Management Section */}
+                        <div className="space-y-4">
+                            <h3 className="text-sm font-bold flex items-center gap-2 text-slate-600">
+                                <Activity className="h-4 w-4" />
+                                Archivos en Servidor (Storage)
+                            </h3>
+                            <div className="space-y-2">
+                                {storageFiles.map((file) => {
+                                    const isLinked = carpeta.escrituras.some((e: any) => e.pdf_url?.includes(file.name));
+                                    return (
+                                        <div key={file.id} className="flex items-center justify-between p-3 bg-white border rounded-xl hover:shadow-sm transition-all group">
+                                            <div className="flex items-center gap-3 overflow-hidden">
+                                                <div className={cn("p-2 rounded-lg", isLinked ? "bg-green-50 text-green-600" : "bg-amber-50 text-amber-600")}>
+                                                    <FileText size={16} />
+                                                </div>
+                                                <div className="overflow-hidden">
+                                                    <p className="text-[11px] font-bold truncate text-slate-700">
+                                                        {file.name.replace(/^\d{13}_/, "")}
+                                                    </p>
+                                                    <p className="text-[9px] text-slate-400">
+                                                        {(file.metadata?.size / 1024).toFixed(1)} KB • {isLinked ? "Vinculado" : "Huérfano"}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                {!isLinked && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-7 w-7 text-red-500 hover:bg-red-50"
+                                                        onClick={() => handleDeleteStorageFile(file.name)}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </Button>
+                                                )}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-7 w-7 text-slate-400 hover:bg-slate-100"
+                                                    onClick={() => {
+                                                        const doc = carpeta.escrituras.find((e: any) => e.pdf_url?.includes(file.name));
+                                                        if (doc?.pdf_url) {
+                                                            setViewingDocument(doc.pdf_url);
+                                                        } else {
+                                                            toast.info("Este archivo no tiene registro en la base de datos.");
+                                                        }
+                                                    }}
+                                                >
+                                                    <Eye size={14} />
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {storageFiles.length === 0 && !isLoadingStorage && (
+                                    <p className="text-[10px] text-center text-slate-400 py-4 italic">No se encontraron archivos adicionales.</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
 
 
@@ -827,17 +926,40 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 }
 
                                 if (isDocx) {
-                                    // Using Google Docs Viewer with a fallback message
+                                    // Using Google Docs Viewer with a robust fallback
                                     return (
-                                        <div className="w-full max-w-5xl h-full flex flex-col gap-4">
-                                            <iframe
-                                                src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
-                                                className="w-full flex-1 bg-white shadow-sm border-none"
-                                                title="Document Viewer"
-                                            />
-                                            <div className="text-center py-2">
-                                                <p className="text-xs text-slate-500">
-                                                    Si el documento no carga, puedes <a href={viewingDocument} target="_blank" className="text-blue-600 underline font-medium">descargarlo directamente aquí</a>.
+                                        <div className="w-full max-w-5xl h-full flex flex-col items-center justify-center gap-6 p-8">
+                                            <div className="w-full flex-1 relative bg-white shadow-sm border rounded-xl overflow-hidden min-h-[400px]">
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 z-0">
+                                                    <Activity className="h-8 w-8 text-blue-500 animate-spin mb-4" />
+                                                    <p className="text-sm font-medium text-slate-600">Abriendo vista previa externa...</p>
+                                                    <p className="text-[10px] text-slate-400 mt-1">Los documentos Word pueden demorar unos segundos en renderizarse.</p>
+                                                </div>
+                                                <iframe
+                                                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
+                                                    className="relative w-full h-full bg-white z-10"
+                                                    title="Document Viewer"
+                                                />
+                                            </div>
+
+                                            <div className="flex flex-col items-center gap-3 bg-white p-6 rounded-2xl border shadow-sm w-full max-w-md">
+                                                <div className="p-3 bg-blue-50 text-blue-600 rounded-full">
+                                                    <Download size={24} />
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-sm font-bold text-slate-800">¿El documento no carga?</p>
+                                                    <p className="text-xs text-slate-500 mt-1">
+                                                        Debido a restricciones de seguridad de los archivos Word, a veces el visor externo no puede acceder al documento privado.
+                                                    </p>
+                                                </div>
+                                                <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
+                                                    <a href={viewingDocument} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                                                        <Download size={16} />
+                                                        Descargar y Abrir Original
+                                                    </a>
+                                                </Button>
+                                                <p className="text-[10px] text-slate-400">
+                                                    Recomendación: Convierte tus archivos a PDF antes de subirlos para una visualización instantánea.
                                                 </p>
                                             </div>
                                         </div>

@@ -75,23 +75,20 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
                     <Share2 size={14} /> Ficha
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border-none shadow-2xl rounded-3xl">
-                {/* Gradient Header */}
-                <div className="relative bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 p-8 text-white">
-                    <div className="absolute top-0 right-0 p-8 opacity-10">
-                        <Share2 size={120} />
-                    </div>
-                    <DialogHeader className="relative z-10 text-left">
+            <DialogContent className="sm:max-w-[480px] p-0 overflow-hidden border border-slate-200 shadow-xl rounded-2xl bg-white">
+                {/* Clean Header */}
+                <div className="bg-slate-50 p-8 border-b border-slate-100">
+                    <DialogHeader className="text-left">
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="p-2.5 bg-white/20 backdrop-blur-md rounded-2xl shadow-inner">
-                                <Share2 size={24} className="text-white" />
+                            <div className="p-2 bg-slate-200 text-slate-600 rounded-lg">
+                                <Share2 size={20} />
                             </div>
-                            <DialogTitle className="text-2xl font-black tracking-tight text-white drop-shadow-sm">
-                                Enviar Ficha
+                            <DialogTitle className="text-xl font-bold text-slate-900">
+                                Enviar Ficha de Datos
                             </DialogTitle>
                         </div>
-                        <DialogDescription className="text-blue-100 text-base leading-relaxed max-w-[320px]">
-                            Genera un enlace para que <strong className="text-white underline decoration-blue-400/50 underline-offset-4">{persona.nombre_completo}</strong> complete su información.
+                        <DialogDescription className="text-slate-500 text-sm">
+                            Genera un enlace para que <strong className="text-slate-900">{persona.nombre_completo}</strong> complete su información personal.
                         </DialogDescription>
                     </DialogHeader>
                 </div>
@@ -102,63 +99,58 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
                             <Button
                                 onClick={handleGenerate}
                                 disabled={loading}
-                                className="w-full h-16 text-lg font-bold bg-indigo-600 hover:bg-indigo-700 transition-all rounded-2xl shadow-lg hover:shadow-indigo-200 hover:-translate-y-0.5 active:translate-y-0"
+                                className="w-full h-12 text-base font-semibold bg-slate-900 hover:bg-slate-800 text-white transition-all rounded-xl shadow-sm"
                             >
                                 {loading ? (
                                     <>
-                                        <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                                        Preparando enlace...
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        Generando enlace...
                                     </>
                                 ) : (
-                                    "Generar Link Seguro"
+                                    "Generar Link de Acceso"
                                 )}
                             </Button>
                         </div>
                     ) : (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 ease-out">
-                            {/* Glassmorphism Link Box */}
-                            <div className="relative group">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-1000 group-hover:duration-200"></div>
-                                <div className="relative flex items-center gap-3 p-5 bg-slate-50 border border-slate-100 rounded-2xl group-hover:border-indigo-200 transition-all shadow-inner">
-                                    <code className="text-sm flex-1 truncate font-mono font-medium text-slate-500 select-all tracking-tight">
+                        <div className="space-y-6">
+                            {/* Standard Link Box */}
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-1">Link de Acceso</Label>
+                                <div className="flex items-center gap-2 p-1 pl-4 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <code className="text-xs flex-1 truncate font-mono text-slate-600">
                                         {link}
                                     </code>
                                     <Button
                                         size="icon"
-                                        variant="secondary"
+                                        variant="ghost"
                                         onClick={copyToClipboard}
                                         className={cn(
-                                            "h-11 w-11 rounded-xl transition-all duration-300",
-                                            copied ? "bg-green-100 text-green-600" : "bg-white text-slate-400 hover:text-indigo-600 hover:shadow-md"
+                                            "h-9 w-9 rounded-lg transition-colors",
+                                            copied ? "text-green-600 bg-green-50" : "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
                                         )}
                                     >
-                                        {copied ? <Check size={20} /> : <Copy size={20} />}
+                                        {copied ? <Check size={16} /> : <Copy size={16} />}
                                     </Button>
                                 </div>
-                                <span className="absolute -top-2.5 left-5 px-2 bg-white text-[10px] font-black text-indigo-500 uppercase tracking-[0.2em]">Link de Acceso</span>
                             </div>
 
                             {/* Share Options */}
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-2 gap-4">
                                 <Button
                                     variant="outline"
-                                    className="h-24 flex flex-col items-center justify-center gap-2 border-slate-100 bg-slate-50/50 hover:bg-green-50 hover:border-green-200 hover:shadow-xl hover:shadow-green-100 text-slate-500 hover:text-green-700 transition-all duration-300 rounded-2xl group/wa"
+                                    className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
                                     onClick={shareWhatsApp}
                                 >
-                                    <div className="p-3 bg-white rounded-xl shadow-sm group-hover/wa:scale-110 transition-transform duration-300 border border-slate-50">
-                                        <MessageCircle size={28} className="text-green-500 fill-green-500/10" />
-                                    </div>
-                                    <span className="text-xs font-bold uppercase tracking-widest">WhatsApp</span>
+                                    <MessageCircle size={20} className="text-green-600" />
+                                    <span className="text-xs font-semibold">WhatsApp</span>
                                 </Button>
                                 <Button
                                     variant="outline"
-                                    className="h-24 flex flex-col items-center justify-center gap-2 border-slate-100 bg-slate-50/50 hover:bg-blue-50 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-100 text-slate-500 hover:text-blue-700 transition-all duration-300 rounded-2xl group/mail"
+                                    className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
                                     onClick={shareEmail}
                                 >
-                                    <div className="p-3 bg-white rounded-xl shadow-sm group-hover/mail:scale-110 transition-transform duration-300 border border-slate-50">
-                                        <Mail size={28} className="text-blue-500 fill-blue-500/10" />
-                                    </div>
-                                    <span className="text-xs font-bold uppercase tracking-widest">Email</span>
+                                    <Mail size={20} className="text-slate-600" />
+                                    <span className="text-xs font-semibold">Email</span>
                                 </Button>
                             </div>
                         </div>
@@ -166,11 +158,11 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
                 </div>
 
                 {/* Minimal Footer */}
-                <div className="px-8 py-6 bg-slate-50/50 border-t border-slate-100 flex justify-center">
+                <div className="px-8 py-4 flex justify-center bg-slate-50/50">
                     <Button
                         variant="ghost"
                         onClick={() => setOpen(false)}
-                        className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase tracking-widest hover:bg-transparent"
+                        className="text-slate-400 hover:text-slate-600 text-[10px] font-bold uppercase tracking-wider h-8"
                     >
                         Cerrar Ventana
                     </Button>

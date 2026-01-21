@@ -77,18 +77,18 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
     return (
         <div className="max-w-2xl mx-auto p-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="text-center mb-8">
-                <div className="inline-flex items-center justify-center p-3 bg-blue-100 rounded-full mb-4">
-                    <FileText className="h-8 w-8 text-blue-600" />
+                <div className="inline-flex items-center justify-center p-3 bg-slate-100 rounded-full mb-4">
+                    <FileText className="h-8 w-8 text-slate-600" />
                 </div>
                 <h1 className="text-3xl font-bold text-slate-900">Ficha de Datos Personales</h1>
                 <p className="text-slate-500 mt-2">Por favor, completa o verifica tus datos para la confección del trámite.</p>
 
-                {/* Countdown Countdown */}
+                {/* Countdown */}
                 <div className={cn(
-                    "mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold shadow-sm border",
+                    "mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold border",
                     isLastDays
-                        ? "bg-red-50 text-red-600 border-red-100 animate-pulse"
-                        : "bg-amber-50 text-amber-600 border-amber-100"
+                        ? "bg-red-50 text-red-700 border-red-100"
+                        : "bg-slate-50 text-slate-600 border-slate-200"
                 )}>
                     <Calendar size={16} />
                     <span>Tienes {diffDays} {diffDays === 1 ? 'día' : 'días'} para completar tu ficha</span>
@@ -96,11 +96,11 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6">
-                <Card className="shadow-lg border-slate-200 overflow-hidden">
+                <Card className="shadow-sm border-slate-200 overflow-hidden">
                     <CardHeader className="bg-slate-50/50 border-b border-slate-100">
                         <div className="flex items-center gap-2">
-                            <User className="h-5 w-5 text-blue-500" />
-                            <CardTitle className="text-lg">Identificación y Datos Personales</CardTitle>
+                            <User className="h-5 w-5 text-slate-400" />
+                            <CardTitle className="text-lg font-bold text-slate-800">Identificación y Datos Personales</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="grid gap-4 pt-6">
@@ -146,19 +146,20 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="cuit" className={cn(cuitError && "text-red-500 font-bold flex items-center gap-1")}>
-                                    {cuitError && <AlertCircle size={12} />}
+                                <Label htmlFor="cuit" className={cn(cuitError ? "text-red-500 font-semibold" : "text-slate-700 font-medium")}>
+                                    {cuitError && <AlertCircle size={12} className="inline mr-1" />}
                                     CUIT / CUIL
                                 </Label>
                                 <Input
                                     id="cuit"
+                                    required
                                     value={formData.cuit}
                                     onChange={e => {
                                         setFormData({ ...formData, cuit: e.target.value });
                                         if (cuitError) setCuitError(false);
                                     }}
                                     placeholder="Ej: 27-27841387-5"
-                                    className={cn("font-mono", cuitError && "border-red-500 focus-visible:ring-red-500")}
+                                    className={cn("font-mono", cuitError ? "border-red-500 focus-visible:ring-red-500" : "border-slate-200")}
                                 />
                                 {cuitError && <p className="text-[10px] text-red-500 font-medium ml-1">El CUIT ingresado no es válido. Por favor, revísalo.</p>}
                             </div>
@@ -199,9 +200,12 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="padres">Nombres de los Padres (Filiación)</Label>
+                            <Label htmlFor="padres" className="font-medium text-slate-700">
+                                Nombres de los Padres (Filiación) {formData.estado_civil?.toLowerCase().includes("solter") && "*"}
+                            </Label>
                             <Input
                                 id="padres"
+                                required={formData.estado_civil?.toLowerCase().includes("solter")}
                                 placeholder="Nombres completos de Padre y Madre"
                                 value={formData.nombres_padres}
                                 onChange={e => setFormData({ ...formData, nombres_padres: e.target.value })}
@@ -211,11 +215,11 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                     </CardContent>
                 </Card>
 
-                <Card className="shadow-lg border-slate-200 overflow-hidden">
+                <Card className="shadow-sm border-slate-200 overflow-hidden">
                     <CardHeader className="bg-slate-50/50 border-b border-slate-100">
                         <div className="flex items-center gap-2">
-                            <MapPin className="h-5 w-5 text-red-500" />
-                            <CardTitle className="text-lg">Domicilio y Contacto</CardTitle>
+                            <MapPin className="h-5 w-5 text-slate-400" />
+                            <CardTitle className="text-lg font-bold text-slate-800">Domicilio y Contacto</CardTitle>
                         </div>
                     </CardHeader>
                     <CardContent className="grid gap-4 pt-6">
@@ -262,7 +266,7 @@ export function FichaForm({ tokenData }: { tokenData: any }) {
                 </Card>
 
                 <div className="pb-12">
-                    <Button type="submit" className="w-full h-14 text-lg bg-blue-600 hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all active:scale-95" disabled={loading}>
+                    <Button type="submit" className="w-full h-12 text-base font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-all" disabled={loading}>
                         {loading ? "Enviando..." : "Confirmar y Enviar Datos"}
                     </Button>
                 </div>
