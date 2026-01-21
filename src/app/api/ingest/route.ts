@@ -56,57 +56,55 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
     const isVision = fileBuffer && mimeType === 'application/pdf';
 
     const prompt = `
-      ACTÚA COMO UN ESCRIBANO EXPERTO. Tienes el documento COMPLETO (puede tener 25+ páginas).
-      Tu trabajo NO ES RESUMIR. Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
+      ACTÚA COMO UN ESCRIBANO EXPERTO. Tienes el documento COMPLETO.
+      Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
 
       TU MISIÓN DE ESCANEO (PASO 1):
-      1. COMPARECIENTES/PARTES: Localiza todas las personas intervinientes (físicas o jurídicas). Pueden ser: Vendedores, Compradores, Apoderados, Representantes, Cónyuges que prestan asentimiento, etc.
+      1. COMPARECIENTES/PARTES: Localiza todas las personas intervinientes.
          - Nombre y Apellidos completos.
-         - Nacionalidad.
+         - Nacionalidad (Ej: "Argentino", "Uruguayo").
          - Fecha de nacimiento (formato YYYY-MM-DD).
          - DNI y CUIT/CUIL.
-         - Estado civil (ej: Casado en 1ras nupcias con..., Divorciado de...). 
-         - SI ES SOLTERO/A: Extraer obligatoriamente nombres de los padres (hijo de... y de...).
+         - Estado civil detallado (Ej: "Casado en primeras nupcias con [Nombre]", "Divorciado de [Nombre]"). 
+         - FILIACIÓN: Extraer nombres de los padres (Ej: "hijo de Ernesto y de Maria").
          - Domicilio real completo.
          - Email y Teléfono (si figuran, si no pon null).
       
       2. INMUEBLE: Localiza la descripción técnica del inmueble.
-         - Transcripción literal completa (COPIA TEXTUAL DESDE "Un lote de terreno..." HASTA EL FINAL DE LINDEROS Y SUPERFICIE).
+         - Transcripción literal completa (MUY IMPORTANTE: COPIA TEXTUAL DESDE "Un lote de terreno..." HASTA EL FINAL DE LINDEROS Y SUPERFICIE. Debe ser el párrafo largo y técnico).
          - Número de Partida Inmobiliaria.
          - Partido / Departamento (ej: Bahía Blanca).
          - Nomenclatura Catastral (Circ, Secc, Chacra, Manz, Parcela).
       
       3. METADATOS DE LA ESCRITURA (CRÍTICO):
-         - numero_escritura: BUSCA "ESCRITURA NUMERO" y extrae el número. IMPORTANTE: Si está escrito en letras (ej: "DOSCIENTOS CUARENTA"), convierte a dígitos (240).
+         - numero_escritura: BUSCA "ESCRITURA NUMERO" y extrae el número. Convierte a dígitos si está en letras.
          - fecha_escritura: Fecha del documento (formato YYYY-MM-DD).
-         - notario_interviniente: Nombre COMPLETO del escribano que autorizó el documento.
-         - registro_notario: Número de registro del escribano (ej: "Registro 30 de Bahía Blanca").
-         - numero_acto: BUSCA "Código" que aparece al lado del tipo de acto (ej: "COMPRAVENTA (Código 100-00)"). Extrae SOLO el código numérico (ej: "100-00"). IMPORTANTE: En los documentos se llama "Código" NO "número de acto".
-
-
+         - notario_interviniente: Nombre COMPLETO del escribano.
+         - registro_notario: Número de registro del escribano.
+         - numero_acto: BUSCA "Código" que aparece al lado del tipo de acto (ej: "COMPRAVENTA (Código 100-00)").
 
       ESQUEMA JSON (ESTRICTO):
       {
-        "resumen_acto": "string (ej: COMPRAVENTA)",
-        "numero_escritura": "string o null",
-        "fecha_escritura": "YYYY-MM-DD o null",
-        "notario_interviniente": "string o null (nombre completo del escribano que autorizó el documento)",
-        "registro_notario": "string o null (número de registro del escribano)",
-        "numero_acto": "string o null (número del acto registrado)",
+        "resumen_acto": "string",
+        "numero_escritura": "string",
+        "fecha_escritura": "YYYY-MM-DD",
+        "notario_interviniente": "string",
+        "registro_notario": "string",
+        "numero_acto": "string",
         "clientes": [
           {
-            "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE" | "REPRESENTANTE",
+            "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE",
             "nombre_completo": "string",
             "dni": "string",
-            "cuit": "string o null",
+            "cuit": "string",
             "nacionalidad": "string",
-            "fecha_nacimiento": "YYYY-MM-DD o null",
-            "estado_civil": "string detallado",
-            "nombres_padres": "string o null (extraer si es soltero o si figura filiación)",
-            "conyuge": "string o null",
+            "fecha_nacimiento": "YYYY-MM-DD",
+            "estado_civil": "string",
+            "nombres_padres": "string",
+            "conyuge": "string",
             "domicilio_real": "string",
-            "email": "string o null",
-            "telefono": "string o null"
+            "email": "string",
+            "telefono": "string"
           }
         ],
         "inmuebles": [
@@ -114,21 +112,20 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
             "partido": "string",
             "nomenclatura": "string",
             "partida_inmobiliaria": "string",
-            "transcripcion_literal": "COPIA TEXTUAL COMPLETA Y LARGA DE LA DESCRIPCIÓN DEL INMUEBLE",
+            "transcripcion_literal": "string",
             "valuacion_fiscal": 0
           }
         ]
       }
     `;
 
-
     let contents: any[] = [{ text: prompt }];
     if (isVision) {
         contents.push({ inlineData: { data: fileBuffer!.toString('base64'), mimeType: mimeType! } });
-        if (text) contents.push({ text: `Texto extraído por OCR como referencia (completo):\n${text.substring(0, 200000)}` });
+        if (text) contents.push({ text: `Texto extraído por OCR como referencia:\n${text.substring(0, 500000)}` });
     } else {
-        const textToProcess = text.substring(0, 200000);
-        contents.push({ text: `CONTENIDO DEL DOCUMENTO (HASTA 80 PÁGINAS):\n${textToProcess}` });
+        const textToProcess = text.substring(0, 500000);
+        contents.push({ text: `CONTENIDO DEL DOCUMENTO:\n${textToProcess}` });
     }
 
     const MAX_RETRIES = 3;
@@ -136,22 +133,17 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
-            console.log(`[AI] Intento AGRESIVO ${attempt + 1}/${MAX_RETRIES} (${modelName})...`);
+            console.log(`[AI] Intento ${attempt + 1}/${MAX_RETRIES}...`);
             const result = await model.generateContent(contents);
             const responseText = result.response.text();
             const cleanJson = responseText.replace(/```json|```/g, "").trim();
             const parsedData = JSON.parse(cleanJson);
-
-            // DEBUG MODE: Log the extracted data for production audit
-            console.log("🔥 AI EXTRACTED DATA:", JSON.stringify(parsedData, null, 2));
-
+            console.log("🔥 AI EXTRACTED DATA SUCCESS");
             return parsedData;
         } catch (err: any) {
             lastError = err;
-            console.error(`[AI] Error en extracción:`, err.message);
-            const isTransient = err.message?.includes("fetch failed") || err.message?.includes("503") || err.message?.includes("429") || err.message?.includes("finishReason: RECITATION");
-            if (!isTransient && attempt === MAX_RETRIES - 1) break;
-            if (attempt < MAX_RETRIES - 1) await new Promise(r => setTimeout(r, Math.pow(2, attempt) * 1000));
+            console.error(`[AI] Error:`, err.message);
+            if (attempt < MAX_RETRIES - 1) await new Promise(r => setTimeout(r, 2000));
         }
     }
 
@@ -164,16 +156,6 @@ export async function POST(request: Request) {
         const formData = await request.formData();
         const file = formData.get('file') as File;
         if (!file) return NextResponse.json({ error: "No se encontró el archivo" }, { status: 400 });
-
-        console.log(`[INGEST] Iniciando procesamiento para: ${file.name}`);
-
-        // Debug env
-        if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.error("[INGEST] CRÍTICO: SUPABASE_SERVICE_ROLE_KEY no está definido");
-        }
-        if (!process.env.GEMINI_API_KEY) {
-            console.error("[INGEST] CRÍTICO: GEMINI_API_KEY no está definido");
-        }
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
@@ -188,15 +170,14 @@ export async function POST(request: Request) {
 
         let aiData;
         try {
-            aiData = await askGeminiForData(extractedText, buffer, file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : undefined));
+            aiData = await askGeminiForData(extractedText, buffer, file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : 'application/pdf'));
         } catch (err: any) {
-            return NextResponse.json({ error: "Error en análisis IA Agresivo", details: err.message }, { status: 500 });
+            return NextResponse.json({ error: "Error en análisis IA", details: err.message }, { status: 500 });
         }
 
         const { clientes = [], inmuebles = [], resumen_acto, numero_escritura, fecha_escritura, notario_interviniente, registro_notario, numero_acto } = aiData;
 
-
-        // 1. Carpeta
+        // 1. Create Carpeta
         const { data: carpeta, error: cError } = await supabase
             .from('carpetas')
             .insert([{
@@ -206,153 +187,94 @@ export async function POST(request: Request) {
             }])
             .select()
             .single();
-        if (cError) throw new Error(`Error Carpeta: ${cError.message}`);
+        if (cError) throw cError;
 
-        // 2. Inmuebles
+        // 2. Process Inmuebles
         const propertyIds: string[] = [];
         for (const i of inmuebles) {
-            // Ensure we have Partido and Partida as they are often primary keys or unique identifiers
             if (!i.partida_inmobiliaria) continue;
-
-            const { data, error } = await supabase.from('inmuebles').upsert({
-                partido_id: i.partido || 'BAHIA BLANCA', // Default or extracted
+            const { data: inmueble, error: iError } = await supabase.from('inmuebles').upsert({
+                partido_id: i.partido || 'BAHIA BLANCA',
                 nro_partida: i.partida_inmobiliaria,
                 nomenclatura: i.nomenclatura || null,
                 transcripcion_literal: i.transcripcion_literal || null,
                 valuacion_fiscal: i.valuacion_fiscal || 0,
             }, { onConflict: 'partido_id,nro_partida' }).select().single();
-
-            if (!error && data) propertyIds.push(data.id);
-            if (error) console.error("[INGEST] Error Inserting Inmueble:", error);
+            if (inmueble) propertyIds.push(inmueble.id);
         }
 
-        // Upload document to Supabase Storage
+        // 3. Upload File
         let fileUrl: string | null = null;
         try {
-            // Generate unique filename with timestamp
-            const timestamp = Date.now();
-            const safeFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const storagePath = `documents/${timestamp}_${safeFileName}`;
-
-            // Upload to Supabase Storage
-            const { data: uploadData, error: uploadError } = await supabaseAdmin.storage
-                .from('escrituras')
-                .upload(storagePath, buffer, {
-                    contentType: file.type,
-                    upsert: false
-                });
-
-            if (uploadError) {
-                console.error("[INGEST] Error uploading file:", uploadError);
-            } else {
-                // Generate signed URL with expiration (1 year = 31536000 seconds)
-                const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
-                    .from('escrituras')
-                    .createSignedUrl(storagePath, 31536000); // 1 year expiration
-
-                if (urlError) {
-                    console.error("[INGEST] Error generating signed URL:", urlError);
-                } else if (signedUrlData) {
-                    fileUrl = signedUrlData.signedUrl;
-                    console.log("[INGEST] File uploaded successfully with signed URL");
-                }
+            const path = `documents/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+            const { error: uploadError } = await supabaseAdmin.storage.from('escrituras').upload(path, buffer);
+            if (!uploadError) {
+                const { data: signed } = await supabaseAdmin.storage.from('escrituras').createSignedUrl(path, 31536000);
+                fileUrl = signed?.signedUrl || null;
             }
-        } catch (uploadErr: any) {
-            console.error("[INGEST] Error en upload (catch):", uploadErr);
+        } catch (e) {
+            console.error("Storage error:", e);
         }
 
-        // 3. Escritura
-        const nroProtocolo = numero_escritura ? parseInt(numero_escritura, 10) : null;
-        const { data: escritura, error: escError } = await supabase.from('escrituras').insert([{
+        // 4. Create Escritura
+        const { data: escritura, error: eError } = await supabase.from('escrituras').insert([{
             carpeta_id: carpeta.id,
-            nro_protocolo: isNaN(nroProtocolo!) ? null : nroProtocolo,
+            nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
             fecha_escritura: fecha_escritura,
             inmueble_princ_id: propertyIds[0] || null,
-            contenido_borrador: `Borrador generado para: ${resumen_acto}`,
-            notario_interviniente: notario_interviniente || null,
-            registro: registro_notario || null,
-            pdf_url: fileUrl // Save the uploaded file URL
+            notario_interviniente,
+            registro: registro_notario,
+            pdf_url: fileUrl
+        }]).select().single();
+        if (eError) throw eError;
+
+        // 5. Create Operacion
+        const { data: operacion } = await supabase.from('operaciones').insert([{
+            escritura_id: escritura.id,
+            tipo_acto: resumen_acto || 'COMPRAVENTA',
+            nro_acto: numero_acto || null
         }]).select().single();
 
+        // 6. Process Clientes
+        for (const c of clientes) {
+            const dni = normalizeID(c.dni);
+            if (!dni) continue;
 
-        if (escError) {
-            console.error("[INGEST] Error creating escritura:", escError);
-            throw new Error(`Error creando escritura: ${escError.message}`);
-        }
+            const { data: persona } = await supabase.from('personas').upsert({
+                dni,
+                nombre_completo: toTitleCase(c.nombre_completo),
+                cuit: normalizeID(c.cuit),
+                nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
+                fecha_nacimiento: c.fecha_nacimiento,
+                domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
+                nombres_padres: c.nombres_padres,
+                estado_civil_detalle: c.estado_civil,
+                datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
+                contacto: { email: c.email, telefono: c.telefono },
+                origen_dato: 'IA_OCR',
+                updated_at: new Date().toISOString()
+            }, { onConflict: 'dni' }).select().single();
 
-        if (escritura) {
-            const { data: operacion } = await supabase.from('operaciones').insert([{
-                escritura_id: escritura.id,
-                tipo_acto: resumen_acto || 'COMPRAVENTA',
-                nro_acto: numero_acto || null
-            }]).select().single();
+            if (persona && operacion) {
+                await supabase.from('participantes_operacion').insert([{
+                    operacion_id: operacion.id,
+                    persona_id: persona.dni,
+                    rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                }]);
 
-
-            // 4. Clientes & Fichas
-            for (const c of clientes) {
-                const dni = normalizeID(c.dni) || null;
-                const cuit = c.cuit ? normalizeID(c.cuit) : null;
-
-                if (!dni || !c.nombre_completo) continue;
-
-                // Create/Update Persona
-                const { data: persona, error: pError } = await supabase.from('personas').upsert({
-                    dni: dni,
-                    cuit: cuit,
-                    nombre_completo: toTitleCase(c.nombre_completo),
-                    nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
-                    fecha_nacimiento: c.fecha_nacimiento || null,
-                    domicilio_real: { literal: c.domicilio_real },
-                    nombres_padres: c.nombres_padres || null,
-                    estado_civil_detalle: c.estado_civil || null,
-                    datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
-                    estado_civil_detallado: {
-                        estado: c.estado_civil,
-                        padres: c.nombres_padres,
-                        conyuge: c.conyuge
-                    },
-                    contacto: { email: c.email || null, telefono: c.telefono || null },
-                    origen_dato: 'IA_OCR',
-                    updated_at: new Date().toISOString(),
-                }, { onConflict: 'dni' }).select().single();
-
-                if (pError) {
-                    console.error("[INGEST] Error Persona:", pError);
-                    continue;
-                }
-
-                if (persona) {
-                    // Create Operation Participant
-                    if (operacion) {
-                        await supabase.from('participantes_operacion').insert([{
-                            operacion_id: operacion.id,
-                            persona_id: persona.dni,
-                            rol: c.rol?.toUpperCase() || 'VENDEDOR'
-                        }]);
-                    }
-
-                    // GENERATE TOKEN FOR FICHA
-                    const expiresAt = new Date();
-                    expiresAt.setDate(expiresAt.getDate() + 30); // 30 days expiry
-
-                    await supabase.from('fichas_web_tokens').insert([{
-                        persona_id: persona.dni,
-                        estado: 'PENDIENTE',
-                        expires_at: expiresAt.toISOString()
-                    }]);
-                }
+                const expiresAt = new Date();
+                expiresAt.setDate(expiresAt.getDate() + 30);
+                await supabase.from('fichas_web_tokens').insert([{
+                    persona_id: persona.dni,
+                    estado: 'PENDIENTE',
+                    expires_at: expiresAt.toISOString()
+                }]);
             }
         }
 
-        return NextResponse.json({
-            success: true,
-            folderId: carpeta.id,
-            debug: { clients: clientes.length, assets: inmuebles.length },
-            extractedData: aiData
-        });
-
+        return NextResponse.json({ success: true, folderId: carpeta.id });
     } catch (error: any) {
-        console.error('[INGEST] ❌ Fatal Error:', error);
+        console.error('Fatal Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }
