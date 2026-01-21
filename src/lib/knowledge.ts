@@ -1,5 +1,19 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from "./supabaseAdmin";
+
+/**
+ * Polyfill for browser globals required by some PDF parsing libraries in Node.js
+ */
+if (typeof global !== 'undefined') {
+    if (!(global as any).DOMMatrix) {
+        (global as any).DOMMatrix = class DOMMatrix {
+            constructor() { }
+            static fromFloat64Array() { return new DOMMatrix(); }
+            static fromFloat32Array() { return new DOMMatrix(); }
+        };
+    }
+}
+
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
 async function getPdfParser() {
     const pdf = await import("pdf-parse") as any;
