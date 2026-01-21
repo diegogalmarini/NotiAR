@@ -59,23 +59,28 @@ export async function getClientWithRelations(dni: string) {
         const operaciones = participaciones?.map(part => {
             const op = operacionesData?.find(o => o.id === part.operacion_id);
             const esc = escriturasData?.find(e => e.id === op?.escritura_id);
+            const carp = carpetasData?.find(c => c.id === esc?.carpeta_id);
+
             return {
-                id: op?.id,
-                tipo: op?.tipo,
-                rol: part.rol,
+                id: op?.id || '',
+                tipo: op?.tipo || '',
+                rol: part.rol || '',
                 escritura: esc ? {
                     id: esc.id,
                     numero: esc.numero,
                     tipo: esc.tipo,
-                    carpeta_id: esc.carpeta_id
-                } : null
+                    carpeta: carp ? {
+                        id: carp.id,
+                        numero: carp.numero
+                    } : undefined
+                } : undefined
             };
         }).filter(op => op.id) || [];
 
         const carpetas = carpetasData?.map(c => ({
             id: c.id,
             numero: c.numero,
-            observaciones: c.observaciones || c.descripcion
+            observaciones: c.observaciones || c.descripcion || ''
         })) || [];
 
         const escrituras = escriturasData?.map(e => ({
