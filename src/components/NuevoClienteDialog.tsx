@@ -113,7 +113,7 @@ export function NuevoClienteDialog() {
                             Nuevo Cliente
                         </DialogTitle>
                         <DialogDescription className="text-slate-500 text-sm">
-                            Ingrese los datos completos del cliente. Todos los campos son obligatorios según requerimiento notarial.
+                            Cree un perfil rápido con el nombre del cliente. Opcionalmente complete más datos o envíele la ficha para que la complete.
                         </DialogDescription>
                     </DialogHeader>
 
@@ -146,10 +146,9 @@ export function NuevoClienteDialog() {
                         {/* DNI y CUIT */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="dni" className="text-xs font-semibold text-slate-600 ml-1">DNI</Label>
+                                <Label htmlFor="dni" className="text-xs font-semibold text-slate-600 ml-1">DNI <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="dni"
-                                    required
                                     value={formData.dni}
                                     onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
                                     placeholder="Ej: 27.841.387"
@@ -158,11 +157,10 @@ export function NuevoClienteDialog() {
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="cuit" className={cn("text-xs font-semibold ml-1", cuitError ? "text-red-500" : "text-slate-600")}>
-                                    CUIT/CUIL
+                                    CUIT/CUIL <span className="text-slate-400 font-normal">(opcional)</span>
                                 </Label>
                                 <Input
                                     id="cuit"
-                                    required
                                     value={formData.cuit}
                                     onChange={(e) => {
                                         setFormData({ ...formData, cuit: e.target.value });
@@ -180,10 +178,9 @@ export function NuevoClienteDialog() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nacionalidad" className="text-xs font-semibold text-slate-600 ml-1">Nacionalidad</Label>
+                                <Label htmlFor="nacionalidad" className="text-xs font-semibold text-slate-600 ml-1">Nacionalidad <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="nacionalidad"
-                                    required
                                     value={formData.nacionalidad}
                                     onChange={(e) => setFormData({ ...formData, nacionalidad: e.target.value })}
                                     placeholder="Ej: Argentina"
@@ -191,11 +188,10 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="fecha_nac" className="text-xs font-semibold text-slate-600 ml-1">Fecha Nacimiento</Label>
+                                <Label htmlFor="fecha_nac" className="text-xs font-semibold text-slate-600 ml-1">Fecha Nacimiento <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="fecha_nac"
                                     type="date"
-                                    required
                                     value={formData.fecha_nacimiento}
                                     onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
                                     className="h-11 rounded-xl border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500/10 transition-all"
@@ -204,10 +200,9 @@ export function NuevoClienteDialog() {
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="domicilio" className="text-xs font-semibold text-slate-600 ml-1">Domicilio Real</Label>
+                            <Label htmlFor="domicilio" className="text-xs font-semibold text-slate-600 ml-1">Domicilio Real <span className="text-slate-400 font-normal">(opcional)</span></Label>
                             <Textarea
                                 id="domicilio"
-                                required
                                 value={formData.domicilio}
                                 onChange={(e) => setFormData({ ...formData, domicilio: e.target.value })}
                                 placeholder="Dirección completa: calle, número, localidad, provincia"
@@ -218,11 +213,10 @@ export function NuevoClienteDialog() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="email" className="text-xs font-semibold text-slate-600 ml-1">Email</Label>
+                                <Label htmlFor="email" className="text-xs font-semibold text-slate-600 ml-1">Email <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="email"
                                     type="email"
-                                    required
                                     value={formData.email}
                                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                                     placeholder="email@ejemplo.com"
@@ -230,10 +224,9 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="tel" className="text-xs font-semibold text-slate-600 ml-1">Teléfono</Label>
+                                <Label htmlFor="tel" className="text-xs font-semibold text-slate-600 ml-1">Teléfono <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="tel"
-                                    required
                                     value={formData.telefono}
                                     onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                                     placeholder="Cod. Área + Número"
@@ -244,14 +237,13 @@ export function NuevoClienteDialog() {
 
                         {/* Estado Civil y Filiación */}
                         <div className="pt-6 border-t border-slate-100">
-                            <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">Estado Civil y Filiación</p>
+                            <p className="text-xs font-bold text-slate-400 mb-6 uppercase tracking-wider">Estado Civil y Filiación <span className="text-[10px] font-normal normal-case">(Todos opcionales)</span></p>
 
                             <div className="grid gap-6">
                                 <div className="grid gap-2">
                                     <Label htmlFor="estado_civil" className="text-xs font-semibold text-slate-600 ml-1">Estado Civil (Detalle)</Label>
                                     <Input
                                         id="estado_civil"
-                                        required
                                         value={formData.estado_civil}
                                         onChange={(e) => setFormData({ ...formData, estado_civil: e.target.value })}
                                         placeholder="Ej: Casado en primeras nupcias con..."
