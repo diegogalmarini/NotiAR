@@ -25,6 +25,21 @@ export default async function FichaPublicPage({ params }: Props) {
         );
     }
 
+    // If already completed, show success message
+    if (res.alreadyCompleted) {
+        return (
+            <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+                <Alert className="max-w-md border-green-500 bg-green-50">
+                    <Info className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-900">¡Ficha completada!</AlertTitle>
+                    <AlertDescription className="text-green-800">
+                        Esta ficha ya ha sido completada correctamente. Gracias por tu colaboración.
+                    </AlertDescription>
+                </Alert>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-slate-50 py-12 px-4 sm:px-6 lg:px-8">
             <FichaForm tokenData={res.data} />

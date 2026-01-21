@@ -19,7 +19,7 @@ export async function getFichaByToken(tokenId: string) {
         }
 
         if (tokenData.estado === 'COMPLETADO') {
-            return { success: false, error: "Esta ficha ya ha sido completada." };
+            return { success: true, alreadyCompleted: true, data: tokenData };
         }
 
         return { success: true, data: tokenData };
