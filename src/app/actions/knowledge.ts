@@ -4,6 +4,8 @@ import { indexDocument, KnowledgeCategory } from "@/lib/knowledge";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { revalidatePath } from "next/cache";
 
+export const maxDuration = 60; // Increase timeout to 60 seconds
+
 /**
  * Retrieves a summarized list of unique files indexed in the Knowledge Base
  */

@@ -2,41 +2,54 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from "./supabaseAdmin";
 
 /**
- * Polyfill for browser globals required by some PDF parsing libraries in Node.js
- * "God Mode" initialization to satisfy browser-centric dependencies.
+ * Universal God-Mode Polyfill for Next.js Server Side
+ * This ensures all browser-centric functions are available in the Node environment.
  */
-if (typeof global !== 'undefined') {
-    const g = global as any;
+function applyUniversalPolyfills() {
+    if (typeof globalThis !== 'undefined') {
+        const g = globalThis as any;
 
-    if (!g.DOMMatrix) {
-        g.DOMMatrix = class DOMMatrix {
-            constructor() { }
-            static fromFloat64Array() { return new DOMMatrix(); }
-            static fromFloat32Array() { return new DOMMatrix(); }
-        };
-    }
+        // 1. Core Browser APIs
+        if (!g.window) g.window = g;
+        if (!g.self) g.self = g;
 
-    // Polyfill atob/btoa for older Node environments or broken ESM bundles
-    if (!g.atob) {
-        g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
-    }
-    if (!g.btoa) {
-        g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
-    }
+        // 2. Base64 (Essential for PDF character decoding)
+        if (!g.atob) {
+            g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
+        }
+        if (!g.btoa) {
+            g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+        }
 
-    // Some PDF libraries check for window/self
-    if (!g.window) g.window = g;
-    if (!g.self) g.self = g;
+        // 3. Document/DOM mocks for pdfjs-dist
+        if (!g.DOMMatrix) {
+            g.DOMMatrix = class DOMMatrix {
+                constructor() { }
+                static fromFloat64Array() { return new DOMMatrix(); }
+                static fromFloat32Array() { return new DOMMatrix(); }
+            };
+        }
 
-    // Mocking XMLHttpRequest which is sometimes checked by pdfjs-dist
-    if (!g.XMLHttpRequest) {
-        g.XMLHttpRequest = class XMLHttpRequest {
-            open() { }
-            send() { }
-            setRequestHeader() { }
-        };
+        if (!g.XMLHttpRequest) {
+            g.XMLHttpRequest = class XMLHttpRequest {
+                open() { }
+                send() { }
+                setRequestHeader() { }
+                getAllResponseHeaders() { return ""; }
+                getResponseHeader() { return null; }
+            };
+        }
+
+        // 4. Force global visibility
+        (global as any).atob = g.atob;
+        (global as any).btoa = g.btoa;
+        (global as any).DOMMatrix = g.DOMMatrix;
+        (global as any).window = g;
     }
 }
+
+// Immediate application
+applyUniversalPolyfills();
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
 async function getPdfParser() {
@@ -67,8 +80,10 @@ async function extractText(buffer: Buffer, fileName: string): Promise<string> {
         if (ext === 'pdf') {
             const pdfParser = await getPdfParser();
             // Convert Buffer to Uint8Array for better compatibility
-            const uint8Array = new Uint8Array(buffer);
-            const data = await pdfParser(uint8Array);
+            // Disable paging to trigger less character decoding logic
+            const data = await pdfParser(new Uint8Array(buffer), {
+                pagerender: () => ""
+            });
             console.log(`[RAG] PDF extraction complete. Text length: ${data.text?.length || 0}`);
             return data.text || "";
         } else if (ext === 'docx') {
