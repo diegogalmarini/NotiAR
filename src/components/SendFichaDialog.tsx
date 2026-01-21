@@ -21,6 +21,10 @@ interface SendFichaDialogProps {
     persona: {
         dni: string;
         nombre_completo: string;
+        contacto?: {
+            telefono?: string;
+            email?: string;
+        };
     };
 }
 
@@ -52,15 +56,19 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
 
     const shareWhatsApp = () => {
         if (!link) return;
+        const phoneNumber = persona.contacto?.telefono?.replace(/[^0-9]/g, '') || '';
         const text = `Hola ${persona.nombre_completo}, por favor completa tus datos para el trámite en el siguiente link: ${link}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        const whatsappUrl = phoneNumber
+            ? `https://wa.me/${phoneNumber}?text=${encodeURIComponent(text)}`
+            : `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(whatsappUrl, '_blank');
     };
 
     const shareEmail = () => {
-        if (!link) return;
+        if (!link || !persona.contacto?.email) return;
         const subject = "Ficha de Datos Personales - NotiAR";
         const body = `Hola ${persona.nombre_completo},\n\nPor favor, completa tus datos personales ingresando al siguiente link seguro:\n${link}\n\nMuchas gracias.`;
-        window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
+        window.open(`mailto:${persona.contacto.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank');
     };
 
     return (
@@ -137,22 +145,32 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
 
                             {/* Share Options */}
                             <div className="grid grid-cols-2 gap-4">
-                                <Button
-                                    variant="outline"
-                                    className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
-                                    onClick={shareWhatsApp}
-                                >
-                                    <MessageCircle size={20} className="text-green-600" />
-                                    <span className="text-xs font-semibold">WhatsApp</span>
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
-                                    onClick={shareEmail}
-                                >
-                                    <Mail size={20} className="text-slate-600" />
-                                    <span className="text-xs font-semibold">Email</span>
-                                </Button>
+                                {persona.contacto?.telefono && (
+                                    <Button
+                                        variant="outline"
+                                        className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
+                                        onClick={shareWhatsApp}
+                                    >
+                                        <MessageCircle size={20} className="text-green-600" />
+                                        <span className="text-xs font-semibold">WhatsApp</span>
+                                    </Button>
+                                )}
+                                {persona.contacto?.email && (
+                                    <Button
+                                        variant="outline"
+                                        className="h-16 flex items-center justify-center gap-3 border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-all rounded-xl shadow-sm"
+                                        onClick={shareEmail}
+                                    >
+                                        <Mail size={20} className="text-slate-600" />
+                                        <span className="text-xs font-semibold">Email</span>
+                                    </Button>
+                                )}
+                                {!persona.contacto?.telefono && !persona.contacto?.email && (
+                                    <div className="col-span-2 text-center py-4">
+                                        <p className="text-sm text-slate-500 mb-2">No hay datos de contacto para enviar el link</p>
+                                        <p className="text-xs text-slate-400">Copia el enlace y compártelo manualmente</p>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

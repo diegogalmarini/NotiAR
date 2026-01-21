@@ -83,7 +83,8 @@ export function NuevoClienteDialog() {
                 nombres_padres: "",
                 nombre_conyuge: ""
             });
-            router.push(`/clientes`);
+            // Refresh the page to show the new client
+            router.refresh();
         } else {
             toast.error(res.error || "Error al crear cliente");
         }
@@ -131,10 +132,9 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="apellido" className="text-xs font-semibold text-slate-600 ml-1">Apellidos</Label>
+                                <Label htmlFor="apellido" className="text-xs font-semibold text-slate-600 ml-1">Apellidos <span className="text-slate-400 font-normal">(opcional)</span></Label>
                                 <Input
                                     id="apellido"
-                                    required
                                     value={apellidos}
                                     onChange={(e) => setApellidos(e.target.value)}
                                     placeholder="Ej: Pérez García"
