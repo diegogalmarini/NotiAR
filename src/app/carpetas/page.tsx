@@ -48,11 +48,11 @@ export default async function CarpetasPage() {
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead className="w-[100px]">Número</TableHead>
-                                <TableHead>Carátula</TableHead>
-                                <TableHead>Estado</TableHead>
-                                <TableHead>Creada el</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
+                                <TableHead className="w-[80px] text-xs font-normal text-muted-foreground">Número</TableHead>
+                                <TableHead className="text-xs font-normal text-muted-foreground">Carátula</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Estado</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Creada el</TableHead>
+                                <TableHead className="text-right text-xs font-normal text-muted-foreground">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -61,14 +61,14 @@ export default async function CarpetasPage() {
                                     <TableCell className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">
                                         #{carpeta.nro_carpeta_interna}
                                     </TableCell>
-                                    <TableCell className="font-bold text-[12px] py-1.5 uppercase leading-tight max-w-[400px]">
+                                    <TableCell className="text-sm font-normal py-2.5 leading-tight text-slate-700">
                                         {carpeta.caratula || "Sin carátula"}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="text-right">
                                         <Badge
                                             variant={carpeta.estado === "ABIERTA" ? "secondary" : "default"}
                                             className={cn(
-                                                "text-[10px] px-1.5 py-0 h-5",
+                                                "text-[10px] px-2 py-0.5 h-5 font-normal",
                                                 carpeta.estado === "FIRMADA" && "bg-green-100 text-green-700 hover:bg-green-200 border-none",
                                                 carpeta.estado === "EN_REDACCION" && "bg-blue-100 text-blue-700 hover:bg-blue-200 border-none",
                                                 carpeta.estado === "PARA_FIRMA" && "bg-amber-100 text-amber-700 hover:bg-amber-200 border-none"
@@ -77,11 +77,11 @@ export default async function CarpetasPage() {
                                             {carpeta.estado}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                    <TableCell className="text-right text-[11px] font-light text-muted-foreground whitespace-nowrap">
                                         {new Date(carpeta.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="sm" asChild className="h-7 text-[11px]">
+                                        <Button variant="ghost" size="sm" asChild className="h-7 text-[11px] font-normal">
                                             <Link href={`/carpeta/${carpeta.id}`}>
                                                 <FileText className="h-3.5 w-3.5 mr-1" />
                                                 Mesa

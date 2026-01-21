@@ -110,11 +110,11 @@ export default function ClientesPage() {
                     <Table>
                         <TableHeader>
                             <TableRow className="bg-slate-50/50">
-                                <TableHead className="w-[30%] text-[11px] font-bold uppercase tracking-wider h-10">Nombre Completo</TableHead>
-                                <TableHead className="w-[20%] text-[11px] font-bold uppercase tracking-wider h-10">Documento</TableHead>
-                                <TableHead className="w-[25%] text-[11px] font-bold uppercase tracking-wider h-10">Contacto</TableHead>
-                                <TableHead className="w-[10%] text-center text-[11px] font-bold uppercase tracking-wider h-10">Origen</TableHead>
-                                <TableHead className="text-right w-[15%] text-[11px] font-bold uppercase tracking-wider h-10">Acciones</TableHead>
+                                <TableHead className="w-[30%] text-xs font-normal text-muted-foreground">Nombre Completo</TableHead>
+                                <TableHead className="w-[20%] text-xs font-normal text-muted-foreground">Documento</TableHead>
+                                <TableHead className="w-[25%] text-xs font-normal text-muted-foreground">Contacto</TableHead>
+                                <TableHead className="w-[10%] text-center text-xs font-normal text-muted-foreground">Origen</TableHead>
+                                <TableHead className="text-right w-[15%] text-xs font-normal text-muted-foreground">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -122,9 +122,9 @@ export default function ClientesPage() {
                                 <TableRow key={persona.dni} className="group hover:bg-slate-50/50">
                                     <TableCell className="py-2.5">
                                         <div className="flex flex-col">
-                                            <span className="text-[12px] font-bold text-slate-900 leading-tight uppercase">{persona.nombre_completo}</span>
+                                            <span className="text-sm font-normal text-slate-700 leading-tight">{persona.nombre_completo}</span>
                                             {persona.fecha_nacimiento && (
-                                                <span className="text-[9px] text-muted-foreground font-medium uppercase tracking-tighter">
+                                                <span className="text-[9px] text-muted-foreground font-light uppercase tracking-tighter">
                                                     Nac: {formatDateInstructions(persona.fecha_nacimiento)}
                                                 </span>
                                             )}
@@ -133,17 +133,17 @@ export default function ClientesPage() {
                                     <TableCell className="py-2.5">
                                         <div className="flex flex-col gap-0.5">
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[9px] uppercase font-bold text-slate-400">DNI</span>
-                                                <span className="font-mono text-[11px] font-medium text-slate-700">
+                                                <span className="text-[9px] uppercase font-normal text-slate-400">DNI</span>
+                                                <span className="font-mono text-[11px] font-light text-slate-700">
                                                     {persona.dni && persona.dni.startsWith('SIN-DNI-')
-                                                        ? <Badge variant="outline" className="font-mono text-[9px] px-1 py-0 h-4 bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
+                                                        ? <Badge variant="outline" className="font-mono text-[9px] px-1 py-0 h-4 bg-slate-50 text-slate-500 border-dashed font-light">Pendiente</Badge>
                                                         : (persona.dni || 'N/A')}
                                                 </span>
                                             </div>
                                             {persona.cuit && (
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className="text-[9px] uppercase font-bold text-slate-400">CUIT</span>
-                                                    <span className="font-mono text-[11px] font-medium text-slate-700">{persona.cuit}</span>
+                                                    <span className="text-[9px] uppercase font-normal text-slate-400">CUIT</span>
+                                                    <span className="font-mono text-[11px] font-light text-slate-700">{persona.cuit}</span>
                                                 </div>
                                             )}
                                         </div>
@@ -153,7 +153,7 @@ export default function ClientesPage() {
                                             {persona.contacto?.telefono && (
                                                 <a
                                                     href={`tel:${persona.contacto.telefono}`}
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-medium"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-light"
                                                     title="Llamar"
                                                 >
                                                     <Phone size={10} className="text-slate-400" />
@@ -163,7 +163,7 @@ export default function ClientesPage() {
                                             {persona.contacto?.email && (
                                                 <a
                                                     href={`mailto:${persona.contacto.email}`}
-                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-medium"
+                                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-slate-50 text-slate-600 border border-slate-100 hover:bg-slate-100 hover:text-slate-900 transition-colors text-[10px] font-light"
                                                     title="Email"
                                                 >
                                                     <Mail size={10} className="text-slate-400" />
@@ -173,7 +173,7 @@ export default function ClientesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center py-2.5">
-                                        <div className="inline-flex items-center px-1 py-0 h-4 rounded text-[9px] font-bold uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
+                                        <div className="inline-flex items-center px-1 py-0 h-4 rounded text-[9px] font-light uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
                                             {persona.origen_dato || 'Manual'}
                                         </div>
                                     </TableCell>
