@@ -185,7 +185,10 @@ export default function ClientesPage() {
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                onClick={() => router.push(`/clientes/${persona.dni}`)}
+                                                onClick={() => {
+                                                    console.log("Navigating to:", `/clientes/${persona.dni}`);
+                                                    router.push(`/clientes/${persona.dni}`);
+                                                }}
                                                 className="h-8 w-8 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg"
                                                 title="Ver detalles"
                                             >
