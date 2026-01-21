@@ -53,9 +53,9 @@ export default function AdminUsersPage() {
                 getEscribanos()
             ]);
 
-            if (usersRes.success) setUsers(usersRes.data);
-            if (statsRes.success) setStats(statsRes.data);
-            if (escribanosRes.success) setEscribanos(escribanosRes.data);
+            if (usersRes.success && usersRes.data) setUsers(usersRes.data);
+            if (statsRes.success && statsRes.data) setStats(statsRes.data);
+            if (escribanosRes.success && escribanosRes.data) setEscribanos(escribanosRes.data as Escribano[]);
         } catch (error) {
             toast.error("Error al cargar los datos del panel");
         } finally {
