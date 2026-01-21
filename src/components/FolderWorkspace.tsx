@@ -23,7 +23,7 @@ import { listStorageFiles, deleteStorageFile } from "@/app/actions/storageSync";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { cn, formatDateInstructions } from "@/lib/utils";
+import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
 import {
     AlertDialog,
     AlertDialogAction,
