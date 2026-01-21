@@ -27,14 +27,24 @@ export function formatDateInstructions(dateString: string | null | undefined): s
 
 /**
  * Valida un CUIT/CUIL de Argentina mediante el algoritmo de dígito verificador.
+ * Opcionalmente valida que el DNI esté presente en el CUIT.
  */
-export function isValidCUIT(cuit: string): boolean {
+export function isValidCUIT(cuit: string, dni?: string): boolean {
   if (!cuit) return true; // Opcional, permitimos vacío si el campo lo es
 
   // Limpiar caracteres no numéricos
   const cleanCUIT = cuit.replace(/\D/g, "");
 
   if (cleanCUIT.length !== 11) return false;
+
+  // Si se proporciona un DNI, verificar que esté en el CUIT
+  if (dni) {
+    const cleanDNI = dni.replace(/\D/g, "");
+    const dniInCUIT = cleanCUIT.substring(2, 10); // Posiciones 2-9 contienen el DNI
+    if (dniInCUIT !== cleanDNI) {
+      return false; // El DNI no coincide con el CUIT
+    }
+  }
 
   const digits = cleanCUIT.split("").map(Number);
   const verifier = digits[10];

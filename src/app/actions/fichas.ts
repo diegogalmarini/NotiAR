@@ -65,6 +65,12 @@ export async function submitFichaData(tokenId: string, oldDni: string, formData:
         return { success: true };
     } catch (error: any) {
         console.error("Error submitting ficha:", error);
+
+        // Handle specific database errors
+        if (error.code === '23505') {
+            return { success: false, error: "Este DNI ya está registrado en el sistema." };
+        }
+
         return { success: false, error: error.message };
     }
 }

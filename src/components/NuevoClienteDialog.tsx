@@ -47,10 +47,18 @@ export function NuevoClienteDialog() {
         e.preventDefault();
 
         // CUIT Validation
-        if (formData.cuit && !isValidCUIT(formData.cuit)) {
-            setCuitError(true);
-            toast.error("El CUIT/CUIL ingresado no es válido");
-            return;
+        if (formData.cuit && formData.dni) {
+            if (!isValidCUIT(formData.cuit, formData.dni)) {
+                setCuitError(true);
+                toast.error("El CUIT/CUIL no coincide con el DNI o no es válido");
+                return;
+            }
+        } else if (formData.cuit && !formData.dni) {
+            if (!isValidCUIT(formData.cuit)) {
+                setCuitError(true);
+                toast.error("El CUIT/CUIL ingresado no es válido");
+                return;
+            }
         }
 
         setCuitError(false);
