@@ -3,25 +3,51 @@ import { supabaseAdmin } from "./supabaseAdmin";
 
 /**
  * Universal God-Mode Polyfill for Next.js Server Side
- * This ensures all browser-centric functions are available in the Node environment.
+ * High-reach injection of browser globals required by document processing libraries.
  */
 function applyUniversalPolyfills() {
     if (typeof globalThis !== 'undefined') {
         const g = globalThis as any;
 
-        // 1. Core Browser APIs
+        // Ensure core browser environments are mocked
         if (!g.window) g.window = g;
         if (!g.self) g.self = g;
 
-        // 2. Base64 (Essential for PDF character decoding)
-        if (!g.atob) {
-            g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
-        }
-        if (!g.btoa) {
-            g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+        // Polyfill atob/btoa (Critical for PDF character map decoding)
+        const atobPolyfill = (str: string) => {
+            try {
+                return Buffer.from(str, 'base64').toString('binary');
+            } catch (e) {
+                return "";
+            }
+        };
+        const btoaPolyfill = (str: string) => {
+            try {
+                return Buffer.from(str, 'binary').toString('base64');
+            } catch (e) {
+                return "";
+            }
+        };
+
+        if (!g.atob) g.atob = atobPolyfill;
+        if (!g.btoa) g.btoa = btoaPolyfill;
+
+        // Also inject into global for libraries that check global directly
+        if (typeof global !== 'undefined') {
+            const nodeG = global as any;
+            if (!nodeG.atob) nodeG.atob = atobPolyfill;
+            if (!nodeG.btoa) nodeG.btoa = btoaPolyfill;
+            if (!nodeG.window) nodeG.window = g;
+            if (!nodeG.DOMMatrix) {
+                nodeG.DOMMatrix = class DOMMatrix {
+                    constructor() { }
+                    static fromFloat64Array() { return new DOMMatrix(); }
+                    static fromFloat32Array() { return new DOMMatrix(); }
+                };
+            }
         }
 
-        // 3. Document/DOM mocks for pdfjs-dist
+        // Polyfill DOMMatrix (required by pdf.js)
         if (!g.DOMMatrix) {
             g.DOMMatrix = class DOMMatrix {
                 constructor() { }
@@ -29,26 +55,10 @@ function applyUniversalPolyfills() {
                 static fromFloat32Array() { return new DOMMatrix(); }
             };
         }
-
-        if (!g.XMLHttpRequest) {
-            g.XMLHttpRequest = class XMLHttpRequest {
-                open() { }
-                send() { }
-                setRequestHeader() { }
-                getAllResponseHeaders() { return ""; }
-                getResponseHeader() { return null; }
-            };
-        }
-
-        // 4. Force global visibility
-        (global as any).atob = g.atob;
-        (global as any).btoa = g.btoa;
-        (global as any).DOMMatrix = g.DOMMatrix;
-        (global as any).window = g;
     }
 }
 
-// Immediate application
+// Apply immediately on module load
 applyUniversalPolyfills();
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
@@ -79,11 +89,9 @@ async function extractText(buffer: Buffer, fileName: string): Promise<string> {
     try {
         if (ext === 'pdf') {
             const pdfParser = await getPdfParser();
-            // Convert Buffer to Uint8Array for better compatibility
-            // Disable paging to trigger less character decoding logic
-            const data = await pdfParser(new Uint8Array(buffer), {
-                pagerender: () => ""
-            });
+            // Convert Buffer to Uint8Array for maximum compatibility with pdf.js
+            const uint8Array = new Uint8Array(buffer);
+            const data = await pdfParser(uint8Array);
             console.log(`[RAG] PDF extraction complete. Text length: ${data.text?.length || 0}`);
             return data.text || "";
         } else if (ext === 'docx') {
@@ -94,7 +102,7 @@ async function extractText(buffer: Buffer, fileName: string): Promise<string> {
         }
     } catch (err: any) {
         console.error(`[RAG] Extraction error for ${fileName}:`, err);
-        throw new Error(`Error al extraer texto del archivo: ${err.message}`);
+        throw new Error(`${err.message}`);
     }
 
     throw new Error(`Unsupported file type: ${ext}`);
