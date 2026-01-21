@@ -523,7 +523,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     </div>
                                                     <div>
                                                         <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">CUIT / CUIL</p>
-                                                        <p className="text-[13px] text-slate-700 font-bold">{person.cuit || "No informado"}</p>
+                                                        <p className="text-[13px] text-slate-700 font-bold">{person.cuit ? formatCUIT(person.cuit) : "No informado"}</p>
                                                     </div>
                                                 </div>
 

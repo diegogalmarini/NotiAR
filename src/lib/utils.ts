@@ -61,3 +61,25 @@ export function isValidCUIT(cuit: string, dni?: string): boolean {
 
   return verifier === calculatedVerifier;
 }
+
+/**
+ * Formatea un CUIT/CUIL al formato argentino estándar: XX-XXXXXXXX-X
+ * Si el CUIT no tiene exactamente 11 dígitos, lo devuelve sin cambios.
+ * 
+ * @example
+ * formatCUIT("20162061136") // "20-16206113-6"
+ * formatCUIT("20-16206113-6") // "20-16206113-6"
+ * formatCUIT("123") // "123" (no válido, devuelve original)
+ */
+export function formatCUIT(cuit: string | null | undefined): string {
+  if (!cuit) return "";
+
+  // Limpiar caracteres no numéricos
+  const cleanCUIT = cuit.replace(/\D/g, "");
+
+  // Si no tiene exactamente 11 dígitos, devolver original
+  if (cleanCUIT.length !== 11) return cuit;
+
+  // Formatear: XX-XXXXXXXX-X
+  return `${cleanCUIT.slice(0, 2)}-${cleanCUIT.slice(2, 10)}-${cleanCUIT.slice(10)}`;
+}

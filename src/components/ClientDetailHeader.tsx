@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { SendFichaDialog } from "./SendFichaDialog";
 import { EditarClienteDialog } from "./EditarClienteDialog";
 import { DeleteClienteDialog } from "./DeleteClienteDialog";
-import { cn, formatDateInstructions } from "@/lib/utils";
+import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
 
 interface ClientDetailHeaderProps {
     persona: {
@@ -75,7 +75,7 @@ export function ClientDetailHeader({ persona, onClienteUpdated }: ClientDetailHe
                                 {persona.cuit && (
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] uppercase font-bold text-slate-400">CUIT</span>
-                                        <span className="font-mono text-slate-700">{persona.cuit}</span>
+                                        <span className="font-mono text-slate-700">{formatCUIT(persona.cuit)}</span>
                                     </div>
                                 )}
                                 {persona.fecha_nacimiento && (

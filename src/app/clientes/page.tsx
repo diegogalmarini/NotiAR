@@ -20,7 +20,7 @@ import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
 import { useRouter } from "next/navigation";
-import { cn, formatDateInstructions } from "@/lib/utils";
+import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
 
 export default function ClientesPage() {
     const router = useRouter();
@@ -143,7 +143,7 @@ export default function ClientesPage() {
                                             {persona.cuit && (
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[9px] uppercase font-normal text-slate-400">CUIT</span>
-                                                    <span className="font-mono text-[11px] font-light text-slate-700">{persona.cuit}</span>
+                                                    <span className="font-mono text-[11px] font-light text-slate-700">{formatCUIT(persona.cuit)}</span>
                                                 </div>
                                             )}
                                         </div>

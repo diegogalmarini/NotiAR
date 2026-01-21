@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Folder, FileText, Activity } from "lucide-react";
 import { redirect } from "next/navigation";
-import { formatDateInstructions } from "@/lib/utils";
+import { formatDateInstructions, formatCUIT } from "@/lib/utils";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ dni: string }> }) {
     const { dni } = await params;
