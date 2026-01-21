@@ -86,8 +86,22 @@ export async function generateFichaLink(personaId: string) {
 
         if (error) throw error;
 
-        // In a real app, use an env var for the base URL
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://notiar.vercel.app';
+        // Use the current host from headers for total reliability
+        let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://noti-ar.vercel.app';
+
+        try {
+            const { headers } = await import('next/headers');
+            const headersList = await headers();
+            const host = headersList.get('host');
+            if (host) {
+                const protocol = host.includes('localhost') ? 'http' : 'https';
+                baseUrl = `${protocol}://${host}`;
+            }
+        } catch (e) {
+            // Fallback to env vars if headers() fails
+            console.warn("Could not get host from headers, using fallback:", baseUrl);
+        }
+
         const link = `${baseUrl}/ficha/${data.id}`;
 
         return { success: true, link };

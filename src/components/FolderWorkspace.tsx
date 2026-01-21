@@ -58,6 +58,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [showTranscriptionDialog, setShowTranscriptionDialog] = useState(false);
     const [editingDeed, setEditingDeed] = useState<any>(null);
     const [viewingDocument, setViewingDocument] = useState<string | null>(null);
+    const [viewerWidth, setViewerWidth] = useState(95); // Default 95vw
 
     console.log("📂 FolderWorkspace Initial Data:", JSON.stringify(initialData, null, 2));
     const [activeDeedId, setActiveDeedId] = useState<string | null>(carpeta.escrituras[0]?.id || null);
@@ -731,8 +732,61 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
             {/* Document Viewer Dialog - Fullscreen */}
             <Dialog open={!!viewingDocument} onOpenChange={() => setViewingDocument(null)}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-[95vh] p-0 overflow-hidden bg-white border-slate-200">
+                <DialogContent
+                    className="max-h-[96vh] h-[96vh] p-0 overflow-hidden bg-white border-slate-200 transition-none"
+                    style={{ maxWidth: `${viewerWidth}vw`, width: `${viewerWidth}vw` }}
+                    showCloseButton={false}
+                >
                     <div className="relative w-full h-full flex flex-col">
+                        {/* Resizer handle (Right side) */}
+                        <div
+                            className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400/30 transition-colors z-50 group"
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startWidth = viewerWidth;
+                                const onMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaX = moveEvent.clientX - startX;
+                                    // Change in px converted to vw (approximate)
+                                    const deltaVw = (deltaX / window.innerWidth) * 100 * 2; // times 2 because it's centered
+                                    const newWidth = Math.min(98, Math.max(40, startWidth + deltaVw));
+                                    setViewerWidth(newWidth);
+                                };
+                                const onMouseUp = () => {
+                                    document.removeEventListener("mousemove", onMouseMove);
+                                    document.removeEventListener("mouseup", onMouseUp);
+                                };
+                                document.addEventListener("mousemove", onMouseMove);
+                                document.addEventListener("mouseup", onMouseUp);
+                            }}
+                        >
+                            <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-8 bg-slate-300 group-hover:bg-blue-400 rounded-full" />
+                        </div>
+
+                        {/* Left Resizer handle (optional, for better symmetry in interactions) */}
+                        <div
+                            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400/30 transition-colors z-50 group"
+                            onMouseDown={(e) => {
+                                e.preventDefault();
+                                const startX = e.clientX;
+                                const startWidth = viewerWidth;
+                                const onMouseMove = (moveEvent: MouseEvent) => {
+                                    const deltaX = startX - moveEvent.clientX;
+                                    const deltaVw = (deltaX / window.innerWidth) * 100 * 2;
+                                    const newWidth = Math.min(98, Math.max(40, startWidth + deltaVw));
+                                    setViewerWidth(newWidth);
+                                };
+                                const onMouseUp = () => {
+                                    document.removeEventListener("mousemove", onMouseMove);
+                                    document.removeEventListener("mouseup", onMouseUp);
+                                };
+                                document.addEventListener("mousemove", onMouseMove);
+                                document.addEventListener("mouseup", onMouseUp);
+                            }}
+                        >
+                            <div className="absolute top-1/2 left-1/2 -translate-y-1/2 -translate-x-1/2 w-0.5 h-8 bg-slate-300 group-hover:bg-blue-400 rounded-full" />
+                        </div>
+
                         {/* Header with filename and close button */}
                         <div className="flex justify-between items-center p-3 bg-white border-b border-slate-200 text-slate-900">
                             <h3 className="text-sm font-semibold truncate pr-10 flex items-center gap-2">
@@ -757,7 +811,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                         </div>
 
                         {/* Document Viewer Container */}
-                        <div className="flex-1 bg-slate-50 flex justify-center items-center overflow-auto p-4 md:p-8">
+                        <div className="flex-1 bg-slate-100 flex justify-center items-center overflow-hidden p-0">
                             {viewingDocument && (() => {
                                 const isPdf = viewingDocument.toLowerCase().includes(".pdf");
                                 const isDocx = viewingDocument.toLowerCase().includes(".docx") || viewingDocument.toLowerCase().includes(".doc");
@@ -766,7 +820,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     return (
                                         <iframe
                                             src={viewingDocument}
-                                            className="w-full max-w-5xl h-full bg-white shadow-xl rounded-md border border-slate-200"
+                                            className="w-full h-full bg-white shadow-sm border-none"
                                             title="PDF Viewer"
                                         />
                                     );
@@ -778,7 +832,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                         <div className="w-full max-w-5xl h-full flex flex-col gap-4">
                                             <iframe
                                                 src={`https://docs.google.com/viewer?url=${encodeURIComponent(viewingDocument)}&embedded=true`}
-                                                className="w-full flex-1 bg-white shadow-xl rounded-md border border-slate-200"
+                                                className="w-full flex-1 bg-white shadow-sm border-none"
                                                 title="Document Viewer"
                                             />
                                             <div className="text-center py-2">

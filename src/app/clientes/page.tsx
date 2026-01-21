@@ -19,11 +19,13 @@ import { NuevoClienteDialog } from "@/components/NuevoClienteDialog";
 import { EditarClienteDialog } from "@/components/EditarClienteDialog";
 import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
-import { formatDateInstructions } from "@/lib/utils";
+import { cn, formatDateInstructions } from "@/lib/utils";
 
 export default function ClientesPage() {
     const [personas, setPersonas] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [filteredPersonas, setFilteredPersonas] = useState<any[]>([]);
 
     const fetchPersonas = useCallback(async () => {
         try {
@@ -35,8 +37,8 @@ export default function ClientesPage() {
             if (error) {
                 console.error("Error fetching personas:", error);
             } else if (data) {
-                console.log("Fetched", data.length, "personas");
                 setPersonas(data);
+                setFilteredPersonas(data);
             }
         } catch (err) {
             console.error("Exception fetching personas:", err);
@@ -48,6 +50,22 @@ export default function ClientesPage() {
     useEffect(() => {
         fetchPersonas();
     }, [fetchPersonas]);
+
+    // Update filtered list when search term or personas change
+    useEffect(() => {
+        if (!searchTerm.trim()) {
+            setFilteredPersonas(personas);
+            return;
+        }
+
+        const lowercaseSearch = searchTerm.toLowerCase();
+        const filtered = personas.filter(p =>
+            p.nombre_completo?.toLowerCase().includes(lowercaseSearch) ||
+            p.dni?.toLowerCase().includes(lowercaseSearch) ||
+            p.cuit?.toLowerCase().includes(lowercaseSearch)
+        );
+        setFilteredPersonas(filtered);
+    }, [searchTerm, personas]);
 
     if (loading) {
         return (
@@ -71,64 +89,90 @@ export default function ClientesPage() {
                 <NuevoClienteDialog />
             </div>
 
-            <Card>
-                <CardHeader>
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="p-4 border-b">
                     <div className="flex items-center gap-4">
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Buscar por nombre, CUIT o DNI..." className="pl-10" />
+                            <Input
+                                placeholder="Buscar por nombre, CUIT o DNI..."
+                                className="pl-10 h-10"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
                         </div>
-                        <Button variant="outline">Filtrar</Button>
+                        <Button variant="outline" className="h-10">Filtrar</Button>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     <Table>
                         <TableHeader>
-                            <TableRow>
-                                <TableHead>Nombre Completo</TableHead>
-                                <TableHead>DNI</TableHead>
-                                <TableHead>Contacto</TableHead>
-                                <TableHead>Origen</TableHead>
-                                <TableHead className="text-right">Acciones</TableHead>
+                            <TableRow className="bg-slate-50/50">
+                                <TableHead className="w-[30%]">Nombre Completo</TableHead>
+                                <TableHead className="w-[20%]">Documento</TableHead>
+                                <TableHead className="w-[25%]">Contacto</TableHead>
+                                <TableHead className="w-[10%] text-center">Origen</TableHead>
+                                <TableHead className="text-right w-[15%]">Acciones</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {personas?.map((persona) => (
-                                <TableRow key={persona.dni} className="group">
-                                    <TableCell className="font-semibold">
+                            {filteredPersonas?.map((persona) => (
+                                <TableRow key={persona.dni} className="group hover:bg-slate-50/50">
+                                    <TableCell className="font-semibold py-4">
                                         <div className="flex flex-col">
-                                            <span>{persona.nombre_completo}</span>
+                                            <span className="text-slate-900">{persona.nombre_completo}</span>
                                             {persona.fecha_nacimiento && (
-                                                <span className="text-xs text-muted-foreground font-normal">
+                                                <span className="text-[10px] text-muted-foreground font-normal uppercase tracking-wider">
                                                     Nac: {formatDateInstructions(persona.fecha_nacimiento)}
                                                 </span>
                                             )}
                                         </div>
                                     </TableCell>
-                                    <TableCell className="font-mono text-sm">
-                                        {persona.dni || 'N/A'}
-                                    </TableCell>
                                     <TableCell>
-                                        <div className="flex gap-2">
-                                            {persona.contacto?.telefono && (
-                                                <Badge variant="outline" className="flex items-center gap-1">
-                                                    <Phone size={10} /> {persona.contacto.telefono}
-                                                </Badge>
-                                            )}
-                                            {persona.contacto?.email && (
-                                                <Badge variant="outline" className="flex items-center gap-1">
-                                                    <Mail size={10} /> {persona.contacto.email}
-                                                </Badge>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[10px] uppercase font-bold text-slate-400">DNI</span>
+                                                <span className="font-mono text-xs text-slate-700">
+                                                    {persona.dni && persona.dni.startsWith('SIN-DNI-')
+                                                        ? <Badge variant="outline" className="font-mono text-[10px] bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
+                                                        : (persona.dni || 'N/A')}
+                                                </span>
+                                            </div>
+                                            {persona.cuit && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[10px] uppercase font-bold text-slate-400">CUIT</span>
+                                                    <span className="font-mono text-xs text-slate-700">{persona.cuit}</span>
+                                                </div>
                                             )}
                                         </div>
                                     </TableCell>
                                     <TableCell>
-                                        <Badge variant={persona.origen_dato === 'IA_OCR' ? "secondary" : "outline"}>
-                                            {persona.origen_dato}
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {persona.contacto?.telefono && (
+                                                <Badge variant="secondary" className="flex items-center gap-1 bg-green-50 text-green-700 border-green-100 hover:bg-green-100">
+                                                    <Phone size={10} className="fill-green-700/20" /> {persona.contacto.telefono}
+                                                </Badge>
+                                            )}
+                                            {persona.contacto?.email && (
+                                                <Badge variant="secondary" className="flex items-center gap-1 bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100">
+                                                    <Mail size={10} className="fill-blue-700/20" /> {persona.contacto.email}
+                                                </Badge>
+                                            )}
+                                            {!persona.contacto?.telefono && !persona.contacto?.email && (
+                                                <span className="text-xs text-slate-400 italic">Sin datos</span>
+                                            )}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge variant={persona.origen_dato === 'IA_OCR' ? "outline" : "outline"} className={cn(
+                                            "text-[10px] uppercase font-bold tracking-tighter px-1.5 py-0",
+                                            persona.origen_dato === 'IA_OCR' ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-slate-50 text-slate-500"
+                                        )}>
+                                            {persona.origen_dato || 'Manual'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex justify-end gap-2">
+                                        <div className="flex justify-end gap-1 px-2">
                                             <SendFichaDialog persona={persona} />
                                             <EditarClienteDialog persona={persona} />
                                             <DeleteClienteDialog
@@ -140,11 +184,11 @@ export default function ClientesPage() {
                                     </TableCell>
                                 </TableRow>
                             ))}
-                            {(!personas || personas.length === 0) && (
+                            {(!filteredPersonas || filteredPersonas.length === 0) && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="text-center py-20 text-muted-foreground">
                                         <Users className="mx-auto h-12 w-12 opacity-20 mb-4" />
-                                        No se encontraron clientes en la base de datos.
+                                        {searchTerm ? "No se encontraron resultados para tu búsqueda." : "No se encontraron clientes en la base de datos."}
                                     </TableCell>
                                 </TableRow>
                             )}

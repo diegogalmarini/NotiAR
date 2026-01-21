@@ -15,39 +15,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Loader2 } from "lucide-react";
 import { createPersona } from "@/app/actions/personas";
 import { toast } from "sonner";
 
 export function NuevoClienteDialog() {
     const router = useRouter();
-    const [open, setOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        nombre_completo: "",
-        dni: "",
-        cuit: "",
-        tax_id: "",
-        nacionalidad: "",
-        fecha_nacimiento: "",
-        domicilio: "",
-        email: "",
-        telefono: "",
-        estado_civil: "",
-        nombres_padres: "",
-        nombre_conyuge: ""
-    });
+    const [nombres, setNombres] = useState("");
+    const [apellidos, setApellidos] = useState("");
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        const res = await createPersona(formData);
+        const fullData = {
+            ...formData,
+            nombre_completo: `${nombres} ${apellidos}`.trim()
+        };
+
+        const res = await createPersona(fullData);
 
         setLoading(false);
         if (res.success) {
             toast.success("Cliente creado correctamente");
             setOpen(false);
+            setNombres("");
+            setApellidos("");
             setFormData({
                 nombre_completo: "",
                 dni: "",
@@ -62,56 +55,63 @@ export function NuevoClienteDialog() {
                 nombres_padres: "",
                 nombre_conyuge: ""
             });
-            router.push(`/clientes`); // Redirect to list as specific pages might not exist yet for temp IDs
+            router.push(`/clientes`);
         } else {
             toast.error(res.error || "Error al crear cliente");
         }
     };
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(val) => {
+            setOpen(val);
+            if (!val) {
+                setNombres("");
+                setApellidos("");
+            }
+        }}>
             <DialogTrigger asChild>
                 <Button>
                     <UserPlus className="mr-2 h-4 w-4" />
                     Nuevo Cliente
                 </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Crear Nuevo Cliente</DialogTitle>
-                    <DialogDescription>
-                        Ingrese los datos básicos de la persona. Nombre es obligatorio; el resto podrá ser completado por el cliente mediante el link de la Ficha.
-                    </DialogDescription>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col p-0 overflow-hidden border-none shadow-2xl">
+                <div className="p-6 bg-white overflow-y-auto">
+                    <DialogHeader className="mb-6">
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <span className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                                <UserPlus size={24} />
+                            </span>
+                            Nuevo Cliente
+                        </DialogTitle>
+                        <DialogDescription className="text-slate-500">
+                            Ingrese los datos básicos. El resto puede ser completado por el cliente mediante el link de la Ficha.
+                        </DialogDescription>
+                    </DialogHeader>
 
-                <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-                    <div className="grid gap-4 py-4 overflow-y-auto pr-2">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Nombre y Apellido */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="grid gap-2">
-                                <Label htmlFor="nombre">Nombre *</Label>
+                                <Label htmlFor="nombre" className="text-xs font-bold uppercase tracking-wider text-slate-400">Nombres *</Label>
                                 <Input
                                     id="nombre"
                                     required
-                                    value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
-                                    onChange={(e) => {
-                                        const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
-                                        setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
-                                    }}
-                                    placeholder="Nombres"
+                                    value={nombres}
+                                    onChange={(e) => setNombres(e.target.value)}
+                                    placeholder="Ej: Juan Pedro"
+                                    className="h-11 rounded-xl border-slate-200 focus:border-indigo-500 transition-all font-medium"
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="apellido">Apellido *</Label>
+                                <Label htmlFor="apellido" className="text-xs font-bold uppercase tracking-wider text-slate-400">Apellidos *</Label>
                                 <Input
                                     id="apellido"
                                     required
-                                    value={formData.nombre_completo.split(" ").slice(-1)[0]}
-                                    onChange={(e) => {
-                                        const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
-                                        setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
-                                    }}
-                                    placeholder="Apellidos"
+                                    value={apellidos}
+                                    onChange={(e) => setApellidos(e.target.value)}
+                                    placeholder="Ej: Pérez García"
+                                    className="h-11 rounded-xl border-slate-200 focus:border-indigo-500 transition-all font-medium"
                                 />
                             </div>
                         </div>
@@ -240,15 +240,18 @@ export function NuevoClienteDialog() {
                                 />
                             </div>
                         </div>
-                    </div>
+                </div>
 
-                    <DialogFooter className="pt-4 border-t">
-                        <Button type="submit" disabled={loading}>
-                            {loading ? "Guardando..." : "Guardar Cliente"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </DialogContent>
-        </Dialog>
+                <div className="px-6 py-4 bg-slate-50 border-t flex justify-end gap-3">
+                    <Button type="button" variant="ghost" onClick={() => setOpen(false)} disabled={loading}>
+                        Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading} className="bg-indigo-600 hover:bg-indigo-700 text-white min-w-[150px]">
+                        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Guardar Cliente"}
+                    </Button>
+                </div>
+            </form>
+        </DialogContent>
+    </Dialog >
     );
 }
