@@ -1,8 +1,15 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from "./supabaseAdmin";
-// @ts-ignore
-import pdf from "pdf-parse";
-import mammoth from "mammoth";
+// Dynamic imports for Node.js modules to prevent evaluation errors in some environments
+async function getPdfParser() {
+    const pdf = await import("pdf-parse") as any;
+    return pdf.default || pdf;
+}
+
+async function getMammoth() {
+    const mammoth = await import("mammoth") as any;
+    return mammoth.default || mammoth;
+}
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
@@ -16,9 +23,11 @@ async function extractText(buffer: Buffer, fileName: string): Promise<string> {
     const ext = fileName.split('.').pop()?.toLowerCase();
 
     if (ext === 'pdf') {
-        const data = await pdf(buffer);
+        const pdfParser = await getPdfParser();
+        const data = await pdfParser(buffer);
         return data.text;
     } else if (ext === 'docx') {
+        const mammoth = await getMammoth();
         const result = await mammoth.extractRawText({ buffer });
         return result.value;
     }
