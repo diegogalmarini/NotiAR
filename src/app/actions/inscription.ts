@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 
 /**
@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
  */
 export async function markAsSigned(escrituraId: string, fechaFirma: string) {
     try {
+        const supabase = await createClient();
         const firmaDate = new Date(fechaFirma);
 
         // Calculate deadline: 45 calendar days from signature date
@@ -65,6 +66,7 @@ export async function updateRegistryStatus(
     nroEntrada?: string
 ) {
     try {
+        const supabase = await createClient();
         const updateData: any = { estado_inscripcion: status };
 
         if (nroEntrada) {
@@ -103,6 +105,7 @@ export async function updateRegistryStatus(
  */
 export async function getExpiringDeeds() {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from("escrituras")
             .select(`

@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 
 export async function updateEscritura(escrituraId: string, data: {
@@ -10,6 +10,7 @@ export async function updateEscritura(escrituraId: string, data: {
     registro?: string | null;
 }) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from("escrituras")
             .update(data)
@@ -30,6 +31,7 @@ export async function updateOperacion(operacionId: string, data: {
     nro_acto?: string | null;
 }) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from("operaciones")
             .update(data)
@@ -50,6 +52,7 @@ export async function updateInmueble(inmuebleId: string, data: {
     nro_partida?: string;
 }) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from("inmuebles")
             .update(data)

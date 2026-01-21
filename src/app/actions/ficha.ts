@@ -1,10 +1,11 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { randomUUID } from "node:crypto";
 
 export async function createFichaToken(personaId: string) {
     try {
+        const supabase = await createClient();
         // Generate a random token
         const token = randomUUID();
 

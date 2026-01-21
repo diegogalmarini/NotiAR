@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
 
@@ -12,6 +12,7 @@ export async function createPersona(formData: {
     cuit?: string;
 }) {
     try {
+        const supabase = await createClient();
         // Generate a temporary DNI if not provided
         const finalDni = formData.dni?.trim()
             ? formData.dni.trim()
@@ -63,6 +64,7 @@ export async function updatePersona(dni: string, formData: {
     cuit?: string;
 }) {
     try {
+        const supabase = await createClient();
         const updateData: any = {
             nombre_completo: formData.nombre_completo,
             nacionalidad: formData.nacionalidad || null,
@@ -101,6 +103,7 @@ export async function updatePersona(dni: string, formData: {
 
 export async function deletePersona(dni: string) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from("personas")
             .delete()

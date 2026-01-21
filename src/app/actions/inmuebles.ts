@@ -1,10 +1,11 @@
 'use server';
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 
 export async function deleteInmueble(id: string) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from('inmuebles')
             .delete()

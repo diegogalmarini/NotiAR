@@ -1,10 +1,11 @@
 "use server";
 
-import { supabase } from "@/lib/supabaseClient";
+import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 
 export async function getFichaByToken(tokenId: string) {
     try {
+        const supabase = await createClient();
         const { data: tokenData, error: tokenError } = await supabase
             .from("fichas_web_tokens")
             .select("*, personas(*)")
@@ -31,6 +32,7 @@ export async function getFichaByToken(tokenId: string) {
 
 export async function submitFichaData(tokenId: string, oldDni: string, formData: any) {
     try {
+        const supabase = await createClient();
         // 1. Update Persona (DNI is PK, but ON UPDATE CASCADE handles references)
         const { error: pError } = await supabase
             .from("personas")
@@ -77,6 +79,7 @@ export async function submitFichaData(tokenId: string, oldDni: string, formData:
 
 export async function generateFichaLink(personaId: string) {
     try {
+        const supabase = await createClient();
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 30);
 

@@ -44,6 +44,7 @@ export async function createFolder(caratula?: string) {
 
 export async function addOperationToDeed(escrituraId: string, tipoActo: string, monto?: number) {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from('operaciones')
             .insert([{ escritura_id: escrituraId, tipo_acto: tipoActo, monto_operacion: monto }])
@@ -59,6 +60,7 @@ export async function addOperationToDeed(escrituraId: string, tipoActo: string, 
 
 export async function linkPersonToOperation(operacionId: string, personaId: string, rol: string, porcentaje?: number) {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from('participantes_operacion')
             .insert([{
@@ -79,6 +81,7 @@ export async function linkPersonToOperation(operacionId: string, personaId: stri
 
 export async function linkAssetToDeed(escrituraId: string, inmuebleId: string) {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from('escrituras')
             .update({ inmueble_princ_id: inmuebleId })
@@ -95,6 +98,7 @@ export async function linkAssetToDeed(escrituraId: string, inmuebleId: string) {
 
 export async function updateFolderStatus(folderId: string, newStatus: string) {
     try {
+        const supabase = await createClient();
         const { data, error } = await supabase
             .from('carpetas')
             .update({ estado: newStatus })
@@ -113,6 +117,7 @@ export async function updateFolderStatus(folderId: string, newStatus: string) {
 
 export async function deleteCarpeta(carpetaId: string) {
     try {
+        const supabase = await createClient();
         // 1. Get folder details for logging before deletion
         const { data: folder } = await supabase
             .from('carpetas')
@@ -147,6 +152,7 @@ export async function deleteCarpeta(carpetaId: string) {
 
 export async function unlinkPersonFromOperation(participanteId: string) {
     try {
+        const supabase = await createClient();
         const { error } = await supabase
             .from('participantes_operacion')
             .delete()
@@ -167,6 +173,7 @@ export async function unlinkPersonFromOperation(participanteId: string) {
 
 export async function upsertPerson(data: any) {
     try {
+        const supabase = await createClient();
         const { data: persona, error } = await supabase
             .from('personas')
             .upsert({
