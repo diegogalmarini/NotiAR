@@ -14,7 +14,7 @@ async function getMammoth() {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
-export type KnowledgeCategory = 'LAW' | 'MANUAL' | 'TEMPLATE';
+export type KnowledgeCategory = 'SYSTEM_TAXONOMY' | 'VALIDATION_RULES' | 'LEGAL_CONTEXT';
 
 /**
  * Extracts text from PDF or DOCX buffer

@@ -11,9 +11,9 @@ import { indexDocument, KnowledgeCategory } from '../src/lib/knowledge';
 async function main() {
     const baseDir = path.join(process.cwd(), 'src/knowledge');
     const categories: { folder: string, type: KnowledgeCategory }[] = [
-        { folder: 'laws', type: 'LAW' },
-        { folder: 'manuals', type: 'MANUAL' },
-        { folder: 'templates', type: 'TEMPLATE' }
+        { folder: 'system_taxonomy', type: 'SYSTEM_TAXONOMY' },
+        { folder: 'validation_rules', type: 'VALIDATION_RULES' },
+        { folder: 'legal_context', type: 'LEGAL_CONTEXT' }
     ];
 
     console.log("------------------------------------------");

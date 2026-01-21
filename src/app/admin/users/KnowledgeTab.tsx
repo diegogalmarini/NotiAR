@@ -82,9 +82,9 @@ export function KnowledgeTab() {
 
     const getCategoryBadge = (category: string) => {
         switch (category) {
-            case 'LAW': return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1"><Scale size={12} />LEY</Badge>;
-            case 'MANUAL': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1"><BookOpen size={12} />MANUAL</Badge>;
-            case 'TEMPLATE': return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 gap-1"><LayoutTemplate size={12} />PLANTILLA</Badge>;
+            case 'SYSTEM_TAXONOMY': return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1"><LayoutTemplate size={12} />TAXONOMÍA</Badge>;
+            case 'VALIDATION_RULES': return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 gap-1"><Scale size={12} />REGLAS</Badge>;
+            case 'LEGAL_CONTEXT': return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200 gap-1"><BookOpen size={12} />CONTEXTO</Badge>;
             default: return <Badge variant="outline">{category}</Badge>;
         }
     };
@@ -119,14 +119,14 @@ export function KnowledgeTab() {
                             <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
                                     <Label>Categoría</Label>
-                                    <Select name="category" defaultValue="LAW">
+                                    <Select name="category" defaultValue="SYSTEM_TAXONOMY">
                                         <SelectTrigger>
                                             <SelectValue placeholder="Seleccionar categoría" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="LAW">Ley / Reglamento (UIF, CCCN, etc.)</SelectItem>
-                                            <SelectItem value="MANUAL">Manual de Procedimiento (Ingesis)</SelectItem>
-                                            <SelectItem value="TEMPLATE">Plantilla / Modelo de Escritura</SelectItem>
+                                            <SelectItem value="SYSTEM_TAXONOMY">Taxonomía del Sistema</SelectItem>
+                                            <SelectItem value="VALIDATION_RULES">Reglas de Validación</SelectItem>
+                                            <SelectItem value="LEGAL_CONTEXT">Contexto Legal</SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
