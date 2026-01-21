@@ -12,6 +12,12 @@ if (typeof global !== 'undefined') {
             static fromFloat32Array() { return new DOMMatrix(); }
         };
     }
+    if (!(global as any).atob) {
+        (global as any).atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
+    }
+    if (!(global as any).btoa) {
+        (global as any).btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+    }
 }
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
@@ -20,9 +26,10 @@ async function getPdfParser() {
     return pdf.default || pdf;
 }
 
-async function getMammoth() {
-    const mammoth = await import("mammoth") as any;
-    return mammoth.default || mammoth;
+async function getWordExtractor() {
+    const WordExtractor = await import("word-extractor") as any;
+    const Extractor = WordExtractor.default || WordExtractor;
+    return new Extractor();
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -36,14 +43,19 @@ export type KnowledgeCategory = 'SYSTEM_TAXONOMY' | 'VALIDATION_RULES' | 'LEGAL_
 async function extractText(buffer: Buffer, fileName: string): Promise<string> {
     const ext = fileName.split('.').pop()?.toLowerCase();
 
-    if (ext === 'pdf') {
-        const pdfParser = await getPdfParser();
-        const data = await pdfParser(buffer);
-        return data.text;
-    } else if (ext === 'docx') {
-        const mammoth = await getMammoth();
-        const result = await mammoth.extractRawText({ buffer });
-        return result.value;
+    try {
+        if (ext === 'pdf') {
+            const pdfParser = await getPdfParser();
+            const data = await pdfParser(buffer);
+            return data.text || "";
+        } else if (ext === 'docx') {
+            const extractor = await getWordExtractor();
+            const doc = await extractor.extract(buffer);
+            return doc.getBody() || "";
+        }
+    } catch (err: any) {
+        console.error(`[RAG] Extraction error for ${fileName}:`, err);
+        throw new Error(`Error al extraer texto del archivo: ${err.message}`);
     }
 
     throw new Error(`Unsupported file type: ${ext}`);
