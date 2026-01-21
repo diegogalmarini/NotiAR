@@ -7,11 +7,11 @@ export type Escribano = {
     id: string;
     nombre_completo: string;
     caracter: 'TITULAR' | 'ADSCRIPTO' | 'INTERINO';
-    numero_registro: string;
-    distrito_notarial: string;
-    matricula: string;
-    cuit: string;
-    domicilio_legal: string;
+    numero_registro?: string;
+    distrito_notarial?: string;
+    matricula?: string;
+    cuit?: string;
+    domicilio_legal?: string;
     genero_titulo: 'ESCRIBANO' | 'ESCRIBANA' | 'NOTARIO' | 'NOTARIA';
     is_default: boolean;
     created_at?: string;
