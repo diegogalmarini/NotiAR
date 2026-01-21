@@ -41,7 +41,10 @@ export function DeleteInmuebleDialog({ inmuebleId, nomenclatura, onInmuebleDelet
                 window.location.reload();
             }
         } else {
-            toast.error(res.error || "Error al eliminar el inmueble");
+            // Error handling for foreign key or general failure
+            toast.error(res.error || "No se pudo eliminar el inmueble. Verifique si está vinculado a una escritura.", {
+                duration: 5000
+            });
         }
     };
 
