@@ -12,8 +12,8 @@ export function toTitleCase(str: string): string {
 
 export function normalizeID(id: string): string {
     if (!id) return "";
-    // Elimina puntos, guiones y espacios. Devuelve solo números y letras mayúsculas.
-    return id.toString().replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+    // Elimina puntos, guiones, espacios y letras. Devuelve solo números.
+    return id.toString().replace(/[^0-9]/g, "");
 }
 
 export function normalizeAddress(addr: string): string {

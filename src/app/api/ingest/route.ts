@@ -64,7 +64,7 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
          - Nombre y Apellidos completos.
          - Nacionalidad (Ej: "Argentino", "Uruguayo").
          - Fecha de nacimiento (formato YYYY-MM-DD).
-         - DNI y CUIT/CUIL.
+         - DNI y CUIT/CUIL. (IMPORTANTE: Extrae TODOS los números. Si el CUIT contiene al DNI, asegúrate de extraer ambos correctamente. El DNI suele tener 7 u 8 dígitos).
          - Estado civil detallado (Ej: "Casado en primeras nupcias con [Nombre]", "Divorciado de [Nombre]"). 
          - FILIACIÓN: Extraer nombres de los padres (Ej: "hijo de Ernesto y de Maria").
          - Domicilio real completo.
@@ -95,8 +95,8 @@ async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: st
           {
             "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE",
             "nombre_completo": "string",
-            "dni": "string",
-            "cuit": "string",
+            "dni": "string (SOLO NÚMEROS)",
+            "cuit": "string (SOLO NÚMEROS, sin guiones)",
             "nacionalidad": "string",
             "fecha_nacimiento": "YYYY-MM-DD",
             "estado_civil": "string",
@@ -274,7 +274,12 @@ export async function POST(request: Request) {
             }
         }
 
-        return NextResponse.json({ success: true, folderId: carpeta.id });
+        return NextResponse.json({
+            success: true,
+            folderId: carpeta.id,
+            debug: { clients: clientes.length, assets: inmuebles.length },
+            extractedData: aiData
+        });
     } catch (error: any) {
         console.error('Fatal Error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });

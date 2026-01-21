@@ -511,8 +511,20 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 <div>
                                                     <h3 className="text-base font-bold text-slate-800 leading-tight">{person.nombre_completo}</h3>
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                                                        {person.nacionalidad || "Nacionalidad no informada"} • {person.dni || "DNI no informado"}
+                                                        {person.nacionalidad || "Nacionalidad no informada"} • {formatDateInstructions(person.fecha_nacimiento)}
                                                     </p>
+                                                </div>
+
+                                                {/* ID Grid */}
+                                                <div className="grid grid-cols-2 gap-3 pb-1">
+                                                    <div>
+                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">DNI</p>
+                                                        <p className="text-[13px] text-slate-700 font-bold">{person.dni || "No informado"}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">CUIT / CUIL</p>
+                                                        <p className="text-[13px] text-slate-700 font-bold">{person.cuit || "No informado"}</p>
+                                                    </div>
                                                 </div>
 
                                                 {/* Details Grid */}
