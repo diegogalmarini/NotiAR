@@ -3,33 +3,52 @@ import { supabaseAdmin } from "./supabaseAdmin";
 
 /**
  * Polyfill for browser globals required by some PDF parsing libraries in Node.js
+ * "God Mode" initialization to satisfy browser-centric dependencies.
  */
 if (typeof global !== 'undefined') {
-    if (!(global as any).DOMMatrix) {
-        (global as any).DOMMatrix = class DOMMatrix {
+    const g = global as any;
+
+    if (!g.DOMMatrix) {
+        g.DOMMatrix = class DOMMatrix {
             constructor() { }
             static fromFloat64Array() { return new DOMMatrix(); }
             static fromFloat32Array() { return new DOMMatrix(); }
         };
     }
-    if (!(global as any).atob) {
-        (global as any).atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
+
+    // Polyfill atob/btoa for older Node environments or broken ESM bundles
+    if (!g.atob) {
+        g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
     }
-    if (!(global as any).btoa) {
-        (global as any).btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+    if (!g.btoa) {
+        g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+    }
+
+    // Some PDF libraries check for window/self
+    if (!g.window) g.window = g;
+    if (!g.self) g.self = g;
+
+    // Mocking XMLHttpRequest which is sometimes checked by pdfjs-dist
+    if (!g.XMLHttpRequest) {
+        g.XMLHttpRequest = class XMLHttpRequest {
+            open() { }
+            send() { }
+            setRequestHeader() { }
+        };
     }
 }
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
 async function getPdfParser() {
+    console.log("[RAG] Loading pdf-parser...");
     const pdf = await import("pdf-parse") as any;
     return pdf.default || pdf;
 }
 
-async function getWordExtractor() {
-    const WordExtractor = await import("word-extractor") as any;
-    const Extractor = WordExtractor.default || WordExtractor;
-    return new Extractor();
+async function getMammoth() {
+    console.log("[RAG] Loading mammoth...");
+    const mammoth = await import("mammoth") as any;
+    return mammoth.default || mammoth;
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -42,16 +61,21 @@ export type KnowledgeCategory = 'SYSTEM_TAXONOMY' | 'VALIDATION_RULES' | 'LEGAL_
  */
 async function extractText(buffer: Buffer, fileName: string): Promise<string> {
     const ext = fileName.split('.').pop()?.toLowerCase();
+    console.log(`[RAG] Starting extraction for ${fileName} (ext: ${ext}, size: ${buffer.length} bytes)`);
 
     try {
         if (ext === 'pdf') {
             const pdfParser = await getPdfParser();
-            const data = await pdfParser(buffer);
+            // Convert Buffer to Uint8Array for better compatibility
+            const uint8Array = new Uint8Array(buffer);
+            const data = await pdfParser(uint8Array);
+            console.log(`[RAG] PDF extraction complete. Text length: ${data.text?.length || 0}`);
             return data.text || "";
         } else if (ext === 'docx') {
-            const extractor = await getWordExtractor();
-            const doc = await extractor.extract(buffer);
-            return doc.getBody() || "";
+            const mammoth = await getMammoth();
+            const result = await mammoth.extractRawText({ buffer });
+            console.log(`[RAG] DOCX extraction complete. Text length: ${result.value?.length || 0}`);
+            return result.value || "";
         }
     } catch (err: any) {
         console.error(`[RAG] Extraction error for ${fileName}:`, err);
