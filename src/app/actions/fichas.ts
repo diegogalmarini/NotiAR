@@ -18,7 +18,7 @@ export async function getFichaByToken(tokenId: string) {
             return { success: false, error: "El link ha expirado." };
         }
 
-        if (tokenData.estado === 'COMPLETADA') {
+        if (tokenData.estado === 'COMPLETADO') {
             return { success: false, error: "Esta ficha ya ha sido completada." };
         }
 
@@ -56,7 +56,7 @@ export async function submitFichaData(tokenId: string, oldDni: string, formData:
         // 2. Mark Token as Completed
         const { error: tError } = await supabase
             .from("fichas_web_tokens")
-            .update({ estado: 'COMPLETADA' })
+            .update({ estado: 'COMPLETADO' })
             .eq("id", tokenId);
 
         if (tError) throw tError;
