@@ -174,12 +174,7 @@ export default function ClientesPage() {
                                         </div>
                                     </TableCell>
                                     <TableCell className="text-center">
-                                        <div className={cn(
-                                            "inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight border",
-                                            persona.origen_dato === 'IA_OCR'
-                                                ? "bg-slate-100 text-slate-600 border-slate-200"
-                                                : "bg-white text-slate-400 border-slate-100"
-                                        )}>
+                                        <div className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
                                             {persona.origen_dato || 'Manual'}
                                         </div>
                                     </TableCell>
