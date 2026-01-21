@@ -237,40 +237,95 @@ export async function POST(request: Request) {
             nro_acto: numero_acto || null
         }]).select().single();
 
-        // 6. Process Clientes
+        // 6. Process Clientes (Enrichment Logic)
         for (const c of clientes) {
             const dni = normalizeID(c.dni);
             if (!dni) continue;
 
-            const { data: persona } = await supabase.from('personas').upsert({
-                dni,
-                nombre_completo: toTitleCase(c.nombre_completo),
-                cuit: normalizeID(c.cuit),
-                nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
-                fecha_nacimiento: c.fecha_nacimiento,
-                domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
-                nombres_padres: c.nombres_padres,
-                estado_civil_detalle: c.estado_civil,
-                datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
-                contacto: { email: c.email, telefono: c.telefono },
-                origen_dato: 'IA_OCR',
-                updated_at: new Date().toISOString()
-            }, { onConflict: 'dni' }).select().single();
+            // 1. Check if person already exists
+            const { data: existente } = await supabase
+                .from('personas')
+                .select('*')
+                .eq('dni', dni)
+                .single();
 
-            if (persona && operacion) {
-                await supabase.from('participantes_operacion').insert([{
-                    operacion_id: operacion.id,
-                    persona_id: persona.dni,
-                    rol: c.rol?.toUpperCase() || 'VENDEDOR'
-                }]);
+            let personaDni = dni;
 
-                const expiresAt = new Date();
-                expiresAt.setDate(expiresAt.getDate() + 30);
-                await supabase.from('fichas_web_tokens').insert([{
-                    persona_id: persona.dni,
-                    estado: 'PENDIENTE',
-                    expires_at: expiresAt.toISOString()
-                }]);
+            if (existente) {
+                // 🚨 ENRICHMENT: Update only if fields are missing in DB
+                const updates: any = {};
+                if (c.nacionalidad && !existente.nacionalidad) updates.nacionalidad = toTitleCase(c.nacionalidad);
+                if (c.nombres_padres && !existente.nombres_padres) updates.nombres_padres = c.nombres_padres;
+                if (c.estado_civil && !existente.estado_civil_detalle) updates.estado_civil_detalle = c.estado_civil;
+                if (c.domicilio_real && !existente.domicilio_real) updates.domicilio_real = { literal: c.domicilio_real };
+                if (c.fecha_nacimiento && !existente.fecha_nacimiento) updates.fecha_nacimiento = c.fecha_nacimiento;
+                if (c.cuit && !existente.cuit) updates.cuit = normalizeID(c.cuit);
+
+                if (Object.keys(updates).length > 0) {
+                    console.log(`[INGEST] Enriching person ${dni}:`, updates);
+                    await supabase.from('personas').update({
+                        ...updates,
+                        updated_at: new Date().toISOString()
+                    }).eq('dni', dni);
+                }
+            } else {
+                // 2. Create if doesn't exist
+                const { error: pError } = await supabase.from('personas').insert({
+                    dni,
+                    nombre_completo: toTitleCase(c.nombre_completo),
+                    cuit: normalizeID(c.cuit),
+                    nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
+                    fecha_nacimiento: c.fecha_nacimiento || null,
+                    domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
+                    nombres_padres: c.nombres_padres || null,
+                    estado_civil_detalle: c.estado_civil || null,
+                    datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
+                    contacto: { email: c.email || null, telefono: c.telefono || null },
+                    origen_dato: 'IA_OCR',
+                    updated_at: new Date().toISOString()
+                });
+
+                if (pError) {
+                    console.error("[INGEST] Error creating persona:", pError);
+                    continue;
+                }
+            }
+
+            // 3. Link to Operation
+            if (operacion) {
+                // Check if already linked
+                const { data: rel } = await supabase
+                    .from('participantes_operacion')
+                    .select('id')
+                    .eq('operacion_id', operacion.id)
+                    .eq('persona_id', dni)
+                    .single();
+
+                if (!rel) {
+                    await supabase.from('participantes_operacion').insert([{
+                        operacion_id: operacion.id,
+                        persona_id: dni,
+                        rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                    }]);
+                }
+
+                // 4. Generate Token for Ficha (Optional/Safety)
+                const { data: existingToken } = await supabase
+                    .from('fichas_web_tokens')
+                    .select('id')
+                    .eq('persona_id', dni)
+                    .eq('estado', 'PENDIENTE')
+                    .single();
+
+                if (!existingToken) {
+                    const expiresAt = new Date();
+                    expiresAt.setDate(expiresAt.getDate() + 30);
+                    await supabase.from('fichas_web_tokens').insert([{
+                        persona_id: dni,
+                        estado: 'PENDIENTE',
+                        expires_at: expiresAt.toISOString()
+                    }]);
+                }
             }
         }
 
