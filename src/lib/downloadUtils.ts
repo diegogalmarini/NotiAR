@@ -14,46 +14,58 @@ ${inmueble.transcripcion_literal || 'No disponible'}`;
 };
 
 export const downloadAsTxt = (filename: string, inmueble: any) => {
-    const content = formatInmuebleContent(inmueble);
-    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-    saveAs(blob, `${filename}.txt`);
+    try {
+        const content = formatInmuebleContent(inmueble);
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        saveAs(blob, `${filename}.txt`);
+    } catch (error) {
+        console.error("Error downloading as TXT:", error);
+    }
 };
 
 export const downloadAsPdf = (filename: string, inmueble: any) => {
-    const doc = new jsPDF();
-    const content = formatInmuebleContent(inmueble);
+    try {
+        const doc = new jsPDF();
+        const content = formatInmuebleContent(inmueble);
 
-    // Split text to fit page
-    const splitText = doc.splitTextToSize(content, 180);
+        // Split text to fit page
+        const splitText = doc.splitTextToSize(content, 180);
 
-    doc.setFontSize(12);
-    doc.text(splitText, 15, 15);
+        doc.setFontSize(12);
+        doc.text(splitText, 15, 15);
 
-    doc.save(`${filename}.pdf`);
+        doc.save(`${filename}.pdf`);
+    } catch (error) {
+        console.error("Error downloading as PDF:", error);
+    }
 };
 
 export const downloadAsDocx = async (filename: string, inmueble: any) => {
-    const content = formatInmuebleContent(inmueble);
+    try {
+        const content = formatInmuebleContent(inmueble);
 
-    const doc = new Document({
-        sections: [
-            {
-                properties: {},
-                children: [
-                    new Paragraph({
-                        children: [
-                            new TextRun({
-                                text: content,
-                                font: "Times New Roman",
-                                size: 24, // 12pt
-                            }),
-                        ],
-                    }),
-                ],
-            },
-        ],
-    });
+        const doc = new Document({
+            sections: [
+                {
+                    properties: {},
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun({
+                                    text: content,
+                                    font: "Times New Roman",
+                                    size: 24, // 12pt
+                                }),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        });
 
-    const blob = await Packer.toBlob(doc);
-    saveAs(blob, `${filename}.docx`);
+        const blob = await Packer.toBlob(doc);
+        saveAs(blob, `${filename}.docx`);
+    } catch (error) {
+        console.error("Error downloading as DOCX:", error);
+    }
 };

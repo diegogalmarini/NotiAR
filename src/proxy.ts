@@ -138,20 +138,33 @@ export default async function proxy(req: NextRequest) {
         return response;
     }
 
-    // Check if admin route and verify super admin access
+    // Check if admin route and verify access (Super admin or Admin role)
     if (isAdminRoute) {
         const userEmail = session.user.email || '';
         const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 
-        if (!SUPER_ADMIN_EMAILS.includes(userEmail)) {
-            console.log('[MIDDLEWARE] Not super admin, blocking admin route');
+        // 1. Check if super admin by email (bypass database check for speed/reliability)
+        if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
+            console.log('[MIDDLEWARE] Super admin confirmed by email, allowing admin route');
+            return response;
+        }
+
+        // 2. Check if user has 'admin' role in database
+        console.log('[MIDDLEWARE] Verifying admin role for user:', session.user.id);
+        const { data: profile, error: profileError } = await supabase
+            .from('user_profiles')
+            .select('role, approval_status')
+            .eq('id', session.user.id)
+            .single();
+
+        if (profileError || !profile || profile.role !== 'admin' || profile.approval_status !== 'approved') {
+            console.log('[MIDDLEWARE] Not an approved admin, blocking admin route:', { profile, error: profileError });
             const redirectUrl = req.nextUrl.clone();
             redirectUrl.pathname = '/unauthorized';
             return NextResponse.redirect(redirectUrl);
         }
 
-        console.log('[MIDDLEWARE] Super admin confirmed, allowing admin route');
-        // Admin is authenticated and authorized, allow access
+        console.log('[MIDDLEWARE] Admin role confirmed, allowing access');
         return response;
     }
 

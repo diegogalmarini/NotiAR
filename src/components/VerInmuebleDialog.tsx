@@ -54,8 +54,8 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-hidden mt-4 border rounded-md bg-slate-50 p-4">
-                    <div className="flex justify-between items-center mb-2">
+                <div className="flex-1 min-h-0 mt-4 border rounded-md bg-slate-50 p-4 flex flex-col">
+                    <div className="flex justify-between items-center mb-2 flex-shrink-0">
                         <p className="text-sm font-medium text-muted-foreground">Transcripción Literal:</p>
                         <div className="flex gap-1">
                             <Button
@@ -87,7 +87,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                             </Button>
                         </div>
                     </div>
-                    <ScrollArea className="h-[400px] w-full pr-4 text-justify text-sm leading-relaxed">
+                    <ScrollArea className="flex-1 pr-4 text-justify text-sm leading-relaxed whitespace-pre-wrap">
                         {inmueble.transcripcion_literal || "No hay transcripción disponible."}
                     </ScrollArea>
                 </div>
