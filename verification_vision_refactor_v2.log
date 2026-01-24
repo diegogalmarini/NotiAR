@@ -1,0 +1,22 @@
+------------------------------------------
+­ƒº¬ SMOKE TEST: THE FRANKENSTEIN DEED
+------------------------------------------
+[TEST] Step 1: Classification...
+[CLASSIFIER] Identifying document type...
+[EXECUTOR] Routing skill: notary-document-classifier
+[SKILLS] Fetching instruction for: notary-document-classifier
+[CLASSIFIER] Error during classification: TypeError: Cannot read properties of undefined (reading 'startsWith')
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:96:44)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async classifyDocument (C:\Users\diego\NotiAr\src\lib\skills\routing\documentClassifier.ts:24:24)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:52:32)
+[TEST] Result: UNKNOWN (Conf: 0)
+ÔØî FAILED: Did not identify as ESCRITURA
+
+[TEST] Step 2: Semantic Extraction...
+[EXECUTOR] Routing skill: notary-entity-extractor
+[SKILLS] Fetching instruction for: notary-entity-extractor
+ÔØî TEST CRASHED: TypeError: Cannot read properties of undefined (reading 'startsWith')
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:96:44)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:61:26)

@@ -1,4 +1,4 @@
-import { SkillExecutor, FileData } from "../../agent/SkillExecutor";
+import { SkillExecutor } from "../../agent/SkillExecutor";
 
 export type DocumentType = 'DNI' | 'PASAPORTE' | 'ESCRITURA' | 'BOLETO_COMPRAVENTA' | 'CERTIFICADO_RPI' | 'CATASTRO_ARBA' | 'UNKNOWN';
 
@@ -11,7 +11,7 @@ export interface ClassificationResult {
 /**
  * DocumentClassifier: Identifies the type of document using the specialized notary skill.
  */
-export async function classifyDocument(fileData: FileData, textContext?: string): Promise<ClassificationResult> {
+export async function classifyDocument(file: File, textContext?: string): Promise<ClassificationResult> {
     console.log(`[CLASSIFIER] Identifying document type...`);
 
     const context = {
@@ -21,7 +21,7 @@ export async function classifyDocument(fileData: FileData, textContext?: string)
     };
 
     try {
-        const result = await SkillExecutor.execute('notary-document-classifier', context, fileData);
+        const result = await SkillExecutor.execute('notary-document-classifier', file, context);
 
         // Map common outputs to our internal types
         let docType: DocumentType = 'UNKNOWN';

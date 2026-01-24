@@ -4,8 +4,10 @@ import { supabase } from '@/lib/supabaseClient';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
 import * as Sentry from "@sentry/nextjs";
-import { SkillExecutor, FileData } from '@/lib/agent/SkillExecutor';
-import { classifyDocument, DocumentType } from '@/lib/skills/routing/documentClassifier';
+import { SkillExecutor } from '@/lib/agent/SkillExecutor';
+import { classifyDocument } from '@/lib/skills/routing/documentClassifier';
+
+export const maxDuration = 60; // Increased timeout for Pro model processing
 
 // --- HELPERS ---
 
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
         } catch (e) { }
 
         // 2. Classify (The "Front Desk")
-        const classification = await classifyDocument(fileData, extractedText);
+        const classification = await classifyDocument(file, extractedText);
         console.log(`[PIPELINE] Document Classified as: ${classification.document_type} (${classification.confidence})`);
 
         // 3. Dynamic Routing Handler
@@ -68,14 +70,14 @@ export async function POST(request: Request) {
             case 'DNI':
             case 'PASAPORTE':
                 console.log("[PIPELINE] Executing Identity Workflow...");
-                aiData = await SkillExecutor.execute('notary-identity-vision', { extractedText }, fileData);
+                aiData = await SkillExecutor.execute('notary-identity-vision', file, { extractedText });
                 break;
 
             case 'ESCRITURA':
             case 'BOLETO_COMPRAVENTA':
                 console.log("[PIPELINE] Executing Deed Workflow...");
                 // Multi-step internal pipeline
-                const rawEntities = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                const rawEntities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
                 console.log("🤖 LLM Raw Response:", JSON.stringify(rawEntities, null, 2));
 
                 // VALIDATION: If critical data is missing, fail early to prevent zero-value corruption
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
                 const entities = rawEntities || { clientes: [], inmuebles: [], operation_details: {} };
 
                 // Deterministic calculation
-                const taxes = await SkillExecutor.execute('notary-tax-calculator', {
+                const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
                     price: entities.operation_details?.price || 0,
                     currency: entities.operation_details?.currency || 'USD',
                     exchangeRate: 1150,
@@ -96,7 +98,7 @@ export async function POST(request: Request) {
                     fiscalValuation: entities.inmuebles?.[0]?.valuacion_fiscal || 0
                 });
                 // Semantic compliance
-                const compliance = await SkillExecutor.execute('notary-uif-compliance', {
+                const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
                     price: entities.operation_details?.price || 0,
                     moneda: entities.operation_details?.currency || 'USD',
                     parties: entities.clientes?.map((c: any) => ({ name: c.nombre_completo, is_pep: false })) || []
@@ -104,7 +106,7 @@ export async function POST(request: Request) {
 
                 // Step D: Automated Drafting (Phase 4)
                 console.log("[PIPELINE] Executing Drafting Workflow...");
-                const draft = await SkillExecutor.execute('notary-deed-drafter', {
+                const draft = await SkillExecutor.execute('notary-deed-drafter', undefined, {
                     numero_escritura: entities.numero_escritura || "PROVISIONAL",
                     acto_titulo: entities.resumen_acto || "Compraventa",
                     fecha: entities.fecha_escritura || new Date().toISOString().split('T')[0],
@@ -122,13 +124,13 @@ export async function POST(request: Request) {
 
             case 'CERTIFICADO_RPI':
                 console.log("[PIPELINE] Executing Certificate Workflow...");
-                aiData = await SkillExecutor.execute('notary-rpi-reader', { text: extractedText }, fileData);
+                aiData = await SkillExecutor.execute('notary-rpi-reader', file, { text: extractedText });
                 break;
 
             default:
                 console.warn("[PIPELINE] Unknown document type, falling back to generic extraction.");
                 // Fallback to legacy-like extraction or generic semantic search
-                aiData = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                aiData = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
         }
 
         // 4. Persistence logic (Mapping back to legacy DB schemas for compatibility)
@@ -146,6 +148,7 @@ export async function POST(request: Request) {
 
     } catch (error: any) {
         console.error('Fatal Error Ingesting:', error);
+        console.error("🔥 FULL INGESTION ERROR:", error);
         Sentry.captureException(error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
