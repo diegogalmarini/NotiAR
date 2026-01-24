@@ -29,7 +29,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                     </Button>
                 </div>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
+            <DialogContent className="sm:max-w-[1200px] w-[95vw] max-h-[90vh] flex flex-col p-10">
                 <DialogHeader>
                     <div className="flex justify-between items-start pr-8">
                         <div>
