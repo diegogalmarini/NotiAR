@@ -49,7 +49,7 @@ async function runSmokeTest() {
     try {
         // STEP 1: CLASSIFICATION
         console.log("[TEST] Step 1: Classification...");
-        const classification = await classifyDocument(mockFileData, mockText);
+        const classification = await classifyDocument(mockFileData as any, mockText);
         console.log(`[TEST] Result: ${classification.document_type} (Conf: ${classification.confidence})`);
 
         if (classification.document_type !== 'ESCRITURA') {
@@ -58,11 +58,11 @@ async function runSmokeTest() {
 
         // STEP 2: SEMANTIC EXTRACTION (Entity Extractor)
         console.log("\n[TEST] Step 2: Semantic Extraction...");
-        const entities = await SkillExecutor.execute('notary-entity-extractor', { text: mockText }, mockFileData);
+        const entities = await SkillExecutor.execute('notary-entity-extractor', mockFileData as any, { text: mockText });
 
         // STEP 3: DETERMINISTIC CALCULATION (Tax Calculator)
         console.log("\n[TEST] Step 3: Deterministic Calculation...");
-        const taxes = await SkillExecutor.execute('notary-tax-calculator', {
+        const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
             price: 150000,
             currency: 'USD',
             exchangeRate: 1150,
@@ -81,7 +81,7 @@ async function runSmokeTest() {
                 { name: "Pedro El Escamoso", is_pep: true } // MOCKED PEP STATUS
             ]
         };
-        const compliance = await SkillExecutor.execute('notary-uif-compliance', complianceContext);
+        const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, complianceContext);
 
         // STEP 5: DEED DRAFTING (The Closing Loop)
         console.log("\n[TEST] Step 5: Generating Deed Draft...");
@@ -101,7 +101,7 @@ async function runSmokeTest() {
             tax_calculation: taxes,
             compliance: compliance
         };
-        const deedText = await SkillExecutor.execute('notary-deed-drafter', draftingContext);
+        const deedText = await SkillExecutor.execute('notary-deed-drafter', undefined, draftingContext);
 
         // FINAL CONSOLIDATED RESULT
         const finalResult = {
