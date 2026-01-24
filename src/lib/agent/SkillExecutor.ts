@@ -8,6 +8,7 @@ import { DeedDrafter, DraftingContext } from "@/lib/skills/generation/deedDrafte
 export interface FileData {
     buffer: Buffer;
     mimeType: string;
+    name?: string;
 }
 
 /**
@@ -43,6 +44,28 @@ export class SkillExecutor {
     }
 
     /**
+     * Converts FileData to a generative part compatible with Hub's API.
+     */
+    private static async fileToGenerativePart(fileData: FileData): Promise<any> {
+        const buffer = fileData.buffer;
+        const base64Data = buffer.toString('base64');
+
+        console.log(`[SkillExecutor] Processing File: ${fileData.name || 'document'}`);
+        console.log(`[SkillExecutor] MimeType: ${fileData.mimeType}`);
+        console.log(`[SkillExecutor] File Size (bytes): ${buffer.length}`);
+        console.log(`[SkillExecutor] Base64 Length: ${base64Data.length}`);
+
+        console.log(`🚀 Vision Payload: ${fileData.mimeType} | Base64: ${base64Data.substring(0, 20)}...`);
+
+        return {
+            inlineData: {
+                data: base64Data,
+                mimeType: fileData.mimeType || "application/pdf",
+            },
+        };
+    }
+
+    /**
      * Executes a qualitative skill using LLM with the SKILL.md definition as context.
      */
     private static async executeSemanticSkill(skillSlug: string, context: any, fileData?: FileData): Promise<any> {
@@ -52,6 +75,7 @@ export class SkillExecutor {
             throw new Error(`Skill ${skillSlug} is not active or indexed in the Registry.`);
         }
 
+        // USE PRO MODEL FOR DOCUMENTS (High accuracy required for OCR)
         const modelName = await getLatestModel('INGEST');
         const model = this.genAI.getGenerativeModel({
             model: modelName,
@@ -78,24 +102,37 @@ export class SkillExecutor {
         const parts: any[] = [{ text: systemPrompt }, { text: userContext }];
 
         if (fileData) {
-            const base64Data = fileData.buffer.toString('base64');
-            console.log(`🚀 Vision Payload: ${fileData.mimeType} | Size: ${fileData.buffer.length} bytes | Base64: ${base64Data.substring(0, 20)}...`);
-            parts.push({
-                inlineData: {
-                    data: base64Data,
-                    mimeType: fileData.mimeType
-                }
-            });
+            // Only add binary data if it's a multimodal supported type (PDF or Image)
+            const isMultimodal = fileData.mimeType.startsWith('image/') || fileData.mimeType === 'application/pdf';
+
+            if (isMultimodal) {
+                const visionPart = await this.fileToGenerativePart(fileData);
+                parts.push(visionPart);
+            } else {
+                console.log(`[EXECUTOR] Skipping Vision Part for ${fileData.mimeType} (Not a multimodal supported type)`);
+            }
         }
 
         try {
-            console.log(`[EXECUTOR][SEMANTIC] Calling LLM for ${skillSlug}...`);
+            console.log(`[EXECUTOR][SEMANTIC] Calling LLM (gemini-1.5-pro) for ${skillSlug}...`);
             const result = await model.generateContent(parts);
             const responseText = result.response.text();
 
+            console.log(`[EXECUTOR][RAW_RESPONSE] for ${skillSlug}:`, responseText.substring(0, 100) + (responseText.length > 100 ? '...' : ''));
+
+            if (!responseText || responseText.trim() === "") {
+                throw new Error("LLM returned an empty response.");
+            }
+
             // Clean markdown if LLM includes it despite responseMimeType
             const cleanJson = responseText.replace(/```json|```/g, "").trim();
-            return JSON.parse(cleanJson);
+
+            try {
+                return JSON.parse(cleanJson);
+            } catch (jsonError) {
+                console.error(`[EXECUTOR][JSON_PARSE_ERROR] Failed to parse:`, cleanJson);
+                throw new Error(`LLM returned invalid JSON for ${skillSlug}`);
+            }
         } catch (error: any) {
             console.error(`[EXECUTOR][SEMANTIC] Error executing ${skillSlug}:`, error);
             throw new Error(`Failed to execute semantic skill ${skillSlug}: ${error.message}`);

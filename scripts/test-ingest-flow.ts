@@ -31,13 +31,14 @@ async function runSmokeTest() {
 
     // MOCK DATA: A dirty text representing a deed
     const mockText = `
-        ESCRITURA NUMERO QUINIENTOS. En Bahia Blanca, 23 de Enero de 2026.
-        OBJETO: COMPRAVENTA INMOBILIARIA.
-        VENDEDOR: PEREZ, Juan (DNI 10.000.001).
-        COMPRADOR: Pedro El Escamoso (DNI 20.000.002), quien declara ser PERSONA EXPUESTA POLITICAMENTE (PEP).
+        ESCRITURA NUMERO QUINIENTOS. En la ciudad de Bahia Blanca, 23 de Enero de 2026.
+        ANTE MI, Alejandro Atilio Galmarini, comparecen:
+        Por una parte PEREZ, Juan (DNI 10.000.001), argentino, de estado civil soltero.
+        Por la otra parte Pedro El Escamoso (DNI 20.000.002), colombiano.
+        PRIMERO: El primero VENDE y el segundo COMPRA el siguiente inmueble ubicado en Estomba 450.
         PRECIO: La suma de CIENTO CINCUENTA MIL DOLARES ESTADOUNIDENSES (USD 150.000).
-        INMUEBLE: Estomba 450. Valuacion Fiscal: $50.000.000.
-        FECHA ADQUISICION VENDEDOR: 10 de Marzo de 2010.
+        Valuacion Fiscal: $50.000.000.
+        Titularidad: Adquirido el 10 de Marzo de 2010.
     `;
 
     const mockFileData = {

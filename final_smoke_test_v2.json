@@ -1,0 +1,45 @@
+------------------------------------------
+­ƒº¬ SMOKE TEST: THE FRANKENSTEIN DEED
+------------------------------------------
+[TEST] Step 1: Classification...
+[CLASSIFIER] Identifying document type...
+[EXECUTOR] Routing skill: notary-document-classifier
+[SKILLS] Fetching instruction for: notary-document-classifier
+[EXECUTOR][VISION] Adding binary data for notary-document-classifier (text/plain)
+[EXECUTOR][SEMANTIC] Calling LLM for notary-document-classifier...
+[TEST] Result: ESCRITURA (Conf: 6)
+
+[TEST] Step 2: Semantic Extraction...
+[EXECUTOR] Routing skill: notary-entity-extractor
+[SKILLS] Fetching instruction for: notary-entity-extractor
+[EXECUTOR][VISION] Adding binary data for notary-entity-extractor (text/plain)
+[EXECUTOR][SEMANTIC] Calling LLM for notary-entity-extractor...
+
+[TEST] Step 3: Deterministic Calculation...
+[EXECUTOR] Routing skill: notary-tax-calculator
+
+[TEST] Step 4: Semantic Compliance Audit...
+[EXECUTOR] Routing skill: notary-uif-compliance
+[SKILLS] Fetching instruction for: notary-uif-compliance
+[EXECUTOR][SEMANTIC] Calling LLM for notary-uif-compliance...
+
+[TEST] Step 5: Generating Deed Draft...
+[EXECUTOR] Routing skill: notary-deed-drafter
+
+------------------------------------------
+­ƒôè FINAL SMOKE TEST JSON OUTPUT:
+{
+  "classification": {
+    "document_type": "ESCRITURA",
+    "confidence": 6
+  },
+  "extraction": {},
+  "taxes": {
+    "total_ars": 8929500,
+    "sellos": 1650000,
+    "iti": 2587500
+  },
+  "compliance_alert": "HIGH",
+  "deed_draft": "ESCRITURA NUMERO QUINIENTOS.- COMPRAVENTA INMOBILIARIA.- En la ciudad de Bah├¡a Blanca, provincia de Buenos Aires, a los veinticuatro de enero de dos mil veintiseis, ante m├¡, ALEJANDRO ATILIO GALMARINI, Notario Titular del Registro SETENTA, COMPARECEN: por una parte PEREZ, Juan, argentino, DNI 10.000.001; por una parte ESCAMOSO, Pedro El, colombiano, DNI 20.000.002.\n\nINTERVENCION: Los comparecientes intervienen por su propio derecho. Y el vendedor DICE: Que VENDE, CEDE y TRANSFIERE a favor de la parte compradora, el siguiente Inmueble: \nUN LOTE DE TERRENO ubicado en la ciudad de Bah├¡a Blanca, calle Estomba 450...\n\nPRECIO: La presente operaci├│n se realiza por el precio total de PESOS CIENTO SETENTA Y DOS MILLONES QUINIENTOS MIL ($ 172.500.000,00), que la parte vendedora manifiesta haber recibido con anterioridad a este acto.\n\nCONSTANCIAS UIF: \n- ADVERTENCIA: Pedro El Escamoso es PEP. Reforzar Debida Diligencia.\n- MONTO (172,500,000.00 ARS) SUPERA UMBRAL DE JUSTIFICACI├ôN.\nManifestando el comprador bajo fe de juramento su condici├│n de Persona Expuesta Pol├¡ticamente (PEP).\n\nIMPUESTOS Y TASAS: Se hace constar que se retienen las siguientes sumas: Impuesto de Sellos: PESOS UN MILL├ôN SEISCIENTOS CINCUENTA MIL ($ 1.650.000,00); ITI: PESOS DOS MILLONES QUINIENTOS OCHENTA Y SIETE MIL QUINIENTOS ($ 2.587.500,00). \n\nCIERRE: Leo a los comparecientes, quienes se ratifican en su contenido y firman ante m├¡, de lo que doy fe."
+}
+------------------------------------------

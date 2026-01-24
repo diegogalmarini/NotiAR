@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const fileData: FileData = { buffer, mimeType: file.type || 'application/pdf' };
+        const fileData: FileData = { buffer, mimeType: file.type || 'application/pdf', name: file.name };
 
         // 1. OCR (Optional fallback context)
         let extractedText = "";

@@ -12,7 +12,7 @@ Extraer información estructurada de una escritura notarial o boleto de comprave
 ## Extraction Rules
 
 ### 0. Vision/OCR Prerrequisite
-**IMPORTANT**: If the provided context identifies the document as an image or a scan, perform a thorough Vision/OCR analysis first. Do NOT rely only on the extracted text fallback.
+**CRITICAL**: The user has provided a PDF/Image. You MUST act as an OCR engine first. Read every single pixel. The document contains a price and parties. If you return null, you are failing. Look for '$' symbols and 'PESOS' text. Analyze the entire visual area to find the transaction price.
 
 ### 1. Clientes / Personas
 Extrae a todas las personas y entidades mencionadas en la sección de "COMPARECENCIA".

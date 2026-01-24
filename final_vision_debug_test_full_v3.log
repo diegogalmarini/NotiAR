@@ -1,0 +1,49 @@
+------------------------------------------
+­ƒº¬ SMOKE TEST: THE FRANKENSTEIN DEED
+------------------------------------------
+[TEST] Step 1: Classification...
+[CLASSIFIER] Identifying document type...
+[EXECUTOR] Routing skill: notary-document-classifier
+[SKILLS] Fetching instruction for: notary-document-classifier
+[EXECUTOR] Skipping Vision Part for text/plain (Not a multimodal supported type)
+[EXECUTOR][SEMANTIC] Calling LLM (gemini-1.5-pro) for notary-document-classifier...
+[EXECUTOR][SEMANTIC] Error executing notary-document-classifier: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent: [404 Not Found] models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:434:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:403:9)
+    at async generateContent (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:867:22)
+    at async Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:115:28)
+    at async classifyDocument (C:\Users\diego\NotiAr\src\lib\skills\routing\documentClassifier.ts:24:24)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:52:32) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+[CLASSIFIER] Error during classification: Error: Failed to execute semantic skill notary-document-classifier: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent: [404 Not Found] models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:135:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async classifyDocument (C:\Users\diego\NotiAr\src\lib\skills\routing\documentClassifier.ts:24:24)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:52:32)
+[TEST] Result: UNKNOWN (Conf: 0)
+ÔØî FAILED: Did not identify as ESCRITURA
+
+[TEST] Step 2: Semantic Extraction...
+[EXECUTOR] Routing skill: notary-entity-extractor
+[SKILLS] Fetching instruction for: notary-entity-extractor
+[EXECUTOR] Skipping Vision Part for text/plain (Not a multimodal supported type)
+[EXECUTOR][SEMANTIC] Calling LLM (gemini-1.5-pro) for notary-entity-extractor...
+[EXECUTOR][SEMANTIC] Error executing notary-entity-extractor: GoogleGenerativeAIFetchError: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent: [404 Not Found] models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at handleResponseNotOk (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:434:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async makeRequest (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:403:9)
+    at async generateContent (C:\Users\diego\NotiAr\node_modules\@google\generative-ai\dist\index.js:867:22)
+    at async Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:115:28)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:61:26) {
+  status: 404,
+  statusText: 'Not Found',
+  errorDetails: undefined
+}
+ÔØî TEST CRASHED: Error: Failed to execute semantic skill notary-entity-extractor: [GoogleGenerativeAI Error]: Error fetching from https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent: [404 Not Found] models/gemini-1.5-pro is not found for API version v1beta, or is not supported for generateContent. Call ListModels to see the list of available models and their supported methods.
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:135:19)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:61:26)
