@@ -109,6 +109,7 @@ export async function POST(request: Request) {
                 });
 
                 aiData = { ...entities, tax_calculation: taxes, compliance, deed_draft: draft };
+                console.log("[PIPELINE] Consolidated AI Data:", JSON.stringify(aiData, null, 2));
                 break;
 
             case 'CERTIFICADO_RPI':
@@ -162,9 +163,9 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
     const { data: carpeta, error: cError } = await supabase
         .from('carpetas')
         .insert([{
-            caratula: `${resumen_acto}: ${file.name}`,
+            caratula: `${docType}: ${file.name}`,
             estado: 'ABIERTA',
-            resumen_ia: resumen_acto
+            resumen_ia: `Ingesta automática de ${docType} (${classification.confidence}/10)`
         }])
         .select()
         .single();

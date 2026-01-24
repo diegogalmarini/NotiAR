@@ -67,7 +67,8 @@ export class SkillExecutor {
             ${skillDoc}
             ---
             
-            TASK: Process the provided INPUT CONTEXT according to the rules in the SKILL definition.
+            TASK: Process the provided INPUT CONTEXT AND ANY ATTACHED IMAGES/FILES according to the rules in the SKILL definition.
+            IMPORTANT: If an image or file is provided, it is the PRIMARY source of truth. Scanned documents should be read using your Vision capabilities.
             OUTPUT: Return a valid JSON object only. No preamble.
         `;
 
