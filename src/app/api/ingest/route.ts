@@ -92,7 +92,21 @@ export async function POST(request: Request) {
                     parties: entities.clientes?.map((c: any) => ({ name: c.nombre_completo, is_pep: false })) || []
                 });
 
-                aiData = { ...entities, tax_calculation: taxes, compliance };
+                // Step D: Automated Drafting (Phase 4)
+                console.log("[PIPELINE] Executing Drafting Workflow...");
+                const draft = await SkillExecutor.execute('notary-deed-drafter', {
+                    numero_escritura: entities.numero_escritura || "PROVISIONAL",
+                    acto_titulo: entities.resumen_acto || "Compraventa",
+                    fecha: entities.fecha_escritura || new Date().toISOString().split('T')[0],
+                    escribano: entities.notario_interviniente || "Escribanía Galmarini",
+                    registro: entities.registro_notario || "SETENTA",
+                    clientes: entities.clientes,
+                    inmuebles: entities.inmuebles,
+                    tax_calculation: taxes,
+                    compliance
+                });
+
+                aiData = { ...entities, tax_calculation: taxes, compliance, deed_draft: draft };
                 break;
 
             case 'CERTIFICADO_RPI':
@@ -187,7 +201,8 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
         inmueble_princ_id: propertyIds[0] || null,
         notario_interviniente,
         registro: registro_notario,
-        pdf_url: fileUrl
+        pdf_url: fileUrl,
+        contenido_borrador: data.deed_draft || null
     }]).select().single();
 
     // 5. Process Personas

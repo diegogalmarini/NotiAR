@@ -3,6 +3,7 @@ import { getSkillInstruction } from "@/lib/knowledge";
 import { getLatestModel } from "@/lib/aiConfig";
 import { calculateNotaryExpenses, TaxCalculationInput } from "@/lib/skills/deterministic/taxCalculator";
 import { planTimeline, TimelinePlan } from "@/lib/skills/deterministic/timelinePlanner";
+import { DeedDrafter, DraftingContext } from "@/lib/skills/generation/deedDrafter";
 
 export interface FileData {
     buffer: Buffer;
@@ -12,7 +13,7 @@ export interface FileData {
 /**
  * SkillExecutor: The "Hybrid Router" of NotiAR.
  * It decides whether to use a semantic (LLM) or deterministic (Code) approach.
- * Now supports Multimodal (Vision) inputs.
+ * Now supports Multimodal (Vision) inputs and Drafting generation.
  */
 export class SkillExecutor {
     private static genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -31,6 +32,10 @@ export class SkillExecutor {
 
         if (skillSlug === 'notary-timeline-planner') {
             return planTimeline(context.targetDate, context.jurisdiction, context.mode);
+        }
+
+        if (skillSlug === 'notary-deed-drafter') {
+            return DeedDrafter.generate(context as DraftingContext);
         }
 
         // --- 2. SEMANTIC ROUTING (LLM Reasoning + Vision) ---

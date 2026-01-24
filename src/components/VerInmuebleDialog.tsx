@@ -29,7 +29,7 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                     </Button>
                 </div>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+            <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
                     <div className="flex justify-between items-start pr-8">
                         <div>
@@ -54,40 +54,40 @@ export function VerInmuebleDialog({ inmueble }: VerInmuebleDialogProps) {
                     </div>
                 </div>
 
-                <div className="flex-1 min-h-0 mt-4 border rounded-md bg-slate-50 p-4 flex flex-col">
-                    <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                        <p className="text-sm font-medium text-muted-foreground">Transcripción Literal:</p>
-                        <div className="flex gap-1">
+                <div className="flex-1 min-h-0 mt-4 border rounded-md bg-slate-50 p-6 flex flex-col overflow-hidden">
+                    <div className="flex justify-between items-center mb-4 flex-shrink-0">
+                        <p className="text-sm font-semibold text-slate-700">Transcripción Literal:</p>
+                        <div className="flex gap-2">
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs gap-1"
+                                className="h-8 text-xs gap-2 px-3 shadow-sm hover:bg-white"
                                 onClick={() => downloadAsTxt(filename, inmueble)}
                                 title="Descargar como TXT"
                             >
-                                <FileText className="h-3 w-3" /> TXT
+                                <FileText className="h-3.5 w-3.5" /> TXT
                             </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs gap-1"
+                                className="h-8 text-xs gap-2 px-3 shadow-sm hover:bg-white"
                                 onClick={() => downloadAsPdf(filename, inmueble)}
                                 title="Descargar como PDF"
                             >
-                                <File className="h-3 w-3" /> PDF
+                                <File className="h-3.5 w-3.5" /> PDF
                             </Button>
                             <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-7 text-xs gap-1"
+                                className="h-8 text-xs gap-2 px-3 shadow-sm hover:bg-white"
                                 onClick={() => downloadAsDocx(filename, inmueble)}
                                 title="Descargar como DOCX"
                             >
-                                <FileType className="h-3 w-3" /> DOCX
+                                <FileType className="h-3.5 w-3.5" /> DOCX
                             </Button>
                         </div>
                     </div>
-                    <ScrollArea className="flex-1 pr-4 text-justify text-sm leading-relaxed whitespace-pre-wrap">
+                    <ScrollArea className="flex-1 pr-4 text-justify text-sm leading-relaxed whitespace-pre-wrap font-mono text-slate-600 bg-white p-4 rounded border shadow-inner">
                         {inmueble.transcripcion_literal || "No hay transcripción disponible."}
                     </ScrollArea>
                 </div>
