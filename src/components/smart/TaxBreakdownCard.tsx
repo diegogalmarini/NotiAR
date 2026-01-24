@@ -35,12 +35,14 @@ export function TaxBreakdownCard({ taxData }: TaxBreakdownProps) {
         }).format(val);
     };
 
+    const detail = taxData.detail || { sellosPba: 0, itiAfip: 0, honorarios: 0, iva21: 0, aportesNotariales: 0 };
+
     const rows = [
-        { label: 'Impuesto de Sellos (PBA)', value: taxData.detail.sellosPba, color: 'text-slate-700' },
-        { label: 'ITI (AFIP)', value: taxData.detail.itiAfip, color: 'text-slate-700' },
-        { label: 'Honorarios Notariales', value: taxData.detail.honorarios, color: 'text-slate-700' },
-        { label: 'IVA (21%)', value: taxData.detail.iva21, color: 'text-slate-700' },
-        { label: 'Aportes (Caja Notarial)', value: taxData.detail.aportesNotariales, color: 'text-slate-700' },
+        { label: 'Impuesto de Sellos (PBA)', value: detail.sellosPba || 0, color: 'text-slate-700' },
+        { label: 'ITI (AFIP)', value: detail.itiAfip || 0, color: 'text-slate-700' },
+        { label: 'Honorarios Notariales', value: detail.honorarios || 0, color: 'text-slate-700' },
+        { label: 'IVA (21%)', value: detail.iva21 || 0, color: 'text-slate-700' },
+        { label: 'Aportes (Caja Notarial)', value: detail.aportesNotariales || 0, color: 'text-slate-700' },
     ];
 
     return (

@@ -75,7 +75,9 @@ export async function POST(request: Request) {
             case 'BOLETO_COMPRAVENTA':
                 console.log("[PIPELINE] Executing Deed Workflow...");
                 // Multi-step internal pipeline
-                const entities = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                const rawEntities = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                const entities = rawEntities || { clientes: [], inmuebles: [], operation_details: {} };
+
                 // Deterministic calculation
                 const taxes = await SkillExecutor.execute('notary-tax-calculator', {
                     price: entities.operation_details?.price || 0,

@@ -30,24 +30,27 @@ export class DeedDrafter {
             compliance
         } = context;
 
-        const dateTxt = formatNotaryDate(fecha);
-        const vendors = clientes.filter(c => c.rol?.includes('VENDEDOR'));
-        const buyers = clientes.filter(c => c.rol?.includes('COMPRADOR'));
+        const safeClientes = clientes || [];
+        const safeInmuebles = inmuebles || [];
+        const dateTxt = fecha ? formatNotaryDate(fecha) : "FECHA PENDIENTE";
 
-        let text = `ESCRITURA NUMERO ${numero_escritura.toUpperCase()}.- ${acto_titulo.toUpperCase()}.- `;
+        const vendors = safeClientes.filter(c => c.rol?.includes('VENDEDOR'));
+        const buyers = safeClientes.filter(c => c.rol?.includes('COMPRADOR'));
+
+        let text = `ESCRITURA NUMERO ${(numero_escritura || "___").toUpperCase()}.- ${(acto_titulo || "ACTO").toUpperCase()}.- `;
         text += `En la ciudad de Bahía Blanca, provincia de Buenos Aires, a los ${dateTxt}, `;
-        text += `ante mí, ${escribano.toUpperCase()}, Notario Titular del Registro ${registro.toUpperCase()}, COMPARECEN: `;
+        text += `ante mí, ${(escribano || "ESCRIBANO").toUpperCase()}, Notario Titular del Registro ${(registro || "___").toUpperCase()}, COMPARECEN: `;
 
         // Comparecencia
-        clientes.forEach((c, i) => {
-            const formattedName = formatNotaryName(c.nombre_completo);
-            text += `por una parte ${formattedName}, ${c.nacionalidad || 'argentino'}, DNI ${c.dni}${i === clientes.length - 1 ? '.' : '; '}`;
+        safeClientes.forEach((c, i) => {
+            const formattedName = formatNotaryName(c.nombre_completo || "SIN NOMBRE");
+            text += `por una parte ${formattedName}, ${c.nacionalidad || 'argentino'}, DNI ${c.dni || "___"}${i === safeClientes.length - 1 ? '.' : '; '}`;
         });
 
         text += `\n\nINTERVENCION: Los comparecientes intervienen por su propio derecho. Y el vendedor DICE: Que VENDE, CEDE y TRANSFIERE a favor de la parte compradora, el siguiente Inmueble: `;
 
         // Inmueble
-        inmuebles.forEach(i => {
+        safeInmuebles.forEach(i => {
             text += `\n${i.transcripcion_literal || '[FALTA DESCRIPCION TECNICA]'}`;
         });
 
