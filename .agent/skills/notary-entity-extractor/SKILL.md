@@ -11,6 +11,9 @@ Extraer información estructurada de una escritura notarial o boleto de comprave
 
 ## Extraction Rules
 
+### 0. Vision/OCR Prerrequisite
+**IMPORTANT**: If the provided context identifies the document as an image or a scan, perform a thorough Vision/OCR analysis first. Do NOT rely only on the extracted text fallback.
+
 ### 1. Clientes / Personas
 Extrae a todas las personas y entidades mencionadas en la sección de "COMPARECENCIA".
 - **nombre_completo**: Nombre y Apellido (Si es persona física, formatea como: APELLIDO, Nombre).
@@ -29,7 +32,8 @@ Extrae los inmuebles objeto de la operación.
 - **valuacion_fiscal**: Monto si consta.
 
 ### 3. Detalles de Operación
-- **price**: El monto de la operación (numérico).
+- **price**: El monto de la operación (numérico). 
+  - **STRICT RULE**: If the price is NOT clearly found in the document, return `null`. **NEVER return `0`** unless it explicitly says zero (which is impossible for these deeds).
 - **currency**: "USD" o "ARS".
 - **fecha_escritura**: Fecha del acto (YYYY-MM-DD).
 - **numero_escritura**: Número de protocolo/escritura.

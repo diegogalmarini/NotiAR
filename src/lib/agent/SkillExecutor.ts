@@ -78,10 +78,11 @@ export class SkillExecutor {
         const parts: any[] = [{ text: systemPrompt }, { text: userContext }];
 
         if (fileData) {
-            console.log(`[EXECUTOR][VISION] Adding binary data for ${skillSlug} (${fileData.mimeType})`);
+            const base64Data = fileData.buffer.toString('base64');
+            console.log(`🚀 Vision Payload: ${fileData.mimeType} | Size: ${fileData.buffer.length} bytes | Base64: ${base64Data.substring(0, 20)}...`);
             parts.push({
                 inlineData: {
-                    data: fileData.buffer.toString('base64'),
+                    data: base64Data,
                     mimeType: fileData.mimeType
                 }
             });

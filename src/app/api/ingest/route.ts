@@ -76,6 +76,14 @@ export async function POST(request: Request) {
                 console.log("[PIPELINE] Executing Deed Workflow...");
                 // Multi-step internal pipeline
                 const rawEntities = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                console.log("🤖 LLM Raw Response:", JSON.stringify(rawEntities, null, 2));
+
+                // VALIDATION: If critical data is missing, fail early to prevent zero-value corruption
+                if (!rawEntities || (!rawEntities.clientes?.length && !rawEntities.operation_details?.price)) {
+                    console.error("[PIPELINE] Extraction Validation Failed: No entities or price found.");
+                    throw new Error("La IA no pudo extraer datos del documento (ID de partes o Precio). Verifique que el escaneado sea legible.");
+                }
+
                 const entities = rawEntities || { clientes: [], inmuebles: [], operation_details: {} };
 
                 // Deterministic calculation
@@ -160,12 +168,13 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
     } = data;
 
     // 1. Create Carpeta
+    // Ensure docType is available in this scope or pass it
     const { data: carpeta, error: cError } = await supabase
         .from('carpetas')
         .insert([{
-            caratula: `${docType}: ${file.name}`,
+            caratula: `Ingesta: ${file.name}`,
             estado: 'ABIERTA',
-            resumen_ia: `Ingesta automática de ${docType} (${classification.confidence}/10)`
+            resumen_ia: `Ingesta automática (${data.resumen_acto || 'Documento'})`
         }])
         .select()
         .single();
