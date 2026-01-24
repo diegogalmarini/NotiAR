@@ -82,6 +82,26 @@ async function runSmokeTest() {
         };
         const compliance = await SkillExecutor.execute('notary-uif-compliance', complianceContext);
 
+        // STEP 5: DEED DRAFTING (The Closing Loop)
+        console.log("\n[TEST] Step 5: Generating Deed Draft...");
+        const draftingContext = {
+            numero_escritura: "QUINIENTOS",
+            acto_titulo: "Compraventa Inmobiliaria",
+            fecha: "2026-01-23",
+            escribano: "ALEJANDRO ATILIO GALMARINI",
+            registro: "SETENTA",
+            clientes: [
+                { nombre_completo: "Juan Perez", dni: "10.000.001", nacionalidad: "argentino", rol: "VENDEDOR" },
+                { nombre_completo: "Pedro El Escamoso", dni: "20.000.002", nacionalidad: "colombiano", rol: "COMPRADOR" }
+            ],
+            inmuebles: [
+                { transcripcion_literal: "UN LOTE DE TERRENO ubicado en la ciudad de Bahía Blanca, calle Estomba 450..." }
+            ],
+            tax_calculation: taxes,
+            compliance: compliance
+        };
+        const deedText = await SkillExecutor.execute('notary-deed-drafter', draftingContext);
+
         // FINAL CONSOLIDATED RESULT
         const finalResult = {
             classification,
@@ -95,7 +115,7 @@ async function runSmokeTest() {
                 iti: taxes.detail.itiAfip
             },
             compliance_alert: compliance.risk_level,
-            compliance_details: compliance.alerts
+            deed_draft: deedText
         };
 
         console.log("\n------------------------------------------");

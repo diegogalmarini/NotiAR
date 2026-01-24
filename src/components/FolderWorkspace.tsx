@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus, Download, Eye } from "lucide-react";
+import { FileText, Activity, Users, Home, UserPlus, Link as LinkIcon, Plus, FileSignature, ClipboardCheck, Trash2, Pencil, UserMinus, Download, Eye, Wallet } from "lucide-react";
 import { PersonSearch } from "./PersonSearch";
 import { PersonForm } from "./PersonForm";
 import { AssetSearch } from "./AssetSearch";
@@ -21,6 +21,9 @@ import { updateEscritura, updateOperacion, updateInmueble } from "@/app/actions/
 import { ClientOutreach } from "./ClientOutreach";
 import { listStorageFiles, deleteStorageFile } from "@/app/actions/storageSync";
 import { toast } from "sonner";
+import { ComplianceTrafficLight } from "./smart/ComplianceTrafficLight";
+import { TaxBreakdownCard } from "./smart/TaxBreakdownCard";
+import { SmartDeedEditor } from "./smart/SmartDeedEditor";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
@@ -186,14 +189,22 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     return (
         <Tabs defaultValue="mesa" className="w-full">
             <div className="flex justify-between items-center mb-6">
-                <TabsList className={`grid w-fit ${carpeta.estado === 'FIRMADA' || carpeta.estado === 'INSCRIPTA' ? 'grid-cols-4' : 'grid-cols-3'}`}>
+                <TabsList className={`grid w-fit ${carpeta.estado === 'FIRMADA' || carpeta.estado === 'INSCRIPTA' ? 'grid-cols-6' : 'grid-cols-5'}`}>
                     <TabsTrigger value="mesa" className="flex items-center gap-2">
                         <Activity className="h-4 w-4" />
                         Mesa de Trabajo
                     </TabsTrigger>
-                    <TabsTrigger value="draft" className="flex items-center gap-2">
+                    <TabsTrigger value="budget" className="flex items-center gap-2">
+                        <Wallet className="h-4 w-4" />
+                        Presupuesto
+                    </TabsTrigger>
+                    <TabsTrigger value="smart-draft" className="flex items-center gap-2">
                         <FileSignature className="h-4 w-4" />
-                        Redacción
+                        Borrador Inteligente
+                    </TabsTrigger>
+                    <TabsTrigger value="draft" className="flex items-center gap-2">
+                        <Pencil className="h-4 w-4" />
+                        Redacción (Manual)
                     </TabsTrigger>
                     <TabsTrigger value="compliance" className="flex items-center gap-2">
                         <ClipboardCheck className="h-4 w-4" />
@@ -207,6 +218,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     )}
                 </TabsList>
                 <div className="flex items-center gap-3">
+                    {currentEscritura?.analysis_metadata?.compliance && (
+                        <ComplianceTrafficLight compliance={currentEscritura.analysis_metadata.compliance} />
+                    )}
                     <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
@@ -593,6 +607,27 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     </div>
                 </div>
             </TabsContent >
+
+            <TabsContent value="budget">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className="lg:col-span-12">
+                        <TaxBreakdownCard taxData={currentEscritura?.analysis_metadata?.tax_calculation} />
+                    </div>
+                </div>
+            </TabsContent>
+
+            <TabsContent value="smart-draft">
+                {activeDeedId ? (
+                    <SmartDeedEditor
+                        escrituraId={activeDeedId}
+                        initialContent={currentEscritura?.contenido_borrador}
+                    />
+                ) : (
+                    <div className="flex items-center justify-center h-[500px] border-2 border-dashed rounded-xl">
+                        <p className="text-muted-foreground">Seleccione una escritura para ver el borrador inteligente</p>
+                    </div>
+                )}
+            </TabsContent>
 
             <TabsContent value="draft" className="h-[calc(100vh-180px)] overflow-hidden">
                 {activeDeedId ? (

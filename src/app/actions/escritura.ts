@@ -8,6 +8,7 @@ export async function updateEscritura(escrituraId: string, data: {
     fecha_escritura?: string | null;
     notario_interviniente?: string | null;
     registro?: string | null;
+    contenido_borrador?: string | null;
 }) {
     try {
         const supabase = await createClient();

@@ -202,7 +202,11 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
         notario_interviniente,
         registro: registro_notario,
         pdf_url: fileUrl,
-        contenido_borrador: data.deed_draft || null
+        contenido_borrador: data.deed_draft || null,
+        analysis_metadata: {
+            tax_calculation: data.tax_calculation,
+            compliance: data.compliance
+        }
     }]).select().single();
 
     // 5. Process Personas
