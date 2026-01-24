@@ -3,20 +3,11 @@ import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabaseClient';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getLatestModel } from '@/lib/aiConfig';
 import * as Sentry from "@sentry/nextjs";
+import { SkillExecutor, FileData } from '@/lib/agent/SkillExecutor';
+import { classifyDocument, DocumentType } from '@/lib/skills/routing/documentClassifier';
 
-// Dynamic imports for Node.js modules to prevent evaluation errors in some environments
-async function getPdfParser() {
-    const pdf = await import("pdf-parse") as any;
-    return pdf.default || pdf;
-}
-
-async function getMammoth() {
-    const mammoth = await import("mammoth") as any;
-    return mammoth.default || mammoth;
-}
+// --- HELPERS ---
 
 async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
@@ -25,7 +16,8 @@ async function extractTextFromFile(file: File): Promise<string> {
 
     if (fileName.endsWith('.pdf')) {
         try {
-            const pdfParser = await getPdfParser();
+            const pdf = await import("pdf-parse") as any;
+            const pdfParser = pdf.default || pdf;
             const data = await pdfParser(buffer);
             return data.text || "";
         } catch (err: any) {
@@ -34,124 +26,19 @@ async function extractTextFromFile(file: File): Promise<string> {
         }
     } else if (fileName.endsWith('.docx')) {
         try {
-            const mammoth = await getMammoth();
-            const result = await mammoth.extractRawText({ buffer });
+            const mammoth = await import("mammoth") as any;
+            const mammothParser = mammoth.default || mammoth;
+            const result = await mammothParser.extractRawText({ buffer });
             return result.value || "";
         } catch (err: any) {
             console.error("[EXTRACT] DOCX Error:", err);
             throw new Error(`Error leyendo DOCX: ${err.message}`);
         }
-    } else {
-        throw new Error("Formato no compatible (PDF/DOCX).");
     }
+    return "";
 }
 
-async function askGeminiForData(text: string, fileBuffer?: Buffer, mimeType?: string) {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("GEMINI_API_KEY no definido");
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const modelName = await getLatestModel('INGEST');
-    const model = genAI.getGenerativeModel({ model: modelName });
-
-    const isVision = fileBuffer && mimeType === 'application/pdf';
-
-    const prompt = `
-      ACTÚA COMO UN ESCRIBANO EXPERTO. Tienes el documento COMPLETO.
-      Tu trabajo es EXTRAER CON EXACTITUD LITERAL.
-
-      TU MISIÓN DE ESCANEO (PASO 1):
-      1. COMPARECIENTES/PARTES: Localiza todas las personas intervinientes.
-         - Nombre y Apellidos completos.
-         - Nacionalidad (Ej: "Argentino", "Uruguayo").
-         - Fecha de nacimiento (formato YYYY-MM-DD).
-         - DNI y CUIT/CUIL. (IMPORTANTE: Extrae TODOS los números. Si el CUIT contiene al DNI, asegúrate de extraer ambos correctamente. El DNI suele tener 7 u 8 dígitos).
-         - Estado civil detallado (Ej: "Casado en primeras nupcias con [Nombre]", "Divorciado de [Nombre]"). 
-         - FILIACIÓN: Extraer nombres de los padres (Ej: "hijo de Ernesto y de Maria").
-         - Domicilio real completo.
-         - Email y Teléfono (si figuran, si no pon null).
-      
-      2. INMUEBLE: Localiza la descripción técnica del inmueble.
-         - Transcripción literal completa (MUY IMPORTANTE: COPIA TEXTUAL DESDE "Un lote de terreno..." HASTA EL FINAL DE LINDEROS Y SUPERFICIE. Debe ser el párrafo largo y técnico).
-         - Número de Partida Inmobiliaria.
-         - Partido / Departamento (ej: Bahía Blanca).
-         - Nomenclatura Catastral (Circ, Secc, Chacra, Manz, Parcela).
-      
-      3. METADATOS DE LA ESCRITURA (CRÍTICO):
-         - numero_escritura: BUSCA "ESCRITURA NUMERO" y extrae el número. Convierte a dígitos si está en letras.
-         - fecha_escritura: Fecha del documento (formato YYYY-MM-DD).
-         - notario_interviniente: Nombre COMPLETO del escribano.
-         - registro_notario: Número de registro del escribano.
-         - numero_acto: BUSCA "Código" que aparece al lado del tipo de acto (ej: "COMPRAVENTA (Código 100-00)").
-
-      ESQUEMA JSON (ESTRICTO):
-      {
-        "resumen_acto": "string",
-        "numero_escritura": "string",
-        "fecha_escritura": "YYYY-MM-DD",
-        "notario_interviniente": "string",
-        "registro_notario": "string",
-        "numero_acto": "string",
-        "clientes": [
-          {
-            "rol": "VENDEDOR" | "COMPRADOR" | "APODERADO" | "CONYUGE",
-            "nombre_completo": "string",
-            "dni": "string (SOLO NÚMEROS)",
-            "cuit": "string (SOLO NÚMEROS, sin guiones)",
-            "nacionalidad": "string",
-            "fecha_nacimiento": "YYYY-MM-DD",
-            "estado_civil": "string",
-            "nombres_padres": "string",
-            "conyuge": "string",
-            "domicilio_real": "string",
-            "email": "string",
-            "telefono": "string"
-          }
-        ],
-        "inmuebles": [
-          {
-            "partido": "string",
-            "nomenclatura": "string",
-            "partida_inmobiliaria": "string",
-            "transcripcion_literal": "string",
-            "valuacion_fiscal": 0
-          }
-        ]
-      }
-    `;
-
-    let contents: any[] = [{ text: prompt }];
-    if (isVision) {
-        contents.push({ inlineData: { data: fileBuffer!.toString('base64'), mimeType: mimeType! } });
-        if (text) contents.push({ text: `Texto extraído por OCR como referencia:\n${text.substring(0, 500000)}` });
-    } else {
-        const textToProcess = text.substring(0, 500000);
-        contents.push({ text: `CONTENIDO DEL DOCUMENTO:\n${textToProcess}` });
-    }
-
-    const MAX_RETRIES = 3;
-    let lastError: any = null;
-
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-            console.log(`[AI] Intento ${attempt + 1}/${MAX_RETRIES}...`);
-            const result = await model.generateContent(contents);
-            const responseText = result.response.text();
-            if (!responseText) throw new Error("Respuesta vacía de la IA");
-            const cleanJson = responseText.replace(/```json|```/g, "").trim();
-            const parsedData = JSON.parse(cleanJson);
-            console.log("🔥 AI EXTRACTED DATA SUCCESS");
-            return parsedData;
-        } catch (err: any) {
-            lastError = err;
-            console.error(`[AI] Error:`, err.message);
-            if (attempt < MAX_RETRIES - 1) await new Promise(r => setTimeout(r, 2000));
-        }
-    }
-
-    Sentry.captureException(lastError);
-    throw lastError;
-}
+// --- MAIN ROUTE ---
 
 export async function POST(request: Request) {
     try {
@@ -161,191 +48,179 @@ export async function POST(request: Request) {
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
-        const fileName = file.name.toLowerCase();
+        const fileData: FileData = { buffer, mimeType: file.type || 'application/pdf' };
 
+        // 1. OCR (Optional fallback context)
         let extractedText = "";
         try {
             extractedText = await extractTextFromFile(file);
-        } catch (err: any) {
-            if (!fileName.endsWith('.pdf')) throw err;
-        }
+        } catch (e) { }
 
-        let aiData;
-        try {
-            aiData = await askGeminiForData(extractedText, buffer, file.type || (fileName.endsWith('.pdf') ? 'application/pdf' : 'application/pdf'));
-        } catch (err: any) {
-            return NextResponse.json({ error: "Error en análisis IA", details: err.message }, { status: 500 });
-        }
+        // 2. Classify (The "Front Desk")
+        const classification = await classifyDocument(fileData, extractedText);
+        console.log(`[PIPELINE] Document Classified as: ${classification.document_type} (${classification.confidence})`);
 
-        const { clientes = [], inmuebles = [], resumen_acto, numero_escritura, fecha_escritura, notario_interviniente, registro_notario, numero_acto } = aiData;
+        // 3. Dynamic Routing Handler
+        let aiData: any = null;
+        const docType = classification.document_type;
 
-        // 1. Create Carpeta
-        const { data: carpeta, error: cError } = await supabase
-            .from('carpetas')
-            .insert([{
-                caratula: `${resumen_acto || 'Ingesta'}: ${file.name}`,
-                estado: 'ABIERTA',
-                resumen_ia: resumen_acto
-            }])
-            .select()
-            .single();
-        if (cError) throw cError;
+        switch (docType) {
+            case 'DNI':
+            case 'PASAPORTE':
+                console.log("[PIPELINE] Executing Identity Workflow...");
+                aiData = await SkillExecutor.execute('notary-identity-vision', { extractedText }, fileData);
+                break;
 
-        // 2. Process Inmuebles
-        const propertyIds: string[] = [];
-        for (const i of inmuebles) {
-            if (!i.partida_inmobiliaria) continue;
-            const { data: inmueble, error: iError } = await supabase.from('inmuebles').upsert({
-                partido_id: i.partido || 'BAHIA BLANCA',
-                nro_partida: i.partida_inmobiliaria,
-                nomenclatura: i.nomenclatura || null,
-                transcripcion_literal: i.transcripcion_literal || null,
-                valuacion_fiscal: i.valuacion_fiscal || 0,
-            }, { onConflict: 'partido_id,nro_partida' }).select().single();
-            if (inmueble) propertyIds.push(inmueble.id);
-        }
-
-        // 3. Upload File
-        let fileUrl: string | null = null;
-        try {
-            const safeName = (file.name || "documento").replace(/[^a-zA-Z0-9.-]/g, '_');
-            const path = `documents/${Date.now()}_${safeName}`;
-            const { error: uploadError } = await supabaseAdmin.storage.from('escrituras').upload(path, buffer);
-            if (!uploadError) {
-                const { data: signed } = await supabaseAdmin.storage.from('escrituras').createSignedUrl(path, 31536000);
-                fileUrl = signed?.signedUrl || null;
-            }
-        } catch (e) {
-            console.error("Storage error:", e);
-        }
-
-        // 4. Create Escritura
-        const { data: escritura, error: eError } = await supabase.from('escrituras').insert([{
-            carpeta_id: carpeta.id,
-            nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
-            fecha_escritura: fecha_escritura,
-            inmueble_princ_id: propertyIds[0] || null,
-            notario_interviniente,
-            registro: registro_notario,
-            pdf_url: fileUrl
-        }]).select().single();
-        if (eError) throw eError;
-
-        // 5. Create Operacion
-        const { data: operacion } = await supabase.from('operaciones').insert([{
-            escritura_id: escritura.id,
-            tipo_acto: resumen_acto || 'COMPRAVENTA',
-            nro_acto: numero_acto || null
-        }]).select().single();
-
-        // 6. Process Clientes (Enrichment Logic)
-        for (const c of clientes) {
-            const dni = normalizeID(c.dni);
-            if (!dni) continue;
-
-            // 1. Check if person already exists
-            const { data: existente } = await supabase
-                .from('personas')
-                .select('*')
-                .eq('dni', dni)
-                .single();
-
-            let personaDni = dni;
-
-            if (existente) {
-                // 🚨 ENRICHMENT: Update only if fields are missing in DB
-                const updates: any = {};
-                if (c.nacionalidad && !existente.nacionalidad) updates.nacionalidad = toTitleCase(c.nacionalidad);
-                if (c.nombres_padres && !existente.nombres_padres) updates.nombres_padres = c.nombres_padres;
-                if (c.estado_civil && !existente.estado_civil_detalle) updates.estado_civil_detalle = c.estado_civil;
-                if (c.domicilio_real && !existente.domicilio_real) updates.domicilio_real = { literal: c.domicilio_real };
-                if (c.fecha_nacimiento && !existente.fecha_nacimiento) updates.fecha_nacimiento = c.fecha_nacimiento;
-                if (c.cuit && !existente.cuit) updates.cuit = normalizeID(c.cuit);
-
-                if (Object.keys(updates).length > 0) {
-                    console.log(`[INGEST] Enriching person ${dni}:`, updates);
-                    await supabase.from('personas').update({
-                        ...updates,
-                        updated_at: new Date().toISOString()
-                    }).eq('dni', dni);
-                }
-            } else {
-                // 2. Create if doesn't exist
-                const { error: pError } = await supabase.from('personas').insert({
-                    dni,
-                    nombre_completo: toTitleCase(c.nombre_completo),
-                    cuit: normalizeID(c.cuit),
-                    nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
-                    fecha_nacimiento: c.fecha_nacimiento || null,
-                    domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
-                    nombres_padres: c.nombres_padres || null,
-                    estado_civil_detalle: c.estado_civil || null,
-                    datos_conyuge: c.conyuge ? { nombre: c.conyuge } : null,
-                    contacto: { email: c.email || null, telefono: c.telefono || null },
-                    origen_dato: 'IA_OCR',
-                    updated_at: new Date().toISOString()
+            case 'ESCRITURA':
+            case 'BOLETO_COMPRAVENTA':
+                console.log("[PIPELINE] Executing Deed Workflow...");
+                // Multi-step internal pipeline
+                const entities = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
+                // Deterministic calculation
+                const taxes = await SkillExecutor.execute('notary-tax-calculator', {
+                    price: entities.operation_details?.price || 0,
+                    currency: entities.operation_details?.currency || 'USD',
+                    exchangeRate: 1150,
+                    acquisitionDate: entities.operation_details?.acquisition_date || '2010-01-01',
+                    isUniqueHome: true,
+                    fiscalValuation: entities.inmuebles?.[0]?.valuacion_fiscal || 0
+                });
+                // Semantic compliance
+                const compliance = await SkillExecutor.execute('notary-uif-compliance', {
+                    price: entities.operation_details?.price || 0,
+                    moneda: entities.operation_details?.currency || 'USD',
+                    parties: entities.clientes?.map((c: any) => ({ name: c.nombre_completo, is_pep: false })) || []
                 });
 
-                if (pError) {
-                    console.error("[INGEST] Error creating persona:", pError);
-                    continue;
-                }
-            }
+                aiData = { ...entities, tax_calculation: taxes, compliance };
+                break;
 
-            // 3. Link to Operation
-            if (operacion) {
-                // Check if already linked
-                const { data: rel } = await supabase
-                    .from('participantes_operacion')
-                    .select('id')
-                    .eq('operacion_id', operacion.id)
-                    .eq('persona_id', dni)
-                    .single();
+            case 'CERTIFICADO_RPI':
+                console.log("[PIPELINE] Executing Certificate Workflow...");
+                aiData = await SkillExecutor.execute('notary-rpi-reader', { text: extractedText }, fileData);
+                break;
 
-                if (!rel) {
-                    await supabase.from('participantes_operacion').insert([{
-                        operacion_id: operacion.id,
-                        persona_id: dni,
-                        rol: c.rol?.toUpperCase() || 'VENDEDOR'
-                    }]);
-                }
-
-                // 4. Generate Token for Ficha (Optional/Safety)
-                const { data: existingToken } = await supabase
-                    .from('fichas_web_tokens')
-                    .select('id')
-                    .eq('persona_id', dni)
-                    .eq('estado', 'PENDIENTE')
-                    .single();
-
-                if (!existingToken) {
-                    const expiresAt = new Date();
-                    expiresAt.setDate(expiresAt.getDate() + 30);
-                    await supabase.from('fichas_web_tokens').insert([{
-                        persona_id: dni,
-                        estado: 'PENDIENTE',
-                        expires_at: expiresAt.toISOString()
-                    }]);
-                }
-            }
+            default:
+                console.warn("[PIPELINE] Unknown document type, falling back to generic extraction.");
+                // Fallback to legacy-like extraction or generic semantic search
+                aiData = await SkillExecutor.execute('notary-entity-extractor', { text: extractedText }, fileData);
         }
 
-        // Revalidate all affected pages to show new data immediately
+        // 4. Persistence logic (Mapping back to legacy DB schemas for compatibility)
+        const result = await persistIngestedData(aiData, file, buffer);
+
         revalidatePath('/carpetas');
         revalidatePath('/dashboard');
-        revalidatePath('/clientes');
-        revalidatePath('/inmuebles');
 
         return NextResponse.json({
             success: true,
-            folderId: carpeta.id,
-            debug: { clients: clientes.length, assets: inmuebles.length },
+            classification,
+            folderId: result.folderId,
             extractedData: aiData
         });
+
     } catch (error: any) {
-        console.error('Fatal Error:', error);
+        console.error('Fatal Error Ingesting:', error);
+        Sentry.captureException(error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
+}
+
+/**
+ * Persists the result of any skill into the Supabase database.
+ * Maintain legacy support for carpetas / escrituras / personas.
+ */
+async function persistIngestedData(data: any, file: File, buffer: Buffer) {
+    const {
+        clientes = [],
+        inmuebles = [],
+        resumen_acto = 'Ingesta automática',
+        operation_details = {},
+        numero_escritura,
+        fecha_escritura,
+        notario_interviniente,
+        registro_notario
+    } = data;
+
+    // 1. Create Carpeta
+    const { data: carpeta, error: cError } = await supabase
+        .from('carpetas')
+        .insert([{
+            caratula: `${resumen_acto}: ${file.name}`,
+            estado: 'ABIERTA',
+            resumen_ia: resumen_acto
+        }])
+        .select()
+        .single();
+    if (cError) throw cError;
+
+    // 2. Process Inmuebles
+    const propertyIds: string[] = [];
+    for (const i of inmuebles) {
+        const { data: inmueble } = await supabase.from('inmuebles').upsert({
+            partido_id: i.partido || 'BAHIA BLANCA',
+            nro_partida: i.partida_inmobiliaria || `TEMP_${Date.now()}`,
+            nomenclatura: i.nomenclatura || null,
+            transcripcion_literal: i.transcripcion_literal || null,
+            valuacion_fiscal: i.valuacion_fiscal || 0,
+        }, { onConflict: 'partido_id,nro_partida' }).select().single();
+        if (inmueble) propertyIds.push(inmueble.id);
+    }
+
+    // 3. Upload File
+    let fileUrl: string | null = null;
+    try {
+        const safeName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const path = `documents/${Date.now()}_${safeName}`;
+        const { error: uploadError } = await supabaseAdmin.storage.from('escrituras').upload(path, buffer);
+        if (!uploadError) {
+            const { data: signed } = await supabaseAdmin.storage.from('escrituras').createSignedUrl(path, 31536000);
+            fileUrl = signed?.signedUrl || null;
+        }
+    } catch (e) { }
+
+    // 4. Create Escritura (if applicable)
+    const { data: escritura } = await supabase.from('escrituras').insert([{
+        carpeta_id: carpeta.id,
+        nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
+        fecha_escritura: fecha_escritura || operation_details?.date,
+        inmueble_princ_id: propertyIds[0] || null,
+        notario_interviniente,
+        registro: registro_notario,
+        pdf_url: fileUrl
+    }]).select().single();
+
+    // 5. Process Personas
+    for (const c of clientes) {
+        const dni = normalizeID(c.dni);
+        if (!dni) continue;
+
+        await supabase.from('personas').upsert({
+            dni,
+            nombre_completo: toTitleCase(c.nombre_completo),
+            cuit: normalizeID(c.cuit),
+            nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
+            fecha_nacimiento: c.fecha_nacimiento || null,
+            domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
+            estado_civil_detalle: c.estado_civil || null,
+            origen_dato: 'IA_ORCHESTRATOR',
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'dni' });
+
+        if (escritura) {
+            // Link to operation
+            const { data: operacion } = await supabase.from('operaciones').select('id').eq('escritura_id', escritura.id).single();
+            if (operacion) {
+                await supabase.from('participantes_operacion').insert([{
+                    operacion_id: operacion.id,
+                    persona_id: dni,
+                    rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                }]);
+            }
+        }
+    }
+
+    return { folderId: carpeta.id };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }

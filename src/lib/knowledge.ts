@@ -253,3 +253,29 @@ export async function getKnowledgeContext(query: string, category?: KnowledgeCat
 
     return context;
 }
+
+/**
+ * Fetches a system skill definition from the Skill Registry (Supabase)
+ * Used to inject specialized notary logic as prompts for the agent.
+ */
+export async function getSkillInstruction(slug: string): Promise<string> {
+    try {
+        console.log(`[SKILLS] Fetching instruction for: ${slug}`);
+        const { data, error } = await supabaseAdmin
+            .from('system_skills')
+            .select('content_md')
+            .eq('slug', slug)
+            .eq('is_active', true)
+            .single();
+
+        if (error) {
+            console.warn(`[SKILLS] Skill ${slug} not found or error:`, error.message);
+            return "";
+        }
+
+        return data?.content_md || "";
+    } catch (err) {
+        console.error(`[SKILLS] Unexpected error fetching skill ${slug}:`, err);
+        return "";
+    }
+}
