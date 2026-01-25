@@ -218,25 +218,40 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     if (inmuebles.length > 0) {
         const primary = inmuebles[0];
-        const { data: asset } = await supabaseAdmin.from('inmuebles').insert({
+        const { data: asset, error: assetError } = await supabaseAdmin.from('inmuebles').insert({
             partido_id: primary.partido,
             nro_partida: primary.partida_inmobiliaria,
             nomenclatura: primary.nomenclatura,
             transcripcion_literal: primary.transcripcion_literal,
             valuacion_fiscal: primary.valuacion_fiscal
         }).select().single();
-        assetId = asset?.id;
+
+        if (assetError) {
+            console.error('[PERSIST] Error creating inmueble:', assetError);
+        } else {
+            assetId = asset?.id;
+        }
     }
 
-    const { data: escritura } = await supabaseAdmin.from('escrituras').insert({
+    // Build escritura object (inmueble_id es opcional)
+    const escrituraData: any = {
         carpeta_id: folderId,
-        inmueble_id: assetId,
         resumen_ia: resumen_acto,
         storage_path: fileName,
         fecha_proceso: new Date().toISOString()
-    }).select().single();
+    };
 
-    if (!escritura) throw new Error("No se pudo crear el registro de escritura.");
+    // Solo agregar inmueble_id si existe
+    if (assetId) {
+        escrituraData.inmueble_id = assetId;
+    }
+
+    const { data: escritura, error: escrituraError } = await supabaseAdmin.from('escrituras').insert(escrituraData).select().single();
+
+    if (escrituraError || !escritura) {
+        console.error('[PERSIST] ❌ Error creating escritura:', escrituraError);
+        throw new Error(`DB Error creating escritura: ${escrituraError?.message || 'Unknown error'}`);
+    }
 
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
         escritura_id: escritura.id,
