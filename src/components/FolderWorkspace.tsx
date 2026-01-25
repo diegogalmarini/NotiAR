@@ -75,7 +75,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                 },
                 (payload) => {
                     console.log('[REALTIME] Folder change detected:', payload);
-                    setCarpeta(prev => ({ ...prev, ...payload.new }));
+                    setCarpeta((prev: any) => ({ ...prev, ...payload.new }));
                 }
             )
             .on(
