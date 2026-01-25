@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
@@ -9,11 +9,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  * BRONZE: High-availability and cost-efficiency.
  */
 export const MODEL_HIERARCHY = [
-    "gemini-3-pro-preview",    // GOLD: High-fidelity reasoning
-    "gemini-3-flash-preview",  // SILVER: High-speed extraction
-    "gemini-2.5-flash-lite",   // BRONZE: Efficiency fallback
-    "gemini-1.5-pro-002",      // LEGACY GOLD
-    "gemini-1.5-flash"         // ULTIMATE FALLBACK
+    "gemini-1.5-pro-002",      // GOLD: High-fidelity reasoning (Stable)
+    "gemini-1.5-flash",        // SILVER: High-speed extraction
+    "gemini-1.5-flash-8b",     // BRONZE: Efficiency fallback
 ];
 
 /**
@@ -24,76 +22,94 @@ export function getModelHierarchy() {
 }
 
 /**
- * getEvidenceSchema: Returns a JSON Schema fragment for the "valor/evidencia" structure.
- */
-export function getEvidenceSchema(type: string = "string") {
-    return {
-        type: "object",
-        properties: {
-            valor: { type },
-            evidencia_origen: { type: "string" }
-        },
-        required: ["valor", "evidencia_origen"]
-    };
-}
-
-/**
  * ACTA_EXTRACCION_PARTES_SCHEMA
  * Strict JSON Schema for the Notary Entity Extractor GOLD standard.
+ * Refactored for Google SDK (v1beta) compatibility using SchemaType.
  */
-export const ACTA_EXTRACCION_PARTES_SCHEMA = {
-    type: "object",
+export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
+    type: SchemaType.OBJECT,
     properties: {
-        tipo_objeto: { type: "string", enum: ["ACTA_EXTRACCION_PARTES"] },
+        tipo_objeto: {
+            type: SchemaType.STRING,
+            description: "Debe ser ACTA_EXTRACCION_PARTES"
+        },
         entidades: {
-            type: "array",
+            type: SchemaType.ARRAY,
+            description: "Lista de personas físicas o jurídicas participantes",
             items: {
-                type: "object",
+                type: SchemaType.OBJECT,
                 properties: {
-                    rol: { type: "string", enum: ["VENDEDOR", "COMPRADOR", "APODERADO", "USUFRUCTUARIO", "CONYUGE_ASINTIENTE"] },
-                    tipo_persona: { type: "string", enum: ["FISICA", "JURIDICA"] },
+                    rol: {
+                        type: SchemaType.STRING,
+                        description: "VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO o CONYUGE_ASINTIENTE"
+                    },
+                    tipo_persona: {
+                        type: SchemaType.STRING,
+                        description: "FISICA o JURIDICA"
+                    },
                     datos: {
-                        type: "object",
+                        type: SchemaType.OBJECT,
                         properties: {
                             nombre_completo: {
-                                type: "object",
-                                properties: { valor: { type: ["string", "null"] }, evidencia: { type: "string" }, confianza: { type: "number" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING },
+                                    confianza: { type: SchemaType.NUMBER }
+                                },
                                 required: ["valor", "evidencia", "confianza"]
                             },
                             dni_cuil_cuit: {
-                                type: "object",
-                                properties: { valor: { type: ["string", "null"] }, evidencia: { type: "string" }, confianza: { type: "number" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING },
+                                    confianza: { type: SchemaType.NUMBER }
+                                },
                                 required: ["valor", "evidencia", "confianza"]
                             },
                             estado_civil: {
-                                type: "object",
-                                properties: { valor: { type: ["string", "null"], enum: ["SOLTERO", "CASADO", "DIVORCIADO", "VIUDO", "CONVIVIENTE", null] }, evidencia: { type: "string" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
                                 required: ["valor", "evidencia"]
                             },
                             nupcias: {
-                                type: "object",
-                                properties: { valor: { type: ["number", "null"] }, descripcion: { type: "string" }, evidencia: { type: "string" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.NUMBER, nullable: true },
+                                    descripcion: { type: SchemaType.STRING },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
                                 required: ["valor", "descripcion", "evidencia"]
                             },
                             domicilio: {
-                                type: "object",
-                                properties: { valor: { type: ["string", "null"] }, evidencia: { type: "string" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
                                 required: ["valor", "evidencia"]
                             },
                             nacionalidad: {
-                                type: "object",
-                                properties: { valor: { type: ["string", "null"] }, evidencia: { type: "string" } },
+                                type: SchemaType.OBJECT,
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
                                 required: ["valor", "evidencia"]
                             }
                         },
                         required: ["nombre_completo", "dni_cuil_cuit", "estado_civil", "nupcias", "domicilio", "nacionalidad"]
                     },
                     representacion: {
-                        type: "object",
+                        type: SchemaType.OBJECT,
                         properties: {
-                            es_representado: { type: "boolean" },
-                            documento_base: { type: ["string", "null"] },
-                            folio_evidencia: { type: ["string", "null"] }
+                            es_representado: { type: SchemaType.BOOLEAN },
+                            documento_base: { type: SchemaType.STRING, nullable: true },
+                            folio_evidencia: { type: SchemaType.STRING, nullable: true }
                         },
                         required: ["es_representado", "documento_base", "folio_evidencia"]
                     }
@@ -101,16 +117,16 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA = {
                 required: ["rol", "tipo_persona", "datos", "representacion"]
             }
         },
-        validación_sistémica: {
-            type: "object",
+        validacion_sistémica: {
+            type: SchemaType.OBJECT,
             properties: {
-                coherencia_identidad: { type: "boolean" },
-                observaciones_criticas: { type: ["string", "null"] }
+                coherencia_identidad: { type: SchemaType.BOOLEAN },
+                observaciones_criticas: { type: SchemaType.STRING, nullable: true }
             },
             required: ["coherencia_identidad", "observaciones_criticas"]
         }
     },
-    required: ["tipo_objeto", "entidades", "validación_sistémica"]
+    required: ["tipo_objeto", "entidades", "validacion_sistémica"]
 };
 
 /**

@@ -121,7 +121,14 @@ export class SkillExecutor {
         let responseSchema: any = null;
         try {
             const ctx = JSON.parse(userContext.replace("INPUT CONTEXT:\n", ""));
-            if (ctx.responseSchema) responseSchema = ctx.responseSchema;
+
+            // Priority: Explicit schema in context > Global Extraction Schema if applicable
+            if (ctx.responseSchema) {
+                responseSchema = ctx.responseSchema;
+            } else if (skillDoc.includes("notary-entity-extractor")) {
+                const { ACTA_EXTRACCION_PARTES_SCHEMA } = await import("../aiConfig");
+                responseSchema = ACTA_EXTRACCION_PARTES_SCHEMA;
+            }
         } catch (e) { /* ignore */ }
 
         // --- CONTEXT CACHING (Cost Monitor) ---
