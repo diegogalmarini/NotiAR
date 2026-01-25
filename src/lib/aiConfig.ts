@@ -171,9 +171,19 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     type: SchemaType.OBJECT,
                     properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
                     required: ["valor", "evidencia"]
+                },
+                escribano_nombre: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                },
+                registro_numero: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
                 }
             },
-            required: ["precio", "fecha_escritura", "numero_escritura", "tipo_acto"]
+            required: ["precio", "fecha_escritura", "numero_escritura", "tipo_acto", "escribano_nombre", "registro_numero"]
         },
         validacion_sistemica: {
             type: SchemaType.OBJECT,

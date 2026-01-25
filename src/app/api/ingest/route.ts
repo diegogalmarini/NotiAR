@@ -169,6 +169,8 @@ function normalizeAIData(raw: any) {
         resumen_acto: ops.tipo_acto?.valor || raw.resumen_acto?.valor || 'Ingesta',
         numero_escritura: ops.numero_escritura?.valor || raw.numero_escritura?.valor || null,
         fecha_escritura: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor || null,
+        notario: ops.escribano_nombre?.valor || null,
+        registro: ops.registro_numero?.valor || null,
         operation_details: {
             price: ops.precio?.valor || raw.price?.valor || 0,
             currency: ops.precio?.moneda || raw.currency?.valor || 'USD',
@@ -233,21 +235,26 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         }
     }
 
-    // Build escritura object - SOLO carpeta_id (nada más)
+    // Build escritura object - FULL v1.1 usando nombres de columna reales
     const escrituraData: any = {
-        carpeta_id: folderId
+        carpeta_id: folderId,
+        nro_protocolo: numero_escritura ? String(numero_escritura) : null,
+        fecha_escritura: safeParseDate(aiData.fecha_escritura),
+        registro: aiData.registro ? String(aiData.registro) : null,
+        notario_interviniente: aiData.notario ? String(aiData.notario) : null,
+        inmueble_princ_id: assetId // Vinculando el inmueble principal
     };
 
     const { data: escritura, error: escrituraError } = await supabaseAdmin.from('escrituras').insert(escrituraData).select().single();
 
     if (escrituraError || !escritura) {
-        console.error('[PERSIST] ❌ Error creating escritura:', escrituraError);
-        // Si falla, guardar metadata en carpeta directamente
-        return { folderId, success: false, persistedClients: 0, db_logs: [`Escritura insert failed: ${escrituraError?.message}`], error: escrituraError?.message, fileName };
+        console.error('[PERSIST] ❌ Error creating escritura (Safety fallback active):', escrituraError);
+        // Fallback: No lanzamos error para que el proceso de personas continúe
+        db_logs.push(`Escritura insert failed: ${escrituraError?.message || 'Unknown'}`);
     }
 
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
-        escritura_id: escritura.id,
+        escritura_id: escritura?.id || null, // Tolerante si escritura falló
         tipo_acto: String(resumen_acto || 'COMPRAVENTA').toUpperCase().substring(0, 100),
         monto_operacion: parseFloat(String(operation_details?.price || 0)) || 0,
         nro_acto: numero_escritura ? String(numero_escritura) : null
