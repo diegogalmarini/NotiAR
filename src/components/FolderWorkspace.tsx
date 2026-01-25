@@ -92,6 +92,30 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     router.refresh(); // Trigger server data re-fetch
                 }
             )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'participantes_operacion'
+                },
+                () => {
+                    console.log('[REALTIME] New participant detected (refreshing data)...');
+                    router.refresh();
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: 'INSERT',
+                    schema: 'public',
+                    table: 'inmuebles'
+                },
+                () => {
+                    console.log('[REALTIME] New property detected (refreshing data)...');
+                    router.refresh();
+                }
+            )
             .subscribe();
 
         return () => {

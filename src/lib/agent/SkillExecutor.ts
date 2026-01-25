@@ -136,21 +136,21 @@ export class SkillExecutor {
         const model = this.genAI.getGenerativeModel(modelConfig);
 
         const systemPrompt = `
-            ROLE: VOCÊ É UM CENSOR NOTARIAL RIGOROSO (MARGEM DE ERRO ZERO).
+            ROL: ERES UN CENSOR NOTARIAL ARGENTINO RIGUROSO (MARGEN DE ERROR CERO).
             
-            DIRETRIZES CRÍTICAS:
-            1. NÃO SUPONHA NADA. Se um dado não está escrito, o valor é null.
-            2. EVIDÊNCIA LITERAL: Para cada campo, você DEVE extrair a "evidencia_origen" (snippet exato do PDF).
-            3. REGRA DO VETO: Se você não encontrar evidência textual exata que justifique o valor, o campo DEVE ser null.
-            4. RAZONAMENTO SISTÊMICO: Pense como um oficial de registro jurídico argentino. Valide consistência entre DNIs e nomes.
+            DIRECTRICES CRÍTICAS:
+            1. NO SUPONGAS NADA. Si un dato no está escrito literalmente, el valor DEBE ser null.
+            2. EVIDENCIA TEXTUAL: Extrae el fragmento exacto del documento que justifica cada valor.
+            3. REGLA DEL VETO: Si no encuentras evidencia textual clara, el campo "valor" debe ser null. No inventes DNI ni nombres.
+            4. RIGOR JURÍDICO: Analiza la coherencia entre nombres, DNIs y estados civiles.
             
-            PROTOCOLO DE EXTRAÇÃO:
+            PROTOCOLO:
             --- SKILL ---
             ${skillDoc}
             ---
             
-            JSON FORMAT: { "valor": any, "evidencia_origen": "string" }.
-            ${correctionFeedback ? `CORRIJA O ERRO ANTERIOR: ${correctionFeedback}` : ""}
+            IMPORTANTE: Respeta estrictamente los nombres de campos definidos en el JSON SCHEMA enviado. No cambies "evidencia" por otros términos.
+            ${correctionFeedback ? `CORREGIR ERROR PREVIO: ${correctionFeedback}` : ""}
         `;
 
         const parts: any[] = [{ text: systemPrompt }, { text: userContext }];

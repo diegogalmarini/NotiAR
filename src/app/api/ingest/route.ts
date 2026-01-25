@@ -119,6 +119,55 @@ export async function POST(request: Request) {
 /**
  * runExtractionPipeline: Orchestrates the multi-model extraction logic.
  */
+/**
+ * normalizeAIData: Bridges the gap between complex Schema and flat Persistence.
+ */
+function normalizeAIData(raw: any) {
+    if (!raw) return {};
+
+    const normalized: any = {
+        clientes: [],
+        inmuebles: [],
+        resumen_acto: raw.resumen_acto?.valor || 'Ingesta',
+        numero_escritura: raw.numero_escritura?.valor || null,
+        fecha_escritura: raw.fecha_escritura?.valor || null,
+        notario_interviniente: raw.notario_interviniente?.valor || null,
+        registro_notario: raw.registro_notario?.valor || null,
+        operation_details: {
+            price: raw.price?.valor || 0,
+            currency: raw.currency?.valor || 'USD',
+            date: raw.fecha_escritura?.valor
+        }
+    };
+
+    // Map People (entidades)
+    if (raw.entidades && Array.isArray(raw.entidades)) {
+        normalized.clientes = raw.entidades.map((e: any) => ({
+            rol: e.rol,
+            nombre_completo: e.datos?.nombre_completo?.valor,
+            dni: e.datos?.dni_cuil_cuit?.valor,
+            cuit: e.datos?.dni_cuil_cuit?.valor, // Fallback for CUIT
+            estado_civil: e.datos?.estado_civil?.valor,
+            nacionalidad: e.datos?.nacionalidad?.valor,
+            domicilio_real: e.datos?.domicilio?.valor,
+            fecha_nacimiento: null // Often not in deeds but could be added to schema
+        }));
+    }
+
+    // Map Properties (inmuebles)
+    if (raw.inmuebles && Array.isArray(raw.inmuebles)) {
+        normalized.inmuebles = raw.inmuebles.map((i: any) => ({
+            partido: i.partido?.valor || 'BAHIA BLANCA',
+            partida_inmobiliaria: i.partida_inmobiliaria?.valor,
+            nomenclatura: i.nomenclatura?.valor,
+            transcripcion_literal: i.transcripcion_literal?.valor,
+            valuacion_fiscal: i.valuacion_fiscal?.valor || 0
+        }));
+    }
+
+    return normalized;
+}
+
 async function runExtractionPipeline(docType: string, file: File, extractedText: string) {
     let aiData: any = null;
 
@@ -130,25 +179,27 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
 
         case 'ESCRITURA':
         case 'BOLETO_COMPRAVENTA':
-            // The SkillExecutor.execute will internally decide to use Hybrid or Sync
             const entities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
 
             // Financial & Compliance Tools
+            // Use normalized values for secondary tools
+            const normEntities = normalizeAIData(entities);
             const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
-                price: entities.operation_details?.price || 0,
-                currency: entities.operation_details?.currency || 'USD'
+                price: normEntities.operation_details?.price || 0,
+                currency: normEntities.operation_details?.currency || 'USD'
             });
             const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
-                price: entities.operation_details?.price || 0,
-                moneda: entities.operation_details?.currency || 'USD',
-                parties: entities.clientes || []
+                price: normEntities.operation_details?.price || 0,
+                moneda: normEntities.operation_details?.currency || 'USD',
+                parties: normEntities.clientes || []
             });
 
-            aiData = { ...entities, tax_calculation: taxes, compliance };
+            aiData = { ...normEntities, tax_calculation: taxes, compliance };
             break;
 
         default:
-            aiData = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
+            const raw = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
+            aiData = normalizeAIData(raw);
     }
     return aiData;
 }
