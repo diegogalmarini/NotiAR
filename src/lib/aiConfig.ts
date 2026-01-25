@@ -11,8 +11,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 export const MODEL_HIERARCHY = [
     "gemini-1.5-pro-002",      // GOLD: High-fidelity reasoning (Thinking Mode)
     "gemini-1.5-flash-002",    // SILVER: High-speed extraction
-    "gemini-1.5-flash-8b",     // BRONZE: Efficiency fallback
-    "gemini-1.5-flash"         // ULTIMATE FALLBACK
+    "gemini-1.5-flash-8b-001"  // BRONZE: Efficiency fallback
 ];
 
 /**
