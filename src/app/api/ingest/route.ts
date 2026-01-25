@@ -208,6 +208,8 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
     console.log(`[PERSIST] Persisting data for folder ${existingFolderId}...`);
     const { clientes = [], inmuebles = [], resumen_acto, operation_details, numero_escritura } = aiData;
     const fileName = `${Date.now()}_${file.name}`;
+    const db_logs: string[] = [];
+    let persistedClients = 0;
 
     try {
         await supabaseAdmin.storage.from('escrituras_raw').upload(fileName, buffer, { contentType: file.type });
@@ -260,9 +262,9 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         nro_acto: numero_escritura ? String(numero_escritura) : null
     }]).select().single();
 
-    let persistedClients = 0;
-    const db_logs: string[] = [];
     if (opError) db_logs.push(`Op Error: ${opError.message}`);
+
+
 
     for (const c of clientes) {
         const dni = normalizeID(c.dni);
