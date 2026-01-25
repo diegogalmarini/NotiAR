@@ -9,8 +9,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  * BRONZE: High-availability and cost-efficiency.
  */
 export const MODEL_HIERARCHY = [
-    "gemini-1.5-pro",    // GOLD: Maximum Accuracy
-    "gemini-1.5-flash"   // SILVER/BRONZE: High-speed extraction & Fallback
+    "gemini-3-pro-preview",    // GOLD: Maximum Accuracy (Thinking Mode)
+    "gemini-3-flash-preview",  // SILVER: High-speed extraction
+    "gemini-2.5-flash-lite"    // BRONZE: Efficiency fallback
 ];
 
 /**
