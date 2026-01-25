@@ -10,8 +10,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  */
 export const MODEL_HIERARCHY = [
     "gemini-1.5-pro",    // GOLD: Maximum Accuracy
-    "gemini-1.5-flash",  // SILVER: High-speed extraction
-    "gemini-1.5-flash-8b" // BRONZE: Efficiency fallback
+    "gemini-1.5-flash"   // SILVER/BRONZE: High-speed extraction & Fallback
 ];
 
 /**
