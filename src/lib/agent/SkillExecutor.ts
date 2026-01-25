@@ -4,6 +4,8 @@ import { calculateNotaryExpenses, TaxCalculationInput } from "@/lib/skills/deter
 import { planTimeline } from "@/lib/skills/deterministic/timelinePlanner";
 import { DeedDrafter, DraftingContext } from "@/lib/skills/generation/deedDrafter";
 
+import { getLatestModel } from "../aiConfig";
+
 /**
  * SkillExecutor: The "Hybrid Router" of NotiAR.
  * It decides whether to use a semantic (LLM) or deterministic (Code) approach.
@@ -70,8 +72,9 @@ export class SkillExecutor {
             throw new Error(`Skill ${skillSlug} is not active or indexed in the Registry.`);
         }
 
-        // FALLBACK: Use 'gemini-1.5-flash' as 'pro' models are returning 404 in some environments.
-        const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        // USE THE BEST PRO MODEL (Centralized in aiConfig for zero-error strategy)
+        const modelName = await getLatestModel('INGEST');
+        const model = this.genAI.getGenerativeModel({ model: modelName });
 
         // 2. Build the Agentic Prompt
         const systemPrompt = `
