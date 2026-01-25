@@ -70,8 +70,8 @@ export class SkillExecutor {
             throw new Error(`Skill ${skillSlug} is not active or indexed in the Registry.`);
         }
 
-        // USE 'gemini-1.5-pro-latest' NOT 'flash'. Pro is much better at OCR for scanned docs.
-        const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+        // FALLBACK: Use 'gemini-1.5-flash' as 'pro' models are returning 404 in some environments.
+        const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         // 2. Build the Agentic Prompt
         const systemPrompt = `
