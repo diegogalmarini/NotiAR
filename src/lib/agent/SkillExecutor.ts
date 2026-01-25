@@ -66,7 +66,7 @@ export class SkillExecutor {
      * Executes a qualitative skill using a hierarchical fallback system.
      * Includes Strict JSON Enforcement and Auto-Correction Retry logic.
      */
-    private static async executeSemanticSkill(skillSlug: string, file?: File, contextData?: any = {}): Promise<any> {
+    private static async executeSemanticSkill(skillSlug: string, file?: File, contextData: any = {}): Promise<any> {
         // 1. Fetch the implementation instruction (SKILL.md) from the Registry
         const skillDoc = await getSkillInstruction(skillSlug);
         if (!skillDoc) {
