@@ -107,7 +107,11 @@ export async function POST(request: Request) {
             success: true,
             status: 'COMPLETED',
             folderId: result.folderId,
-            extractedData: aiData
+            extractedData: aiData,
+            debug: {
+                clients: aiData.clientes?.length || 0,
+                assets: aiData.inmuebles?.length || 0
+            }
         });
 
     } catch (error: any) {
@@ -126,18 +130,19 @@ export async function POST(request: Request) {
 function normalizeAIData(raw: any) {
     if (!raw) return {};
 
+    const ops = raw.detalles_operacion || {};
     const normalized: any = {
         clientes: [],
         inmuebles: [],
-        resumen_acto: raw.resumen_acto?.valor || 'Ingesta',
-        numero_escritura: raw.numero_escritura?.valor || null,
-        fecha_escritura: raw.fecha_escritura?.valor || null,
-        notario_interviniente: raw.notario_interviniente?.valor || null,
-        registro_notario: raw.registro_notario?.valor || null,
+        resumen_acto: ops.tipo_acto?.valor || raw.resumen_acto?.valor || 'Ingesta',
+        numero_escritura: ops.numero_escritura?.valor || raw.numero_escritura?.valor || null,
+        fecha_escritura: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor || null,
+        notario_interviniente: ops.notario_interviniente?.valor || raw.notario_interviniente?.valor || null,
+        registro_notario: ops.registro_notario?.valor || raw.registro_notario?.valor || null,
         operation_details: {
-            price: raw.price?.valor || 0,
-            currency: raw.currency?.valor || 'USD',
-            date: raw.fecha_escritura?.valor
+            price: ops.precio?.valor || raw.price?.valor || 0,
+            currency: ops.precio?.moneda || raw.currency?.valor || 'USD',
+            date: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor
         }
     };
 
@@ -346,7 +351,7 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
         }
     } catch (e) { }
 
-    // 4. Create Escritura (if applicable)
+    // 4. Create Escritura
     console.log(`[PERSIST] Creating escritura for folder ${folderId}...`);
     const { data: escritura, error: eError } = await supabaseAdmin.from('escrituras').insert([{
         carpeta_id: folderId,
@@ -356,14 +361,28 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
         notario_interviniente,
         registro: registro_notario,
         pdf_url: fileUrl,
-        contenido_borrador: data.deed_draft || null,
         analysis_metadata: {
             tax_calculation: data.tax_calculation,
-            compliance: data.compliance
+            compliance: data.compliance,
+            raw_ai_data: data
         }
     }]).select().single();
 
-    if (eError) console.error(`[PERSIST] Escritura error:`, eError);
+    if (eError) {
+        console.error(`[PERSIST] Escritura error:`, eError);
+        return { folderId };
+    }
+
+    // 4b. Create Operacion record (Crucial for linking participants)
+    console.log(`[PERSIST] Creating operation record for escritura ${escritura.id}...`);
+    const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
+        escritura_id: escritura.id,
+        tipo_acto: resumen_acto?.toUpperCase() || 'COMPRAVENTA',
+        monto: operation_details?.price || 0,
+        moneda: operation_details?.currency || 'USD'
+    }]).select().single();
+
+    if (opError) console.error(`[PERSIST] Operation error:`, opError);
 
     // 5. Process Personas
     console.log(`[PERSIST] Processing ${clientes.length} clients...`);
@@ -388,17 +407,13 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
 
         if (pError) console.error(`[PERSIST] Person error (${dni}):`, pError);
 
-        if (escritura) {
-            // Link to operation
-            const { data: operacion } = await supabaseAdmin.from('operaciones').select('id').eq('escritura_id', escritura.id).single();
-            if (operacion) {
-                const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
-                    operacion_id: operacion.id,
-                    persona_id: dni,
-                    rol: c.rol?.toUpperCase() || 'VENDEDOR'
-                }]);
-                if (linkError) console.error(`[PERSIST] Link error:`, linkError);
-            }
+        if (escritura && operacion) {
+            const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
+                operacion_id: operacion.id,
+                persona_id: dni,
+                rol: c.rol?.toUpperCase() || 'VENDEDOR'
+            }]);
+            if (linkError) console.error(`[PERSIST] Link error:`, linkError);
         }
     }
 

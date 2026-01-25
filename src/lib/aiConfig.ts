@@ -54,19 +54,17 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                 type: SchemaType.OBJECT,
                                 properties: {
                                     valor: { type: SchemaType.STRING, nullable: true },
-                                    evidencia: { type: SchemaType.STRING },
-                                    confianza: { type: SchemaType.NUMBER }
+                                    evidencia: { type: SchemaType.STRING }
                                 },
-                                required: ["valor", "evidencia", "confianza"]
+                                required: ["valor", "evidencia"]
                             },
                             dni_cuil_cuit: {
                                 type: SchemaType.OBJECT,
                                 properties: {
                                     valor: { type: SchemaType.STRING, nullable: true },
-                                    evidencia: { type: SchemaType.STRING },
-                                    confianza: { type: SchemaType.NUMBER }
+                                    evidencia: { type: SchemaType.STRING }
                                 },
-                                required: ["valor", "evidencia", "confianza"]
+                                required: ["valor", "evidencia"]
                             },
                             estado_civil: {
                                 type: SchemaType.OBJECT,
@@ -117,6 +115,67 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                 required: ["rol", "tipo_persona", "datos", "representacion"]
             }
         },
+        inmuebles: {
+            type: SchemaType.ARRAY,
+            description: "Lista de inmuebles objeto de la operación",
+            items: {
+                type: SchemaType.OBJECT,
+                properties: {
+                    partido: {
+                        type: SchemaType.OBJECT,
+                        properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                        required: ["valor", "evidencia"]
+                    },
+                    partida_inmobiliaria: {
+                        type: SchemaType.OBJECT,
+                        properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                        required: ["valor", "evidencia"]
+                    },
+                    nomenclatura: {
+                        type: SchemaType.OBJECT,
+                        properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                        required: ["valor", "evidencia"]
+                    },
+                    transcripcion_literal: {
+                        type: SchemaType.OBJECT,
+                        properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                        required: ["valor", "evidencia"]
+                    },
+                    valuacion_fiscal: {
+                        type: SchemaType.OBJECT,
+                        properties: { valor: { type: SchemaType.NUMBER }, evidencia: { type: SchemaType.STRING } },
+                        required: ["valor", "evidencia"]
+                    }
+                },
+                required: ["partido", "partida_inmobiliaria", "nomenclatura", "transcripcion_literal", "valuacion_fiscal"]
+            }
+        },
+        detalles_operacion: {
+            type: SchemaType.OBJECT,
+            properties: {
+                precio: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.NUMBER }, moneda: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "moneda", "evidencia"]
+                },
+                fecha_escritura: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                },
+                numero_escritura: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                },
+                tipo_acto: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                }
+            },
+            required: ["precio", "fecha_escritura", "numero_escritura", "tipo_acto"]
+        },
         validacion_sistemica: {
             type: SchemaType.OBJECT,
             properties: {
@@ -126,7 +185,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
             required: ["coherencia_identidad", "observaciones_criticas"]
         }
     },
-    required: ["tipo_objeto", "entidades", "validacion_sistemica"]
+    required: ["tipo_objeto", "entidades", "inmuebles", "detalles_operacion", "validacion_sistemica"]
 };
 
 /**
