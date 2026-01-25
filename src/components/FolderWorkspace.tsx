@@ -227,7 +227,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     return (
         <Tabs defaultValue="mesa" className="w-full">
             <div className="flex justify-between items-center mb-6">
-                <TabsList className={`grid w-fit ${carpeta.estado === 'FIRMADA' || carpeta.estado === 'INSCRIPTA' ? 'grid-cols-6' : 'grid-cols-5'}`}>
+                <TabsList className="inline-flex h-auto flex-wrap justify-start gap-1 bg-slate-100/50 p-1 mb-2">
                     <TabsTrigger value="mesa" className="flex items-center gap-2">
                         <Activity className="h-4 w-4" />
                         Mesa de Trabajo
