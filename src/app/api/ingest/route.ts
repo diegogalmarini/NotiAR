@@ -15,7 +15,7 @@ if (typeof globalThis !== 'undefined') {
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
 
-import { NextResponse, after } from 'next/server';
+import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
@@ -68,34 +68,13 @@ export async function POST(req: Request) {
 
         if (folderError) throw new Error(`Error creando carpeta: ${folderError.message}`);
 
-        // --- FLASH FORCED: TODO a background para respuesta inmediata ---
-        const isLarge = file.size > 0; // 0KB = TODO dispara PROCESSING instantáneo
+        // --- FLASH PROCESSING: TODO síncron dentro de 300s ---
+        // Flash es tan rápido que podemos procesar todo antes de timeout
+        console.log(`[PIPELINE] ⚡ FLASH SYNC PROCESSING: ${file.name} (${file.size} bytes)`);
 
-        if (isLarge) {
-            console.log(`[PIPELINE] Hybrid branch: Large file detected. Launching background task...`);
-
-            after(async () => {
-                try {
-                    await processInBackground(file, buffer, carpeta.id);
-                    revalidatePath('/carpetas');
-                } catch (e) {
-                    console.error("[BACKGROUND] Fatal error:", e);
-                }
-            });
-
-            return NextResponse.json({
-                success: true,
-                status: 'PROCESSING',
-                folderId: carpeta.id,
-                message: "Documento extenso detectado. NotiAR está trabajando en segundo plano."
-            });
-        }
-
-        // --- STANDARD SYNC PIPELINE ---
-        console.log("[PIPELINE] Running extraction step...");
+        // OCR/Text extraction (placeholder for now)
         let extractedText = "";
         try {
-            // Simplified for the audit as we are using Vision/Skills mostly
             extractedText = "[OCR Placeholder for Audit Path]";
         } catch (e) { }
 
@@ -105,6 +84,17 @@ export async function POST(req: Request) {
 
         const aiData = await runExtractionPipeline(docType, file, extractedText);
         const result = await persistIngestedData(aiData, file, buffer, carpeta.id);
+
+        // Update carpeta status
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_estado: result.success ? 'COMPLETADO' : 'ERROR',
+            ingesta_paso: result.success
+                ? `IA: ${result.persistedClients || 0} personas, ${aiData.inmuebles?.length || 0} inmuebles`
+                : `Error: ${result.error || 'Ver logs'}`,
+            resumen_ia: result.success
+                ? `Flash extraction completa en ${Date.now() - Date.parse(carpeta.created_at)}ms`
+                : null
+        }).eq('id', carpeta.id);
 
         revalidatePath('/carpetas');
         revalidatePath('/dashboard');
@@ -169,42 +159,6 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
     return aiData;
 }
 
-async function processInBackground(file: File, buffer: Buffer, folderId: string) {
-    console.log(`[BACKGROUND] ⚡ FLASH PROCESSING START: ${folderId} | File: ${file.name} | Size: ${file.size}`);
-    try {
-        console.log(`[BACKGROUND][${folderId}] Step 1: Classifying document...`);
-        const classification = await classifyDocument(file, "");
-        const docType = classification?.document_type || 'ESCRITURA';
-        console.log(`[BACKGROUND][${folderId}] Step 2: Classified as ${docType}, running extraction...`);
-        const aiData = await runExtractionPipeline(docType, file, "");
-        console.log(`[BACKGROUND][${folderId}] Step 3: Extraction complete. Entities: ${aiData?.entidades?.length || aiData?.clientes?.length || 0}`);
-        const result = await persistIngestedData(aiData, file, buffer, folderId);
-        console.log(`[BACKGROUND][${folderId}] Step 4: Persistence complete. Success: ${result.success}`);
-
-        if (result.success) {
-            await supabaseAdmin.from('carpetas').update({
-                ingesta_estado: 'COMPLETADO',
-                ingesta_paso: 'Ingesta completada',
-                resumen_ia: `IA: Detección finalizada. Persistidos: ${result.persistedClients || 0} personas y ${aiData.inmuebles?.length || 0} inmuebles.`
-            }).eq('id', folderId);
-        } else {
-            await supabaseAdmin.from('carpetas').update({
-                ingesta_estado: 'ERROR',
-                ingesta_paso: `Error en persistencia: ${result.error || 'Ver logs'}`
-            }).eq('id', folderId);
-        }
-    } catch (error: any) {
-        console.error(`[BACKGROUND][${folderId}] ❌ FATAL ERROR:`, {
-            message: error.message,
-            stack: error.stack,
-            name: error.name
-        });
-        await supabaseAdmin.from('carpetas').update({
-            ingesta_estado: 'ERROR',
-            ingesta_paso: `Error Flash: ${error.message}`
-        }).eq('id', folderId);
-    }
-}
 
 function normalizeAIData(raw: any) {
     if (!raw) return {};
