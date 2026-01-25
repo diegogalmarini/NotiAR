@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabase } from '@/lib/supabaseClient';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
@@ -7,7 +7,7 @@ import * as Sentry from "@sentry/nextjs";
 import { SkillExecutor } from '@/lib/agent/SkillExecutor';
 import { classifyDocument } from '@/lib/skills/routing/documentClassifier';
 
-export const maxDuration = 60; // Increased timeout for Pro model processing
+export const maxDuration = 300; // Increased timeout for Pro model processing (Anti-504)
 
 // --- HELPERS ---
 
@@ -52,30 +52,36 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(bytes);
 
         // --- BACKGROUND PROCESSING CHECK ---
-        // If file is large (> 5MB or suspected many pages), return early
-        const isLarge = file.size > 5 * 1024 * 1024;
+        // Threshold: > 3MB (common for 10+ page scanned PDFs)
+        const isLarge = file.size > 3 * 1024 * 1024;
 
         if (isLarge) {
-            console.log(`[PIPELINE] Large document detected (${(file.size / 1024 / 1024).toFixed(2)}MB). Triggering background task...`);
+            console.log(`[PIPELINE] Async mode enabled for: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
 
             // 1. Create a "Placeholder" Carpeta immediately
-            const { data: carpeta } = await supabaseAdmin.from('carpetas').insert([{
+            const { data: carpeta, error: cError } = await supabaseAdmin.from('carpetas').insert([{
                 caratula: `PROCESANDO: ${file.name}`,
                 estado: 'ABIERTA',
-                resumen_ia: 'Procesando documento pesado en segundo plano...'
+                resumen_ia: 'El documento es extenso. Procesando en segundo plano para evitar esperas...'
             }]).select().single();
+            if (cError) throw cError;
 
-            // 2. Trigger async processing (Non-blocking)
-            processInBackground(file, buffer, carpeta.id).catch(e => {
-                console.error("[BACKGROUND] Fatal error:", e);
-                Sentry.captureException(e);
+            // 2. Trigger async processing (After response)
+            after(async () => {
+                try {
+                    await processInBackground(file, buffer, carpeta.id);
+                    revalidatePath('/carpetas');
+                } catch (e) {
+                    console.error("[BACKGROUND] Fatal error:", e);
+                    Sentry.captureException(e);
+                }
             });
 
             return NextResponse.json({
                 success: true,
                 status: 'PROCESSING',
                 folderId: carpeta.id,
-                message: "Documento grande detectado. El procesamiento continuará en segundo plano."
+                message: "Documento extenso detectado. NotiAR está trabajando en segundo plano."
             });
         }
 
