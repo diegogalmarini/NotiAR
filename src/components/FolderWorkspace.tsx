@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { ComplianceTrafficLight } from "./smart/ComplianceTrafficLight";
 import { TaxBreakdownCard } from "./smart/TaxBreakdownCard";
 import { SmartDeedEditor } from "./smart/SmartDeedEditor";
+import { CrossCheckService, ValidationState } from "@/lib/agent/CrossCheckService";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
@@ -186,6 +187,43 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
     const currentEscritura = carpeta.escrituras.find((e: any) => e.id === activeDeedId);
 
+    // --- CROSS-CHECK ENGINE: Triangulation Logic ---
+    const crossCheckResult = React.useMemo(() => {
+        if (!currentEscritura) return null;
+
+        const entities = currentEscritura.analysis_metadata?.entities || [];
+        const participants = currentEscritura.operaciones?.flatMap((op: any) => op.participantes_operacion || []) || [];
+
+        const fieldsToValidate: Record<string, any> = {};
+
+        participants.forEach((p: any) => {
+            const person = p.persona || p.personas;
+            const extracted = entities.find((e: any) => e.datos?.dni_cuil_cuit?.valor === person?.dni || e.datos?.nombre_completo?.valor === person?.nombre_completo);
+
+            // Simulation of OFFICIAL API data (e.g., AFIP)
+            // In a real scenario, this would come from a fetched cache or a real-time call
+            const officialMock = person?.metadata?.official_data || {
+                nombre_completo: person?.nombre_completo, // Assume matches unless mocked otherwise
+                cuit: person?.cuit
+            };
+
+            fieldsToValidate[`nombre_${person?.id}`] = {
+                official: officialMock.nombre_completo,
+                extracted: extracted?.datos?.nombre_completo?.valor,
+                manual: person?.nombre_completo
+            };
+            fieldsToValidate[`cuit_${person?.id}`] = {
+                official: officialMock.cuit,
+                extracted: extracted?.datos?.dni_cuil_cuit?.valor,
+                manual: person?.cuit
+            };
+        });
+
+        return CrossCheckService.validateIdentity(fieldsToValidate);
+    }, [currentEscritura]);
+
+    const isBlockedBySecurity = crossCheckResult?.state === ValidationState.CRITICAL_DISCREPANCY;
+
     return (
         <Tabs defaultValue="mesa" className="w-full">
             <div className="flex justify-between items-center mb-6">
@@ -218,9 +256,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     )}
                 </TabsList>
                 <div className="flex items-center gap-3">
-                    {currentEscritura?.analysis_metadata?.compliance && (
-                        <ComplianceTrafficLight compliance={currentEscritura.analysis_metadata.compliance} />
-                    )}
+                    <ComplianceTrafficLight
+                        compliance={currentEscritura?.analysis_metadata?.compliance}
+                        crossCheck={crossCheckResult}
+                    />
                     <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
@@ -644,7 +683,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
             </TabsContent>
             <TabsContent value="compliance">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <MinutaGenerator data={currentEscritura} />
+                    <MinutaGenerator
+                        data={currentEscritura}
+                        isBlocked={isBlockedBySecurity}
+                    />
                     <AMLCompliance escrituraId={activeDeedId!} />
                 </div>
             </TabsContent>

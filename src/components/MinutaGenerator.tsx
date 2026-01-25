@@ -2,12 +2,13 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { exportMinutaToDocx } from "@/lib/exportMinuta";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-export function MinutaGenerator({ data }: { data: any }) {
+export function MinutaGenerator({ data, isBlocked }: { data: any; isBlocked?: boolean }) {
     if (!data) {
         return (
             <Card>
@@ -20,6 +21,10 @@ export function MinutaGenerator({ data }: { data: any }) {
     }
 
     const handleExport = async () => {
+        if (isBlocked) {
+            toast.error("BLOQUEO DE SEGURIDAD: Corrija las discrepancias de identidad antes de exportar.");
+            return;
+        }
         try {
             await exportMinutaToDocx(data);
             toast.success("Minuta exportada correctamente");
@@ -102,9 +107,23 @@ export function MinutaGenerator({ data }: { data: any }) {
                 </div>
 
                 {/* Export Button */}
-                <Button onClick={handleExport} className="w-full" variant="default">
-                    <Download className="mr-2 h-4 w-4" />
-                    Exportar Minuta (DOCX)
+                <Button
+                    onClick={handleExport}
+                    className={cn("w-full transition-all", isBlocked ? "bg-slate-400 hover:bg-slate-500 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700")}
+                    variant={isBlocked ? "secondary" : "default"}
+                    disabled={isBlocked}
+                >
+                    {isBlocked ? (
+                        <>
+                            <AlertCircle className="mr-2 h-4 w-4" />
+                            Exportación Bloqueada
+                        </>
+                    ) : (
+                        <>
+                            <Download className="mr-2 h-4 w-4" />
+                            Exportar Minuta (DOCX)
+                        </>
+                    )}
                 </Button>
             </CardContent>
         </Card>
