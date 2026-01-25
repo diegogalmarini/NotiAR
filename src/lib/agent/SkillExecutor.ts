@@ -74,7 +74,7 @@ export class SkillExecutor {
             OUTPUT VALID JSON ONLY: { "segments": [{ "type": "string", "start_page": number, "end_page": number }] }
         `;
 
-        const silverModel = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const silverModel = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash-002" });
         const visionPart = await this.fileToGenerativePart(file);
 
         console.log("[EXECUTOR][HYBRID] Step 1: Mapping document segments...");
