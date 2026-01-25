@@ -170,12 +170,16 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
 }
 
 async function processInBackground(file: File, buffer: Buffer, folderId: string) {
-    console.log(`[BACKGROUND] Processing folder: ${folderId}`);
+    console.log(`[BACKGROUND] ⚡ FLASH PROCESSING START: ${folderId} | File: ${file.name} | Size: ${file.size}`);
     try {
+        console.log(`[BACKGROUND][${folderId}] Step 1: Classifying document...`);
         const classification = await classifyDocument(file, "");
         const docType = classification?.document_type || 'ESCRITURA';
+        console.log(`[BACKGROUND][${folderId}] Step 2: Classified as ${docType}, running extraction...`);
         const aiData = await runExtractionPipeline(docType, file, "");
+        console.log(`[BACKGROUND][${folderId}] Step 3: Extraction complete. Entities: ${aiData?.entidades?.length || aiData?.clientes?.length || 0}`);
         const result = await persistIngestedData(aiData, file, buffer, folderId);
+        console.log(`[BACKGROUND][${folderId}] Step 4: Persistence complete. Success: ${result.success}`);
 
         if (result.success) {
             await supabaseAdmin.from('carpetas').update({
@@ -190,10 +194,14 @@ async function processInBackground(file: File, buffer: Buffer, folderId: string)
             }).eq('id', folderId);
         }
     } catch (error: any) {
-        console.error(`[BACKGROUND][${folderId}] Fatal background failure:`, error);
+        console.error(`[BACKGROUND][${folderId}] ❌ FATAL ERROR:`, {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         await supabaseAdmin.from('carpetas').update({
             ingesta_estado: 'ERROR',
-            ingesta_paso: error.message
+            ingesta_paso: `Error Flash: ${error.message}`
         }).eq('id', folderId);
     }
 }

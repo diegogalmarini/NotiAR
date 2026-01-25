@@ -59,6 +59,7 @@ export class SkillExecutor {
     }
 
     private static async executeSemanticSkill(skillSlug: string, file?: File, contextData: any = {}): Promise<any> {
+        console.log(`[EXECUTOR] ⚡ FLASH: Starting ${skillSlug} | Has file: ${!!file} | File size: ${file?.size || 0}`);
         const skillDoc = await getSkillInstruction(skillSlug);
         if (!skillDoc) throw new Error(`Skill ${skillSlug} not found.`);
 
@@ -139,7 +140,9 @@ export class SkillExecutor {
         try {
             // Remove markdown formatting if present
             const cleanJson = responseText.replace(/```json|```/g, "").trim();
-            return JSON.parse(cleanJson);
+            const parsed = JSON.parse(cleanJson);
+            console.log(`[EXECUTOR][${skillSlug}] ✅ FLASH SUCCESS: Extracted ${parsed.entidades?.length || 0} entities`);
+            return parsed;
         } catch (e) {
             console.error(`[EXECUTOR] Parse error in ${skillSlug}:`, responseText);
             throw new Error(`JSON_PARSE_ERROR in ${modelName}: ${responseText.substring(0, 100)}`);
