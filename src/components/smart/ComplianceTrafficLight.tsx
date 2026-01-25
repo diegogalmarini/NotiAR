@@ -26,7 +26,7 @@ interface ComplianceTrafficLightProps {
     crossCheck?: {
         state: 'MATCH_TOTAL' | 'REVIEW_REQUIRED' | 'CRITICAL_DISCREPANCY';
         details: Record<string, { match: boolean; severity: 'LOW' | 'HIGH'; message: string }>;
-    };
+    } | null;
 }
 
 export function ComplianceTrafficLight({ compliance, crossCheck }: ComplianceTrafficLightProps) {

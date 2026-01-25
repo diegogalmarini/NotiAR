@@ -189,7 +189,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
     // --- CROSS-CHECK ENGINE: Triangulation Logic ---
     const crossCheckResult = useMemo(() => {
-        if (!currentEscritura) return null;
+        if (!currentEscritura) return undefined;
 
         const entities = currentEscritura.analysis_metadata?.entities || [];
         const participants = currentEscritura.operaciones?.flatMap((op: any) => op.participantes_operacion || []) || [];
