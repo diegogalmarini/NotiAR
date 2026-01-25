@@ -124,6 +124,10 @@ export class SkillExecutor {
             if (ctx.responseSchema) responseSchema = ctx.responseSchema;
         } catch (e) { /* ignore */ }
 
+        // --- CONTEXT CACHING (Cost Monitor) ---
+        const { getOrBuildContextCache } = await import("../aiConfig");
+        const cacheName = await getOrBuildContextCache(userContext, modelName);
+
         const generationConfig: any = {
             responseMimeType: "application/json"
         };
@@ -136,6 +140,10 @@ export class SkillExecutor {
             model: modelName,
             generationConfig
         };
+
+        if (cacheName) {
+            modelConfig.cachedContent = cacheName;
+        }
 
         if (isThinkingModel) {
             modelConfig.thinkingConfig = { include_thoughts: true };
@@ -174,6 +182,50 @@ export class SkillExecutor {
 
         const result = await model.generateContent(parts);
         const responseText = result.response.text();
+        const usage = result.response.usageMetadata;
+
+        // --- ASYNC LOGGING (Cost Monitor) ---
+        if (usage) {
+            const { estimateCost } = await import("../aiConfig");
+            const { supabaseAdmin } = await import("../knowledge");
+
+            const cost = estimateCost(modelName, usage.promptTokenCount, usage.candidatesTokenCount);
+
+            // Extract IDs from context for tracking
+            let folderId = null;
+            let userId = null;
+            try {
+                const ctx = JSON.parse(userContext.replace("INPUT CONTEXT:\n", ""));
+                folderId = ctx.folder_id || null;
+                userId = ctx.user_id || null;
+            } catch (e) { }
+
+            supabaseAdmin.from('api_usage_logs').insert({
+                user_id: userId,
+                folder_id: folderId,
+                model_id: modelName,
+                skill_slug: skillDoc.match(/name: (.*)/)?.[1] || "unknown",
+                input_tokens: usage.promptTokenCount,
+                output_tokens: usage.candidatesTokenCount,
+                total_tokens: usage.totalTokenCount,
+                cost_est: cost
+            }).then(async ({ error }) => {
+                if (error) console.error("[COST_MONITOR] Failed to log usage:", error.message);
+
+                // --- THRESHOLD ALERT ($10 Daily Limit) ---
+                const today = new Date().toISOString().split('T')[0];
+                const { data: totalData } = await supabaseAdmin
+                    .from('api_usage_logs')
+                    .select('cost_est')
+                    .gte('created_at', today);
+
+                const dailyTotal = totalData?.reduce((acc, curr) => acc + (Number(curr.cost_est) || 0), 0) || 0;
+                if (dailyTotal > 8) { // Alert at 80% of limit
+                    console.error(`[COST_CRITICAL] Daily AI spend at $${dailyTotal.toFixed(2)}. Limit: $10.00`);
+                    // In a real app, this would trigger an AppShell notification via Realtime or a dedicated table.
+                }
+            });
+        }
 
         if (!responseText || responseText.trim() === "") {
             throw new Error("Empty response from AI.");

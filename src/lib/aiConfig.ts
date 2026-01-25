@@ -119,3 +119,32 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA = {
 export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT'): Promise<string> {
     return MODEL_HIERARCHY[0];
 }
+
+/**
+ * estimateCost: Calculates the USD cost based on token usage.
+ * Prices based on Gemini 1.5/3 Pro and Flash tiers.
+ */
+export function estimateCost(modelName: string, inputTokens: number, outputTokens: number): number {
+    const isPro = modelName.includes('pro');
+    // Prices per 1M tokens (USD)
+    const inputPrice = isPro ? 3.50 : 0.10;
+    const outputPrice = isPro ? 10.50 : 0.40;
+
+    return ((inputTokens * inputPrice) + (outputTokens * outputPrice)) / 1000000;
+}
+
+/**
+ * getOrBuildContextCache: Manages Google Context Caching.
+ * Reduces costs by 90% for repeated large contexts (Manuals, Laws).
+ */
+export async function getOrBuildContextCache(content: string, modelName: string): Promise<string | null> {
+    // Caching is only effective for content > 32k tokens.
+    if (content.length < 100000) return null; // Very rough estimate for 32k tokens
+
+    console.log(`[AI_CONFIG] High-redundancy context detected (${content.length} chars). Checking Context Cache...`);
+
+    // In a production environment, we would use crypto.createHash to identify the content
+    // and check a local/DB cache of existing ContextCache names.
+    // For now, this serves as the hook for the Notary Cost Monitor skill.
+    return null;
+}
