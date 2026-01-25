@@ -137,21 +137,23 @@ export class SkillExecutor {
         const model = this.genAI.getGenerativeModel(modelConfig);
 
         const systemPrompt = `
-            ROL: ERES UN CENSOR NOTARIAL ARGENTINO RIGUROSO (MARGEN DE ERROR CERO).
+            ROL: ERES UN EXPERTO ESCRIBANO ARGENTINO EN EXTRACCIÓN DE DATOS (RIGOR NOTARIAL).
             
-            DIRECTRICES CRÍTICAS:
-            1. NO SUPONGAS NADA. Si un dato no está escrito literalmente, el valor DEBE ser null.
-            2. EVIDENCIA TEXTUAL: Extrae el fragmento exacto del documento que justifica cada valor.
-            3. REGLA DEL VETO: Si no encuentras evidencia textual clara, el campo "valor" debe ser null. No inventes DNI ni nombres.
-            4. RIGOR JURÍDICO: Analiza la coherencia entre nombres, DNIs y estados civiles.
+            DIRECTRICES:
+            1. EXTRACCIÓN EXHAUSTIVA: Debes encontrar a todas las partes intervinientes y los detalles del inmueble.
+            2. EVIDENCIA TEXTUAL: Para cada campo, extrae el fragmento exacto que justifica el valor.
+            3. CRITERIO DE VERDAD: Si un dato no está presente de ninguna forma, usa null. Pero si el dato es deducible sin ambigüedad del contexto legal, extráelo.
+            4. INTEGRIDAD: Asegura que los nombres coincidan exactamente con el DNI/CUIT mencionado.
             
+            ${userContext.includes("segments") ? "ENFOQUE: Concéntrate especialmente en los segmentos de páginas indicados en el contexto." : ""}
+
             PROTOCOLO:
             --- SKILL ---
             ${skillDoc}
             ---
             
-            IMPORTANTE: Respeta estrictamente los nombres de campos definidos en el JSON SCHEMA enviado. No cambies "evidencia" por otros términos.
-            ${correctionFeedback ? `CORREGIR ERROR PREVIO: ${correctionFeedback}` : ""}
+            IMPORTANTE: Respeta estrictamente los nombres de campos del JSON SCHEMA. El campo "evidencia" es obligatorio.
+            ${correctionFeedback ? `CORREGIR: ${correctionFeedback}` : ""}
         `;
 
         const parts: any[] = [{ text: systemPrompt }, { text: userContext }];

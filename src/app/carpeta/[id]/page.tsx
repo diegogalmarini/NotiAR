@@ -6,6 +6,9 @@ import { Separator } from "@/components/ui/separator";
 import { Folder, FileText, Activity, Users, Home, UserPlus } from "lucide-react";
 import FolderWorkspace from "@/components/FolderWorkspace";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CarpetaDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     console.log("🔍 FETCHING CARPETA ID:", id);

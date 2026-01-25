@@ -9,9 +9,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  * BRONZE: High-availability and cost-efficiency.
  */
 export const MODEL_HIERARCHY = [
-    "gemini-3-pro-preview",    // GOLD: Maximum Accuracy (Thinking Mode)
-    "gemini-3-flash-preview",  // SILVER: High-speed extraction
-    "gemini-2.5-flash-lite"    // BRONZE: Efficiency fallback
+    "gemini-1.5-pro",    // GOLD: Maximum Accuracy
+    "gemini-1.5-flash",  // SILVER: High-speed extraction
+    "gemini-1.5-flash-8b" // BRONZE: Efficiency fallback
 ];
 
 /**
@@ -117,7 +117,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                 required: ["rol", "tipo_persona", "datos", "representacion"]
             }
         },
-        validacion_sistémica: {
+        validacion_sistemica: {
             type: SchemaType.OBJECT,
             properties: {
                 coherencia_identidad: { type: SchemaType.BOOLEAN },
@@ -126,7 +126,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
             required: ["coherencia_identidad", "observaciones_criticas"]
         }
     },
-    required: ["tipo_objeto", "entidades", "validacion_sistémica"]
+    required: ["tipo_objeto", "entidades", "validacion_sistemica"]
 };
 
 /**

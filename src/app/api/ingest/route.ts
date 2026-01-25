@@ -256,9 +256,13 @@ async function processInBackground(file: File, buffer: Buffer, folderId: string)
         await persistIngestedData(aiData, file, buffer, folderId);
 
         // 5. Finalize
+        const clientesCount = aiData.clientes?.length || 0;
+        const inmueblesCount = aiData.inmuebles?.length || 0;
+
         await supabaseAdmin.from('carpetas').update({
             ingesta_estado: 'COMPLETADO',
-            ingesta_paso: 'Ingesta finalizada con éxito.'
+            ingesta_paso: 'Ingesta completada',
+            resumen_ia: `IA: Detección finalizada. Encontrados: ${clientesCount} personas y ${inmueblesCount} inmuebles.`
         }).eq('id', folderId);
 
         console.log(`[BACKGROUND] Processing COMPLETED for folder ${folderId}`);
@@ -306,9 +310,11 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
         folderId = carpeta.id;
     } else {
         // Update placeholder with final summary
+        const summary = `Procesamiento completado. Acto: ${resumen_acto}. [Detectados: ${clientes.length} partes, ${inmuebles.length} inmuebles]`;
+
         await supabaseAdmin.from('carpetas').update({
             caratula: `Carpeta: ${resumen_acto || file.name}`,
-            resumen_ia: `Procesamiento híbrido completado con éxito. Se detectaron ${clientes.length} partes y ${inmuebles.length} inmuebles.`
+            resumen_ia: summary
         }).eq('id', folderId);
     }
 
