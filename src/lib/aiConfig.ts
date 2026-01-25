@@ -24,8 +24,21 @@ export function getModelHierarchy() {
 }
 
 /**
+ * getEvidenceSchema: Returns a JSON Schema fragment for the "valor/evidencia" structure.
+ */
+export function getEvidenceSchema(type: string = "string") {
+    return {
+        type: "object",
+        properties: {
+            valor: { type },
+            evidencia_origen: { type: "string" }
+        },
+        required: ["valor", "evidencia_origen"]
+    };
+}
+
+/**
  * getLatestModel: Simple entry point for compatibility.
- * Now just returns the top of the hierarchy. Fallbacks are handled in the SkillExecutor.
  */
 export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT'): Promise<string> {
     return MODEL_HIERARCHY[0];

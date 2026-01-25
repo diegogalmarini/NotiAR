@@ -3,16 +3,17 @@
 ## Propósito
 Garantizar que el sistema NotiAR siempre utilice el modelo de inteligencia artificial más potente y preciso disponible, evitando caídas del servicio (SaaS "muerto") ante cambios inesperados en la API de Google Gemini.
 
-## Lógica de Funcionamiento (Auto-Sanación)
-Este "Escudo de Inteligencia" opera mediante una jerarquía determinista de modelos:
+## Lógica de Funcionamiento (Escudo de Fidelidad)
+Este sistema opera mediante una jerarquía determinista y validación estricta:
 
-1. **Vigilancia de Salud (Health Check):** Antes de procesar una escritura crítica, el sistema realiza un "ping" ligero al modelo preferido.
-2. **Jerarquía Escalonada:**
-   - **Nivel Oro:** `gemini-1.5-pro-002` (Máxima precisión para extracción notarial).
-   - **Nivel Plata:** `gemini-2.0-flash-exp` (Alta velocidad con visión avanzada).
-   - **Nivel Bronce:** `gemini-1.5-flash` (Garantía de disponibilidad total).
-3. **Fallback Automático:** Si el modelo de Nivel Oro devuelve un error (404, 500 o cuota agotada), el optimizador selecciona instantáneamente el siguiente mejor modelo sin intervención humana.
-4. **Caché Inteligente:** Verifica la salud cada 30 minutos para no afectar la velocidad de respuesta del usuario.
+1. **Strict JSON Enforcement:** Todas las extracciones utilizan `response_mime_type: "application/json"` y opcionalmente un `response_schema` para garantizar la estructura.
+2. **Evidencia de Origen:** Cada dato extraído debe incluir un objeto `{ valor, evidencia_origen }`, obligando al modelo a citar el snippet literal del documento. Esto elimina alucinaciones al forzar la conexión con la fuente.
+3. **Jerarquía Escalonada (C-Level):**
+   - **GOLD:** `gemini-3-pro-preview` (Razonamiento Sistémico + Thinking Mode).
+   - **SILVER:** `gemini-3-flash-preview` (Velocidad para OCR masivo).
+   - **BRONZE:** `gemini-2.5-flash-lite` (Eficiencia fallback).
+4. **Auto-Corrección con Reintento:** Si una extracción falla la validación estructural, el sistema realiza un reintento automático enviando el error exacto al modelo para que lo corrija usando su capacidad de "Thinking".
+5. **Caché y Latencia:** Se han eliminado los pings previos a favor de un manejo de excepciones reactivo, optimizando la velocidad de respuesta.
 
 ## Beneficios para el Cliente
 - **Integridad de Datos:** Prioriza siempre el modelo con menor margen de error para la extracción de partes y medidas.

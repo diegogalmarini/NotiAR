@@ -64,7 +64,7 @@ export class SkillExecutor {
 
     /**
      * Executes a qualitative skill using a hierarchical fallback system.
-     * GOLD (Gemini 3 Pro) -> SILVER (Gemini 3 Flash) -> BRONZE (Gemini 2.5 Flash Lite)
+     * Includes Strict JSON Enforcement and Auto-Correction Retry logic.
      */
     private static async executeSemanticSkill(skillSlug: string, file?: File, contextData?: any): Promise<any> {
         // 1. Fetch the implementation instruction (SKILL.md) from the Registry
@@ -81,69 +81,124 @@ export class SkillExecutor {
         // 2. Hierarchical Fallback Loop
         for (const modelName of hierarchy) {
             try {
-                console.log(`[EXECUTOR][SEMANTIC] Attempting ${modelName} for ${skillSlug}...`);
+                // --- ATTEMPT 1: Strict Execution ---
+                return await this.runSkillAttempt(modelName, skillDoc, userContext, file, null);
+            } catch (error: any) {
+                console.warn(`[EXECUTOR][RETRY-MODE] ${modelName} failed on first attempt for ${skillSlug}. Error: ${error.message}`);
 
-                // --- THINKING MODE CONFIGURATION ---
-                // Thinking models (Pro models in Gemini 3/2.5) should have reasoning enabled.
-                const isThinkingModel = modelName.includes('pro');
-                const modelConfig: any = {
-                    model: modelName,
-                };
-
-                // Add Thinking Mode (Specialized for Gemini 3/2.5 Pro)
-                if (isThinkingModel) {
-                    modelConfig.thinkingConfig = { include_thoughts: true };
-                }
-
-                const model = this.genAI.getGenerativeModel(modelConfig);
-
-                // 3. Build the Agentic Prompt
-                const systemPrompt = `
-                    YOU ARE AN EXPERT NOTARY AGENT ACTING FOR THE NOTIAR SAAS.
-                    
-                    YOUR LOGIC IS DEFINED BY THE FOLLOWING SKILL DEFINITION:
-                    ---
-                    ${skillDoc}
-                    ---
-                    
-                    TASK: Process the provided INPUT CONTEXT AND ANY ATTACHED IMAGES/FILES according to the rules in the SKILL definition.
-                    IMPORTANT: If an image or file is provided, it is the PRIMARY source of truth. Scanned documents should be read using your Vision capabilities.
-                    
-                    ${isThinkingModel ? "SYSTEMIC REASONING: Use your 'Thinking' capability to validate the consistency of the extracted data against the original document before outputting." : ""}
-                    
-                    OUTPUT: Return a valid JSON object only. No preamble.
-                `;
-
-                // 4. Multimodal Parts
-                const parts: any[] = [{ text: systemPrompt }, { text: userContext }];
-
-                if (file) {
-                    const isMultimodal = file.type.startsWith('image/') || file.type === 'application/pdf';
-                    if (isMultimodal) {
-                        const visionPart = await this.fileToGenerativePart(file);
-                        parts.push(visionPart);
+                // --- ATTEMPT 2: Auto-Correction (Only for GOLD/SILVER models) ---
+                if (modelName.includes('pro') || modelName.includes('flash-preview')) {
+                    try {
+                        console.log(`[EXECUTOR][RETRY-MODE] Attempting Auto-Correction with 'Thinking' feedback for ${modelName}...`);
+                        return await this.runSkillAttempt(modelName, skillDoc, userContext, file, error.message);
+                    } catch (retryError: any) {
+                        console.error(`[EXECUTOR][FALLBACK] ${modelName} auto-correction failed: ${retryError.message}`);
                     }
                 }
 
-                const result = await model.generateContent(parts);
-                const responseText = result.response.text();
-
-                if (!responseText || responseText.trim() === "") {
-                    throw new Error("LLM returned an empty response.");
-                }
-
-                // Clean markdown if LLM includes it
-                const cleanJson = responseText.replace(/```json|```/g, "").trim();
-                return JSON.parse(cleanJson);
-
-            } catch (error: any) {
-                console.error(`[EXECUTOR][FALLBACK] ${modelName} failed: ${error.message}`);
                 lastError = error;
-                // Continue to next model in hierarchy (GOLD -> SILVER -> BRONZE)
+                // Move to next model in hierarchy (GOLD -> SILVER -> BRONZE)
                 continue;
             }
         }
 
-        throw new Error(`Failed to execute semantic skill ${skillSlug} after trying full hierarchy. Last error: ${lastError?.message}`);
+        throw new Error(`Failed to execute semantic skill ${skillSlug} after trying full hierarchy and auto-correction. Last error: ${lastError?.message}`);
+    }
+
+    /**
+     * Internal runner for a single skill attempt.
+     */
+    private static async runSkillAttempt(modelName: string, skillDoc: string, userContext: string, file?: File, correctionFeedback: string | null = null): Promise<any> {
+        const isThinkingModel = modelName.includes('pro');
+
+        // Extract optional responseSchema from userContext (injected via contextData)
+        let responseSchema: any = null;
+        try {
+            const ctx = JSON.parse(userContext.replace("INPUT CONTEXT:\n", ""));
+            if (ctx.responseSchema) responseSchema = ctx.responseSchema;
+        } catch (e) { /* ignore */ }
+
+        const generationConfig: any = {
+            responseMimeType: "application/json"
+        };
+
+        if (responseSchema) {
+            generationConfig.responseSchema = responseSchema;
+        }
+
+        const modelConfig: any = {
+            model: modelName,
+            generationConfig
+        };
+
+        if (isThinkingModel) {
+            modelConfig.thinkingConfig = { include_thoughts: true };
+        }
+
+        const model = this.genAI.getGenerativeModel(modelConfig);
+
+        // Build the prompt with Strict JSON and Evidence rules
+        const systemPrompt = `
+            YOU ARE AN EXPERT NOTARY AGENT ACTING FOR THE NOTIAR SAAS.
+            
+            YOUR LOGIC IS DEFINED BY THE FOLLOWING SKILL DEFINITION:
+            ---
+            ${skillDoc}
+            ---
+            
+            STRICT JSON RULES:
+            1. Output MUST be valid JSON.
+            2. For EVERY field, provide an object with { "valor": any, "evidencia_origen": "string" }.
+            3. "evidencia_origen" MUST contain the literal snippet from the document justifying the value.
+            
+            ${isThinkingModel ? "SYSTEMIC REASONING: Use your 'Thinking' capability to validate consistency and resolve ambiguities before outputting." : ""}
+            ${correctionFeedback ? `CRITICAL: Your previous attempt failed with the following error. CORRECT IT NOW: ${correctionFeedback}` : ""}
+            
+            OUTPUT: Valid JSON only.
+        `;
+
+        const parts: any[] = [{ text: systemPrompt }, { text: userContext }];
+        if (file) {
+            const isMultimodal = file.type.startsWith('image/') || file.type === 'application/pdf';
+            if (isMultimodal) {
+                const visionPart = await this.fileToGenerativePart(file);
+                parts.push(visionPart);
+            }
+        }
+
+        const result = await model.generateContent(parts);
+        const responseText = result.response.text();
+
+        if (!responseText || responseText.trim() === "") {
+            throw new Error("Empty response from AI.");
+        }
+
+        const cleanJson = responseText.replace(/```json|```/g, "").trim();
+        let parsed: any;
+
+        try {
+            parsed = JSON.parse(cleanJson);
+        } catch (e) {
+            throw new Error(`JSON_PARSE_ERROR: ${cleanJson.substring(0, 100)}...`);
+        }
+
+        // --- STRUCTURAL VALIDATION ---
+        // Basic check to ensure the "valor" structure is followed if no schema was provided.
+        if (!responseSchema && typeof parsed === 'object' && parsed !== null) {
+            const keys = Object.keys(parsed);
+            if (keys.length > 5) { // Only check if many fields exist to avoid false positives on small objects
+                let missingValor = 0;
+                keys.slice(0, 5).forEach(k => {
+                    if (typeof parsed[k] === 'object' && !('valor' in parsed[k]) && !Array.isArray(parsed[k])) {
+                        missingValor++;
+                    }
+                });
+                if (missingValor > 2) {
+                    throw new Error("STRICT_JSON_VIOLATION: Missing 'valor/evidencia_origen' structure in majority of fields.");
+                }
+            }
+        }
+
+        return parsed;
     }
 }
