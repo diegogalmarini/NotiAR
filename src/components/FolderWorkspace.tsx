@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useOptimistic, useTransition, useEffect } from "react";
+import { useState, useOptimistic, useTransition, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -188,7 +188,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const currentEscritura = carpeta.escrituras.find((e: any) => e.id === activeDeedId);
 
     // --- CROSS-CHECK ENGINE: Triangulation Logic ---
-    const crossCheckResult = React.useMemo(() => {
+    const crossCheckResult = useMemo(() => {
         if (!currentEscritura) return null;
 
         const entities = currentEscritura.analysis_metadata?.entities || [];
