@@ -64,6 +64,15 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     useEffect(() => {
         console.log(`[REALTIME] Subscribing to folder ${carpeta.id}...`);
 
+        let refreshTimeout: NodeJS.Timeout;
+        const debouncedRefresh = () => {
+            clearTimeout(refreshTimeout);
+            refreshTimeout = setTimeout(() => {
+                console.log('[REALTIME] Executing debounced router.refresh()');
+                router.refresh();
+            }, 500);
+        };
+
         const channel = supabase
             .channel(`folder-updates-${carpeta.id}`)
             .on(
@@ -87,10 +96,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     table: 'escrituras',
                     filter: `carpeta_id=eq.${carpeta.id}`
                 },
-                () => {
-                    console.log('[REALTIME] Deed change detected (refreshing data)...');
-                    router.refresh(); // Trigger server data re-fetch
-                }
+                debouncedRefresh
             )
             .on(
                 'postgres_changes',
@@ -99,10 +105,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     schema: 'public',
                     table: 'participantes_operacion'
                 },
-                () => {
-                    console.log('[REALTIME] New participant detected (refreshing data)...');
-                    router.refresh();
-                }
+                debouncedRefresh
             )
             .on(
                 'postgres_changes',
@@ -111,15 +114,13 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     schema: 'public',
                     table: 'inmuebles'
                 },
-                () => {
-                    console.log('[REALTIME] New property detected (refreshing data)...');
-                    router.refresh();
-                }
+                debouncedRefresh
             )
             .subscribe();
 
         return () => {
             supabase.removeChannel(channel);
+            clearTimeout(refreshTimeout);
         };
     }, [carpeta.id, router]);
 
@@ -341,6 +342,10 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                             )}
                         </div>
                     )}
+
+                    <Button variant="ghost" size="sm" onClick={() => router.refresh()} className="h-8 w-8 p-0" title="Actualizar datos">
+                        <Activity className="h-4 w-4 text-slate-400" />
+                    </Button>
 
                     <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
 

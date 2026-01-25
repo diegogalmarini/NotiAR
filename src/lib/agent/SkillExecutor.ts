@@ -83,7 +83,7 @@ export class SkillExecutor {
         // Step 2: Extraction (GOLD Model)
         contextData.segments = segments;
         const skillDoc = await getSkillInstruction(skillSlug);
-        return this.runSkillAttempt(MODEL_HIERARCHY[0], skillDoc!, JSON.stringify(contextData), undefined, null, filePart);
+        return this.runSkillAttempt(MODEL_HIERARCHY[0], skillSlug, skillDoc!, JSON.stringify(contextData), undefined, null, filePart);
     }
 
     private static async executeSemanticSkill(skillSlug: string, file?: File, contextData: any = {}): Promise<any> {
@@ -102,9 +102,9 @@ export class SkillExecutor {
                 if (file && file.size > 2 * 1024 * 1024) {
                     const fileUri = await this.uploadToFileApi(file);
                     filePart = { fileData: { fileUri, mimeType: file.type || "application/pdf" } };
-                    return await this.runSkillAttempt(modelName, skillDoc, userContext, undefined, null, filePart);
+                    return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, undefined, null, filePart);
                 }
-                return await this.runSkillAttempt(modelName, skillDoc, userContext, file, null);
+                return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, file, null);
             } catch (error: any) {
                 console.warn(`[EXECUTOR][RETRY] ${modelName} failed: ${error.message}`);
                 lastError = error;
@@ -116,6 +116,7 @@ export class SkillExecutor {
 
     private static async runSkillAttempt(
         modelName: string,
+        skillSlug: string,
         skillDoc: string,
         userContext: string,
         file?: File,
@@ -127,7 +128,7 @@ export class SkillExecutor {
 
         const generationConfig: any = {
             responseMimeType: "application/json",
-            responseSchema: userContext.includes("notary-entity-extractor") ? ACTA_EXTRACCION_PARTES_SCHEMA : undefined
+            responseSchema: skillSlug === "notary-entity-extractor" ? ACTA_EXTRACCION_PARTES_SCHEMA : undefined
         };
 
         const modelConfig: any = { model: modelName, generationConfig };
@@ -160,9 +161,14 @@ export class SkillExecutor {
         const result = await model.generateContent(parts);
         const responseText = result.response.text();
 
+        console.log(`[EXECUTOR][${skillSlug}] Raw response:`, responseText.substring(0, 500) + "...");
+
         try {
-            return JSON.parse(responseText.replace(/```json|```/g, "").trim());
+            // Remove markdown formatting if present
+            const cleanJson = responseText.replace(/```json|```/g, "").trim();
+            return JSON.parse(cleanJson);
         } catch (e) {
+            console.error(`[EXECUTOR] Parse error in ${skillSlug}:`, responseText);
             throw new Error(`JSON_PARSE_ERROR in ${modelName}: ${responseText.substring(0, 100)}`);
         }
     }

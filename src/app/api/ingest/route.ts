@@ -53,7 +53,8 @@ export async function POST(request: Request) {
 
         // --- BACKGROUND PROCESSING CHECK ---
         // Threshold: > 3MB (common for 10+ page scanned PDFs)
-        const isLarge = file.size > 3 * 1024 * 1024;
+        // Lowered threshold to 1MB to ensure most PDFs go through the async pipeline
+        const isLarge = file.size > 1 * 1024 * 1024;
 
         if (isLarge) {
             console.log(`[PIPELINE] Async mode enabled for: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
@@ -142,16 +143,19 @@ function normalizeAIData(raw: any) {
 
     // Map People (entidades)
     if (raw.entidades && Array.isArray(raw.entidades)) {
-        normalized.clientes = raw.entidades.map((e: any) => ({
-            rol: e.rol,
-            nombre_completo: e.datos?.nombre_completo?.valor,
-            dni: e.datos?.dni_cuil_cuit?.valor,
-            cuit: e.datos?.dni_cuil_cuit?.valor, // Fallback for CUIT
-            estado_civil: e.datos?.estado_civil?.valor,
-            nacionalidad: e.datos?.nacionalidad?.valor,
-            domicilio_real: e.datos?.domicilio?.valor,
-            fecha_nacimiento: null // Often not in deeds but could be added to schema
-        }));
+        normalized.clientes = raw.entidades.map((e: any) => {
+            const d = e.datos || {};
+            return {
+                rol: e.rol || 'VENDEDOR',
+                nombre_completo: d.nombre_completo?.valor || 'Desconocido',
+                dni: d.dni_cuil_cuit?.valor || null,
+                cuit: d.dni_cuil_cuit?.valor || null,
+                estado_civil: d.estado_civil?.valor || null,
+                nacionalidad: d.nacionalidad?.valor || null,
+                domicilio_real: d.domicilio?.valor || null,
+                fecha_nacimiento: null
+            };
+        });
     }
 
     // Map Properties (inmuebles)
@@ -209,13 +213,12 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
  * Reports progress using ingesta_paso and ingesta_estado.
  */
 async function processInBackground(file: File, buffer: Buffer, folderId: string) {
-    console.log(`[BACKGROUND] Starting processing for folder ${folderId}...`);
+    console.log(`[BACKGROUND] 🚀 Starting processing for folder ${folderId}...`);
 
     try {
-        // 1. Mark as PROCESANDO
         await supabaseAdmin.from('carpetas').update({
             ingesta_estado: 'PROCESANDO',
-            ingesta_paso: 'Iniciando reconocimiento de documento...'
+            ingesta_paso: 'Mapeando documento (OCR + Visión)...'
         }).eq('id', folderId);
 
         let extractedText = "";
@@ -238,6 +241,12 @@ async function processInBackground(file: File, buffer: Buffer, folderId: string)
         }).eq('id', folderId);
 
         const aiData = await runExtractionPipeline(classification.document_type, file, extractedText);
+
+        console.log(`[BACKGROUND] 🤖 AI Output received for ${folderId}:`, JSON.stringify(aiData, null, 2));
+
+        if (!aiData.clientes || aiData.clientes.length === 0) {
+            console.warn(`[BACKGROUND] ⚠️ No entities recognized for ${folderId}`);
+        }
 
         // 4. Persistence
         await supabaseAdmin.from('carpetas').update({
@@ -289,7 +298,7 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
                 estado: 'ABIERTA',
                 resumen_ia: `Ingesta automática (${resumen_acto || 'Documento'})`,
                 ingesta_estado: 'COMPLETADO',
-                ingesta_paso: 'Finalizado'
+                ingesta_paso: 'Ingesta completada'
             }])
             .select()
             .single();
@@ -305,14 +314,17 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
 
     // 2. Process Inmuebles
     const propertyIds: string[] = [];
+    console.log(`[PERSIST] Processing ${inmuebles.length} properties...`);
     for (const i of inmuebles) {
-        const { data: inmueble } = await supabase.from('inmuebles').upsert({
+        const { data: inmueble, error: iError } = await supabaseAdmin.from('inmuebles').upsert({
             partido_id: i.partido || 'BAHIA BLANCA',
             nro_partida: i.partida_inmobiliaria || `TEMP_${Date.now()}`,
             nomenclatura: i.nomenclatura || null,
             transcripcion_literal: i.transcripcion_literal || null,
             valuacion_fiscal: i.valuacion_fiscal || 0,
         }, { onConflict: 'partido_id,nro_partida' }).select().single();
+
+        if (iError) console.error(`[PERSIST] Property error:`, iError);
         if (inmueble) propertyIds.push(inmueble.id);
     }
 
@@ -329,7 +341,8 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
     } catch (e) { }
 
     // 4. Create Escritura (if applicable)
-    const { data: escritura } = await supabase.from('escrituras').insert([{
+    console.log(`[PERSIST] Creating escritura for folder ${folderId}...`);
+    const { data: escritura, error: eError } = await supabaseAdmin.from('escrituras').insert([{
         carpeta_id: folderId,
         nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
         fecha_escritura: fecha_escritura || operation_details?.date,
@@ -344,12 +357,18 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
         }
     }]).select().single();
 
+    if (eError) console.error(`[PERSIST] Escritura error:`, eError);
+
     // 5. Process Personas
+    console.log(`[PERSIST] Processing ${clientes.length} clients...`);
     for (const c of clientes) {
         const dni = normalizeID(c.dni);
-        if (!dni) continue;
+        if (!dni) {
+            console.warn(`[PERSIST] Skipping client without DNI:`, c.nombre_completo);
+            continue;
+        }
 
-        await supabase.from('personas').upsert({
+        const { error: pError } = await supabaseAdmin.from('personas').upsert({
             dni,
             nombre_completo: toTitleCase(c.nombre_completo),
             cuit: normalizeID(c.cuit),
@@ -361,15 +380,18 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
             updated_at: new Date().toISOString()
         }, { onConflict: 'dni' });
 
+        if (pError) console.error(`[PERSIST] Person error (${dni}):`, pError);
+
         if (escritura) {
             // Link to operation
-            const { data: operacion } = await supabase.from('operaciones').select('id').eq('escritura_id', escritura.id).single();
+            const { data: operacion } = await supabaseAdmin.from('operaciones').select('id').eq('escritura_id', escritura.id).single();
             if (operacion) {
-                await supabase.from('participantes_operacion').insert([{
+                const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
                     operacion_id: operacion.id,
                     persona_id: dni,
                     rol: c.rol?.toUpperCase() || 'VENDEDOR'
                 }]);
+                if (linkError) console.error(`[PERSIST] Link error:`, linkError);
             }
         }
     }
