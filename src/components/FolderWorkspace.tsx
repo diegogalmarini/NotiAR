@@ -52,6 +52,7 @@ import { useRouter } from "next/navigation";
 
 export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [carpeta, setCarpeta] = useState(initialData);
+    const router = useRouter();
 
     // Sync local state when initialData changes (e.g., after router.refresh())
     useEffect(() => {
@@ -113,7 +114,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [editingPerson, setEditingPerson] = useState<any>(null);
     const [storageFiles, setStorageFiles] = useState<any[]>([]);
     const [isLoadingStorage, setIsLoadingStorage] = useState(false);
-    const router = useRouter();
 
     // Fetch files from storage that might be related to this folder
     const fetchStorageFiles = async () => {
