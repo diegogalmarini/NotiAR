@@ -51,88 +51,46 @@ export async function POST(request: Request) {
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // 1. OCR (Optional fallback context)
+        // --- BACKGROUND PROCESSING CHECK ---
+        // If file is large (> 5MB or suspected many pages), return early
+        const isLarge = file.size > 5 * 1024 * 1024;
+
+        if (isLarge) {
+            console.log(`[PIPELINE] Large document detected (${(file.size / 1024 / 1024).toFixed(2)}MB). Triggering background task...`);
+
+            // 1. Create a "Placeholder" Carpeta immediately
+            const { data: carpeta } = await supabaseAdmin.from('carpetas').insert([{
+                caratula: `PROCESANDO: ${file.name}`,
+                estado: 'ABIERTA',
+                resumen_ia: 'Procesando documento pesado en segundo plano...'
+            }]).select().single();
+
+            // 2. Trigger async processing (Non-blocking)
+            processInBackground(file, buffer, carpeta.id).catch(e => {
+                console.error("[BACKGROUND] Fatal error:", e);
+                Sentry.captureException(e);
+            });
+
+            return NextResponse.json({
+                success: true,
+                status: 'PROCESSING',
+                folderId: carpeta.id,
+                message: "Documento grande detectado. El procesamiento continuará en segundo plano."
+            });
+        }
+
+        // --- STANDARD SYNC PIPELINE ---
         let extractedText = "";
         try {
             extractedText = await extractTextFromFile(file);
         } catch (e) { }
 
-        // 2. Classify (The "Front Desk")
         const classification = await classifyDocument(file, extractedText);
-        console.log(`[PIPELINE] Document Classified as: ${classification.document_type} (${classification.confidence})`);
+        console.log(`[PIPELINE] Document Classified as: ${classification.document_type}`);
 
-        // 3. Dynamic Routing Handler
-        let aiData: any = null;
-        const docType = classification.document_type;
+        // 3. Dynamic Routing with Hybrid capability
+        const aiData = await runExtractionPipeline(classification.document_type, file, extractedText);
 
-        switch (docType) {
-            case 'DNI':
-            case 'PASAPORTE':
-                console.log("[PIPELINE] Executing Identity Workflow...");
-                aiData = await SkillExecutor.execute('notary-identity-vision', file, { extractedText });
-                break;
-
-            case 'ESCRITURA':
-            case 'BOLETO_COMPRAVENTA':
-                console.log("[PIPELINE] Executing Deed Workflow...");
-                // Multi-step internal pipeline
-                const rawEntities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
-                console.log("🤖 LLM Raw Response:", JSON.stringify(rawEntities, null, 2));
-
-                // VALIDATION: If critical data is missing, fail early to prevent zero-value corruption
-                if (!rawEntities || (!rawEntities.clientes?.length && !rawEntities.operation_details?.price)) {
-                    console.error("[PIPELINE] Extraction Validation Failed: No entities or price found.");
-                    throw new Error("La IA no pudo extraer datos del documento (ID de partes o Precio). Verifique que el escaneado sea legible.");
-                }
-
-                const entities = rawEntities || { clientes: [], inmuebles: [], operation_details: {} };
-
-                // Deterministic calculation
-                const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
-                    price: entities.operation_details?.price || 0,
-                    currency: entities.operation_details?.currency || 'USD',
-                    exchangeRate: 1150,
-                    acquisitionDate: entities.operation_details?.acquisition_date || '2010-01-01',
-                    isUniqueHome: true,
-                    fiscalValuation: entities.inmuebles?.[0]?.valuacion_fiscal || 0
-                });
-                // Semantic compliance
-                const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
-                    price: entities.operation_details?.price || 0,
-                    moneda: entities.operation_details?.currency || 'USD',
-                    parties: entities.clientes?.map((c: any) => ({ name: c.nombre_completo, is_pep: false })) || []
-                });
-
-                // Step D: Automated Drafting (Phase 4)
-                console.log("[PIPELINE] Executing Drafting Workflow...");
-                const draft = await SkillExecutor.execute('notary-deed-drafter', undefined, {
-                    numero_escritura: entities.numero_escritura || "PROVISIONAL",
-                    acto_titulo: entities.resumen_acto || "Compraventa",
-                    fecha: entities.fecha_escritura || new Date().toISOString().split('T')[0],
-                    escribano: entities.notario_interviniente || "Escribanía Galmarini",
-                    registro: entities.registro_notario || "SETENTA",
-                    clientes: entities.clientes,
-                    inmuebles: entities.inmuebles,
-                    tax_calculation: taxes,
-                    compliance
-                });
-
-                aiData = { ...entities, tax_calculation: taxes, compliance, deed_draft: draft };
-                console.log("[PIPELINE] Consolidated AI Data:", JSON.stringify(aiData, null, 2));
-                break;
-
-            case 'CERTIFICADO_RPI':
-                console.log("[PIPELINE] Executing Certificate Workflow...");
-                aiData = await SkillExecutor.execute('notary-rpi-reader', file, { text: extractedText });
-                break;
-
-            default:
-                console.warn("[PIPELINE] Unknown document type, falling back to generic extraction.");
-                // Fallback to legacy-like extraction or generic semantic search
-                aiData = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
-        }
-
-        // 4. Persistence logic (Mapping back to legacy DB schemas for compatibility)
         const result = await persistIngestedData(aiData, file, buffer);
 
         revalidatePath('/carpetas');
@@ -140,13 +98,12 @@ export async function POST(request: Request) {
 
         return NextResponse.json({
             success: true,
-            classification,
+            status: 'COMPLETED',
             folderId: result.folderId,
             extractedData: aiData
         });
 
     } catch (error: any) {
-        console.error('Fatal Error Ingesting:', error);
         console.error("🔥 FULL INGESTION ERROR:", error);
         Sentry.captureException(error);
         return NextResponse.json({ error: error.message }, { status: 500 });
@@ -154,10 +111,66 @@ export async function POST(request: Request) {
 }
 
 /**
+ * runExtractionPipeline: Orchestrates the multi-model extraction logic.
+ */
+async function runExtractionPipeline(docType: string, file: File, extractedText: string) {
+    let aiData: any = null;
+
+    switch (docType) {
+        case 'DNI':
+        case 'PASAPORTE':
+            aiData = await SkillExecutor.execute('notary-identity-vision', file, { extractedText });
+            break;
+
+        case 'ESCRITURA':
+        case 'BOLETO_COMPRAVENTA':
+            // The SkillExecutor.execute will internally decide to use Hybrid or Sync
+            const entities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
+
+            // Financial & Compliance Tools
+            const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
+                price: entities.operation_details?.price || 0,
+                currency: entities.operation_details?.currency || 'USD'
+            });
+            const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
+                price: entities.operation_details?.price || 0,
+                moneda: entities.operation_details?.currency || 'USD',
+                parties: entities.clientes || []
+            });
+
+            aiData = { ...entities, tax_calculation: taxes, compliance };
+            break;
+
+        default:
+            aiData = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
+    }
+    return aiData;
+}
+
+/**
+ * processInBackground: Simulated background worker for Vercel.
+ * Note: In a real high-traffic app, this would be a QStash or Inngest call.
+ */
+async function processInBackground(file: File, buffer: Buffer, folderId: string) {
+    console.log(`[BACKGROUND] Starting processing for folder ${folderId}...`);
+
+    let extractedText = "";
+    try { extractedText = await extractTextFromFile(file); } catch (e) { }
+
+    const classification = await classifyDocument(file, extractedText);
+    const aiData = await runExtractionPipeline(classification.document_type, file, extractedText);
+
+    // Update existing folder and link data
+    await persistIngestedData(aiData, file, buffer, folderId);
+
+    console.log(`[BACKGROUND] Processing COMPLETED for folder ${folderId}`);
+}
+
+/**
  * Persists the result of any skill into the Supabase database.
  * Maintain legacy support for carpetas / escrituras / personas.
  */
-async function persistIngestedData(data: any, file: File, buffer: Buffer) {
+async function persistIngestedData(data: any, file: File, buffer: Buffer, existingFolderId?: string) {
     const {
         clientes = [],
         inmuebles = [],
@@ -169,18 +182,27 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
         registro_notario
     } = data;
 
-    // 1. Create Carpeta
-    // Ensure docType is available in this scope or pass it
-    const { data: carpeta, error: cError } = await supabase
-        .from('carpetas')
-        .insert([{
-            caratula: `Ingesta: ${file.name}`,
-            estado: 'ABIERTA',
-            resumen_ia: `Ingesta automática (${data.resumen_acto || 'Documento'})`
-        }])
-        .select()
-        .single();
-    if (cError) throw cError;
+    // 1. Resolve Carpeta
+    let folderId = existingFolderId;
+    if (!folderId) {
+        const { data: carpeta, error: cError } = await supabaseAdmin
+            .from('carpetas')
+            .insert([{
+                caratula: `Ingesta: ${file.name}`,
+                estado: 'ABIERTA',
+                resumen_ia: `Ingesta automática (${resumen_acto || 'Documento'})`
+            }])
+            .select()
+            .single();
+        if (cError) throw cError;
+        folderId = carpeta.id;
+    } else {
+        // Update placeholder
+        await supabaseAdmin.from('carpetas').update({
+            caratula: `Finalizado: ${file.name}`,
+            resumen_ia: `Procesamiento híbrido completado. Acto: ${resumen_acto}`
+        }).eq('id', folderId);
+    }
 
     // 2. Process Inmuebles
     const propertyIds: string[] = [];
@@ -209,7 +231,7 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
 
     // 4. Create Escritura (if applicable)
     const { data: escritura } = await supabase.from('escrituras').insert([{
-        carpeta_id: carpeta.id,
+        carpeta_id: folderId,
         nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
         fecha_escritura: fecha_escritura || operation_details?.date,
         inmueble_princ_id: propertyIds[0] || null,
@@ -253,7 +275,7 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer) {
         }
     }
 
-    return { folderId: carpeta.id };
+    return { folderId };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }
