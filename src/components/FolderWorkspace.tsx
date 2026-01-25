@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition, useEffect, useMemo } from "react";
+import { supabase } from "@/lib/supabaseClient";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
@@ -57,6 +58,45 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
         console.log("🔄 FolderWorkspace: Syncing state with new initialData");
         setCarpeta(initialData);
     }, [initialData]);
+
+    // --- REALTIME SUBSCRIPTION ---
+    useEffect(() => {
+        console.log(`[REALTIME] Subscribing to folder ${carpeta.id}...`);
+
+        const channel = supabase
+            .channel(`folder-updates-${carpeta.id}`)
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'carpetas',
+                    filter: `id=eq.${carpeta.id}`
+                },
+                (payload) => {
+                    console.log('[REALTIME] Folder change detected:', payload);
+                    setCarpeta(prev => ({ ...prev, ...payload.new }));
+                }
+            )
+            .on(
+                'postgres_changes',
+                {
+                    event: '*',
+                    schema: 'public',
+                    table: 'escrituras',
+                    filter: `carpeta_id=eq.${carpeta.id}`
+                },
+                () => {
+                    console.log('[REALTIME] Deed change detected (refreshing data)...');
+                    router.refresh(); // Trigger server data re-fetch
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [carpeta.id, router]);
 
     const [isPersonSearchOpen, setIsPersonSearchOpen] = useState(false);
     const [isAssetSearchOpen, setIsAssetSearchOpen] = useState(false);
@@ -263,6 +303,21 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
                         ID: {carpeta.id.slice(0, 8)}
                     </Badge>
+
+                    {/* INGESTION PROGRESS INDICATOR */}
+                    {carpeta.ingesta_estado && carpeta.ingesta_estado !== 'COMPLETADO' && (
+                        <div className={cn(
+                            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold animate-pulse",
+                            carpeta.ingesta_estado === 'ERROR' ? "bg-red-50 text-red-600 border-red-100" : "bg-indigo-50 text-indigo-700 border-indigo-100"
+                        )}>
+                            <Activity className={cn("h-3 w-3", carpeta.ingesta_estado === 'PROCESANDO' && "animate-spin")} />
+                            {carpeta.ingesta_paso || 'Procesando...'}
+                            {carpeta.ingesta_estado === 'ERROR' && (
+                                <button onClick={() => window.location.reload()} className="underline ml-1">Reintentar</button>
+                            )}
+                        </div>
+                    )}
+
                     <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
 
                     <AlertDialog>

@@ -155,21 +155,61 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
 
 /**
  * processInBackground: Simulated background worker for Vercel.
- * Note: In a real high-traffic app, this would be a QStash or Inngest call.
+ * Reports progress using ingesta_paso and ingesta_estado.
  */
 async function processInBackground(file: File, buffer: Buffer, folderId: string) {
     console.log(`[BACKGROUND] Starting processing for folder ${folderId}...`);
 
-    let extractedText = "";
-    try { extractedText = await extractTextFromFile(file); } catch (e) { }
+    try {
+        // 1. Mark as PROCESANDO
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_estado: 'PROCESANDO',
+            ingesta_paso: 'Iniciando reconocimiento de documento...'
+        }).eq('id', folderId);
 
-    const classification = await classifyDocument(file, extractedText);
-    const aiData = await runExtractionPipeline(classification.document_type, file, extractedText);
+        let extractedText = "";
+        try {
+            extractedText = await extractTextFromFile(file);
+        } catch (e) {
+            console.warn("[BACKGROUND] OCR extraction failed, continuing with vision only.");
+        }
 
-    // Update existing folder and link data
-    await persistIngestedData(aiData, file, buffer, folderId);
+        // 2. Step: Classification
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_paso: 'Identificando tipo de instrumento (Clasificación)...'
+        }).eq('id', folderId);
 
-    console.log(`[BACKGROUND] Processing COMPLETED for folder ${folderId}`);
+        const classification = await classifyDocument(file, extractedText);
+
+        // 3. Step: Extraction
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_paso: `Ejecutando Pipeline Híbrido: ${classification.document_type}...`
+        }).eq('id', folderId);
+
+        const aiData = await runExtractionPipeline(classification.document_type, file, extractedText);
+
+        // 4. Persistence
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_paso: 'Persistiendo datos jurídicos y vinculando partes...'
+        }).eq('id', folderId);
+
+        await persistIngestedData(aiData, file, buffer, folderId);
+
+        // 5. Finalize
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_estado: 'COMPLETADO',
+            ingesta_paso: 'Ingesta finalizada con éxito.'
+        }).eq('id', folderId);
+
+        console.log(`[BACKGROUND] Processing COMPLETED for folder ${folderId}`);
+    } catch (e: any) {
+        console.error(`[BACKGROUND] Fatal error processing ${folderId}:`, e);
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_estado: 'ERROR',
+            ingesta_paso: `Error crítico: ${e.message || 'Error desconocido'}`
+        }).eq('id', folderId);
+        Sentry.captureException(e);
+    }
 }
 
 /**
@@ -196,17 +236,19 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
             .insert([{
                 caratula: `Ingesta: ${file.name}`,
                 estado: 'ABIERTA',
-                resumen_ia: `Ingesta automática (${resumen_acto || 'Documento'})`
+                resumen_ia: `Ingesta automática (${resumen_acto || 'Documento'})`,
+                ingesta_estado: 'COMPLETADO',
+                ingesta_paso: 'Finalizado'
             }])
             .select()
             .single();
         if (cError) throw cError;
         folderId = carpeta.id;
     } else {
-        // Update placeholder
+        // Update placeholder with final summary
         await supabaseAdmin.from('carpetas').update({
-            caratula: `Finalizado: ${file.name}`,
-            resumen_ia: `Procesamiento híbrido completado. Acto: ${resumen_acto}`
+            caratula: `Carpeta: ${resumen_acto || file.name}`,
+            resumen_ia: `Procesamiento híbrido completado con éxito. Se detectaron ${clientes.length} partes y ${inmuebles.length} inmuebles.`
         }).eq('id', folderId);
     }
 
