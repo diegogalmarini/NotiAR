@@ -124,6 +124,7 @@ export async function POST(request: Request) {
             folderId: result.folderId,
             extractedData: aiData,
             error: result.error,
+            db_logs: result.db_logs,
             debug: {
                 clients: aiData.clientes?.length || 0,
                 assets: aiData.inmuebles?.length || 0,
@@ -288,7 +289,8 @@ async function processInBackground(file: File, buffer: Buffer, folderId: string)
         } else {
             await supabaseAdmin.from('carpetas').update({
                 ingesta_estado: 'ERROR',
-                ingesta_paso: `Error en persistencia: ${result.error || 'Error desconocido'}`
+                ingesta_paso: `Error en persistencia: ${result.error || 'Ver logs'}`,
+                resumen_ia: `Error persistencia: ${JSON.stringify(result.db_logs || [])}`
             }).eq('id', folderId);
         }
 
@@ -400,11 +402,15 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
         escritura_id: escritura.id,
         tipo_acto: String(resumen_acto || 'COMPRAVENTA').toUpperCase().substring(0, 100),
-        monto: parseFloat(String(operation_details?.price || 0)) || 0,
-        moneda: String(operation_details?.currency || 'USD').substring(0, 5)
+        monto_operacion: parseFloat(String(operation_details?.price || 0)) || 0,
+        nro_acto: numero_escritura ? String(numero_escritura) : null
     }]).select().single();
 
-    if (opError) console.error(`[PERSIST] Operation error:`, opError);
+    const db_logs: string[] = [];
+    if (opError) {
+        console.error(`[PERSIST] Operation error:`, opError);
+        db_logs.push(`Operacion Error: ${opError.message}`);
+    }
 
     // 5. Process Personas
     let persistedClients = 0;
@@ -424,27 +430,32 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
             fecha_nacimiento: safeParseDate(c.fecha_nacimiento),
             domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
             estado_civil_detalle: c.estado_civil || null,
-            origen_dato: 'IA_ORCHESTRATOR',
+            origen_dato: 'IA_OCR', // Corrected to match table check constraint
             updated_at: new Date().toISOString()
         }, { onConflict: 'dni' });
 
         if (pError) {
             console.error(`[PERSIST] Person error (${dni}):`, pError);
+            db_logs.push(`Person Error (${dni}): ${pError.message}`);
         } else {
             persistedClients++;
-        }
 
-        if (escritura && operacion) {
-            const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
-                operacion_id: operacion.id,
-                persona_id: dni,
-                rol: String(c.rol || 'VENDEDOR').toUpperCase().substring(0, 50)
-            }]);
-            if (linkError) console.error(`[PERSIST] Link error:`, linkError);
+            // Link to operation (only if both exist)
+            if (escritura && operacion) {
+                const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
+                    operacion_id: operacion.id,
+                    persona_id: dni,
+                    rol: String(c.rol || 'VENDEDOR').toUpperCase().substring(0, 50)
+                }]);
+                if (linkError) {
+                    console.error(`[PERSIST] Link error:`, linkError);
+                    db_logs.push(`Link Error (${dni}): ${linkError.message}`);
+                }
+            }
         }
     }
 
-    return { folderId, success: true, persistedClients };
+    return { folderId, success: true, persistedClients, db_logs };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }

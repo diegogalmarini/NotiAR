@@ -138,6 +138,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     },
                     transcripcion_literal: {
                         type: SchemaType.OBJECT,
+                        description: "Transcripción COMPLETA y VERBOSA de las medidas, linderos y superficie. NO ABREVIAR.",
                         properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
                         required: ["valor", "evidencia"]
                     },
