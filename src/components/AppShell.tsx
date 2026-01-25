@@ -66,6 +66,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         return <>{children}</>;
     }
 
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
+        window.location.href = "/login";
+    };
+
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
             {/* Mobile Header */}
@@ -123,7 +128,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                     {/* Footer / User */}
                     <div className="p-4 border-t shrink-0">
-                        <Button variant="ghost" className={cn("w-full flex items-center justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50 px-3")}>
+                        <Button
+                            variant="ghost"
+                            className={cn("w-full flex items-center justify-start gap-3 text-red-500 hover:text-red-600 hover:bg-red-50 px-3")}
+                            onClick={handleLogout}
+                        >
                             <LogOut size={20} className="shrink-0" />
                             {!isCollapsed && <span className="font-medium">Cerrar Sesión</span>}
                         </Button>
