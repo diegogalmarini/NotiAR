@@ -85,14 +85,14 @@ export async function POST(req: Request) {
         const aiData = await runExtractionPipeline(docType, file, extractedText);
         const result = await persistIngestedData(aiData, file, buffer, carpeta.id);
 
-        // Update carpeta status
+        // Update carpeta status with all metadata
         await supabaseAdmin.from('carpetas').update({
             ingesta_estado: result.success ? 'COMPLETADO' : 'ERROR',
             ingesta_paso: result.success
                 ? `IA: ${result.persistedClients || 0} personas, ${aiData.inmuebles?.length || 0} inmuebles`
                 : `Error: ${result.error || 'Ver logs'}`,
             resumen_ia: result.success
-                ? `Flash extraction completa en ${Date.now() - Date.parse(carpeta.created_at)}ms`
+                ? `${aiData.resumen_acto || 'Extracción Flash'}`
                 : null
         }).eq('id', carpeta.id);
 
@@ -233,11 +233,9 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         }
     }
 
-    // Build escritura object (inmueble_id es opcional)
+    // Build escritura object - MINIMAL (solo columnas seguras)
     const escrituraData: any = {
-        carpeta_id: folderId,
-        resumen_ia: resumen_acto,
-        storage_path: fileName
+        carpeta_id: folderId
     };
 
     // Solo agregar inmueble_id si existe
@@ -249,7 +247,8 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     if (escrituraError || !escritura) {
         console.error('[PERSIST] ❌ Error creating escritura:', escrituraError);
-        throw new Error(`DB Error creating escritura: ${escrituraError?.message || 'Unknown error'}`);
+        // Si falla, guardar metadata en carpeta directamente
+        return { folderId, success: false, persistedClients: 0, db_logs: [`Escritura insert failed: ${escrituraError?.message}`], error: escrituraError?.message };
     }
 
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
@@ -290,7 +289,7 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
             }
         }
     }
-    return { folderId, success: true, persistedClients, db_logs, error: null };
+    return { folderId, success: true, persistedClients, db_logs, error: null, fileName };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }

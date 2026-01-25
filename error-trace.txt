@@ -1,0 +1,21 @@
+­ƒÜÇ Starting Dependency Trace...
+
+­ƒº¬ Testing: Next Server...
+Ô£à Next Server imported safely.
+
+­ƒº¬ Testing: Next Cache...
+Ô£à Next Cache imported safely.
+
+­ƒº¬ Testing: Supabase Admin...
+ÔØî Supabase Admin FAILED!
+Error: supabaseUrl is required.
+    at validateSupabaseUrl (C:\Users\diego\NotiAr\node_modules\@supabase\supabase-js\src\lib\helpers.ts:86:11)
+    at new SupabaseClient (C:\Users\diego\NotiAr\node_modules\@supabase\supabase-js\src\SupabaseClient.ts:117:21)
+    at createClient (C:\Users\diego\NotiAr\node_modules\@supabase\supabase-js\src\index.ts:60:10)
+    at <anonymous> (C:\Users\diego\NotiAr\src\lib\supabaseAdmin.ts:19:30)
+    at Object.<anonymous> (C:\Users\diego\NotiAr\src\lib\supabaseAdmin.ts:24:2)
+    at Module._compile (node:internal/modules/cjs/loader:1554:14)
+    at Object.transformer (C:\Users\diego\AppData\Local\npm-cache\_npx\fd45a72a545557e9\node_modules\tsx\dist\register-D46fvsV_.cjs:3:1104)
+    at Module.load (node:internal/modules/cjs/loader:1289:32)
+    at Function._load (node:internal/modules/cjs/loader:1108:12)
+    at TracingChannel.traceSync (node:diagnostics_channel:322:14)

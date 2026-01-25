@@ -1,66 +1,10 @@
+// Polyfills are now centrally managed in server-polyfills.ts 
+// which must be imported as the first line of server entry points.
+import './server-polyfills';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from "./supabaseAdmin";
+
 export { supabaseAdmin };
-
-/**
- * Universal God-Mode Polyfill for Next.js Server Side
- * High-reach injection of browser globals required by document processing libraries.
- */
-function applyUniversalPolyfills() {
-    if (typeof globalThis !== 'undefined') {
-        const g = globalThis as any;
-
-        // Ensure core browser environments are mocked
-        if (!g.window) g.window = g;
-        if (!g.self) g.self = g;
-
-        // Polyfill atob/btoa (Critical for PDF character map decoding)
-        const atobPolyfill = (str: string) => {
-            try {
-                return Buffer.from(str, 'base64').toString('binary');
-            } catch (e) {
-                return "";
-            }
-        };
-        const btoaPolyfill = (str: string) => {
-            try {
-                return Buffer.from(str, 'binary').toString('base64');
-            } catch (e) {
-                return "";
-            }
-        };
-
-        if (!g.atob) g.atob = atobPolyfill;
-        if (!g.btoa) g.btoa = btoaPolyfill;
-
-        // Also inject into global for libraries that check global directly
-        if (typeof global !== 'undefined') {
-            const nodeG = global as any;
-            if (!nodeG.atob) nodeG.atob = atobPolyfill;
-            if (!nodeG.btoa) nodeG.btoa = btoaPolyfill;
-            if (!nodeG.window) nodeG.window = g;
-            if (!nodeG.DOMMatrix) {
-                nodeG.DOMMatrix = class DOMMatrix {
-                    constructor() { }
-                    static fromFloat64Array() { return new DOMMatrix(); }
-                    static fromFloat32Array() { return new DOMMatrix(); }
-                };
-            }
-        }
-
-        // Polyfill DOMMatrix (required by pdf.js)
-        if (!g.DOMMatrix) {
-            g.DOMMatrix = class DOMMatrix {
-                constructor() { }
-                static fromFloat64Array() { return new DOMMatrix(); }
-                static fromFloat32Array() { return new DOMMatrix(); }
-            };
-        }
-    }
-}
-
-// Apply immediately on module load
-applyUniversalPolyfills();
 
 // Dynamic imports for Node.js modules to prevent evaluation errors in some environments
 async function getPdfParser() {
