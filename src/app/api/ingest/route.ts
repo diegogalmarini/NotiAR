@@ -237,8 +237,7 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
     const escrituraData: any = {
         carpeta_id: folderId,
         resumen_ia: resumen_acto,
-        storage_path: fileName,
-        fecha_proceso: new Date().toISOString()
+        storage_path: fileName
     };
 
     // Solo agregar inmueble_id si existe
