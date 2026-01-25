@@ -233,22 +233,17 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         }
     }
 
-    // Build escritura object - MINIMAL (solo columnas seguras)
+    // Build escritura object - SOLO carpeta_id (nada más)
     const escrituraData: any = {
         carpeta_id: folderId
     };
-
-    // Solo agregar inmueble_id si existe
-    if (assetId) {
-        escrituraData.inmueble_id = assetId;
-    }
 
     const { data: escritura, error: escrituraError } = await supabaseAdmin.from('escrituras').insert(escrituraData).select().single();
 
     if (escrituraError || !escritura) {
         console.error('[PERSIST] ❌ Error creating escritura:', escrituraError);
         // Si falla, guardar metadata en carpeta directamente
-        return { folderId, success: false, persistedClients: 0, db_logs: [`Escritura insert failed: ${escrituraError?.message}`], error: escrituraError?.message };
+        return { folderId, success: false, persistedClients: 0, db_logs: [`Escritura insert failed: ${escrituraError?.message}`], error: escrituraError?.message, fileName };
     }
 
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
