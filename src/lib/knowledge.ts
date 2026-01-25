@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabaseAdmin } from "./supabaseAdmin";
+export { supabaseAdmin };
 
 /**
  * Universal God-Mode Polyfill for Next.js Server Side
