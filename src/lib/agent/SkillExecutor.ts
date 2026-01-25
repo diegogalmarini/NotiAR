@@ -66,15 +66,21 @@ export class SkillExecutor {
      * Executes a qualitative skill using a hierarchical fallback system.
      * Includes Strict JSON Enforcement and Auto-Correction Retry logic.
      */
-    private static async executeSemanticSkill(skillSlug: string, file?: File, contextData?: any): Promise<any> {
+    private static async executeSemanticSkill(skillSlug: string, file?: File, contextData?: any = {}): Promise<any> {
         // 1. Fetch the implementation instruction (SKILL.md) from the Registry
         const skillDoc = await getSkillInstruction(skillSlug);
         if (!skillDoc) {
             throw new Error(`Skill ${skillSlug} is not active or indexed in the Registry.`);
         }
 
+        // --- AUTOMATIC SCHEMA INJECTION ---
+        const config = await import("../aiConfig");
+        if (skillSlug === 'notary-entity-extractor') {
+            contextData.responseSchema = config.ACTA_EXTRACCION_PARTES_SCHEMA;
+        }
+
         const userContext = `INPUT CONTEXT:\n${JSON.stringify(contextData, null, 2)}`;
-        const hierarchy = (await import("../aiConfig")).MODEL_HIERARCHY;
+        const hierarchy = config.MODEL_HIERARCHY;
 
         let lastError: Error | null = null;
 
@@ -197,6 +203,31 @@ export class SkillExecutor {
                     throw new Error("STRICT_JSON_VIOLATION: Missing 'valor/evidencia_origen' structure in majority of fields.");
                 }
             }
+        }
+
+        // --- POST-PROCESSING: Confidence Highlighting ---
+        // If confidence < 0.98 in critical fields, add a UI flag.
+        if (parsed?.tipo_objeto === "ACTA_EXTRACCION_PARTES" && Array.isArray(parsed.entidades)) {
+            parsed.entidades = parsed.entidades.map((ent: any) => {
+                const criticalFields = ['nombre_completo', 'dni_cuil_cuit'];
+                let needsReview = false;
+
+                criticalFields.forEach(field => {
+                    const data = ent.datos?.[field];
+                    if (data && typeof data.confianza === 'number' && data.confianza < 0.98) {
+                        needsReview = true;
+                    }
+                });
+
+                if (needsReview) {
+                    ent.ui_status = {
+                        alert: "LOW_CONFIDENCE",
+                        color: "red",
+                        message: "Revisar datos críticos: Confianza < 98%"
+                    };
+                }
+                return ent;
+            });
         }
 
         return parsed;
