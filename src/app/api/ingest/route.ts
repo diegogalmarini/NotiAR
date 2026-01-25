@@ -11,6 +11,21 @@ export const maxDuration = 300; // Increased timeout for Pro model processing (A
 
 // --- HELPERS ---
 
+function safeParseInt(val: any): number | null {
+    if (val === null || val === undefined) return null;
+    const parsed = parseInt(String(val).replace(/[^0-9]/g, ''), 10);
+    return isNaN(parsed) ? null : parsed;
+}
+
+function safeParseDate(val: any): string | null {
+    if (!val) return null;
+    try {
+        const d = new Date(val);
+        if (isNaN(d.getTime())) return null;
+        return d.toISOString().split('T')[0]; // YYYY-MM-DD
+    } catch { return null; }
+}
+
 async function extractTextFromFile(file: File): Promise<string> {
     const fileName = file.name.toLowerCase();
     const bytes = await file.arrayBuffer();
@@ -104,13 +119,16 @@ export async function POST(request: Request) {
         revalidatePath('/dashboard');
 
         return NextResponse.json({
-            success: true,
-            status: 'COMPLETED',
+            success: result.success,
+            status: result.success ? 'COMPLETED' : 'PARTIAL_ERROR',
             folderId: result.folderId,
             extractedData: aiData,
+            error: result.error,
             debug: {
                 clients: aiData.clientes?.length || 0,
-                assets: aiData.inmuebles?.length || 0
+                assets: aiData.inmuebles?.length || 0,
+                persistedClients: result.persistedClients || 0,
+                persistenceError: result.error
             }
         });
 
@@ -258,17 +276,21 @@ async function processInBackground(file: File, buffer: Buffer, folderId: string)
             ingesta_paso: 'Persistiendo datos jurídicos y vinculando partes...'
         }).eq('id', folderId);
 
-        await persistIngestedData(aiData, file, buffer, folderId);
+        const result = await persistIngestedData(aiData, file, buffer, folderId);
 
         // 5. Finalize
-        const clientesCount = aiData.clientes?.length || 0;
-        const inmueblesCount = aiData.inmuebles?.length || 0;
-
-        await supabaseAdmin.from('carpetas').update({
-            ingesta_estado: 'COMPLETADO',
-            ingesta_paso: 'Ingesta completada',
-            resumen_ia: `IA: Detección finalizada. Encontrados: ${clientesCount} personas y ${inmueblesCount} inmuebles.`
-        }).eq('id', folderId);
+        if (result.success) {
+            await supabaseAdmin.from('carpetas').update({
+                ingesta_estado: 'COMPLETADO',
+                ingesta_paso: 'Ingesta completada',
+                resumen_ia: `IA: Detección finalizada. Persistidos: ${result.persistedClients || 0} personas y ${aiData.inmuebles?.length || 0} inmuebles.`
+            }).eq('id', folderId);
+        } else {
+            await supabaseAdmin.from('carpetas').update({
+                ingesta_estado: 'ERROR',
+                ingesta_paso: `Error en persistencia: ${result.error || 'Error desconocido'}`
+            }).eq('id', folderId);
+        }
 
         console.log(`[BACKGROUND] Processing COMPLETED for folder ${folderId}`);
     } catch (e: any) {
@@ -355,8 +377,8 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
     console.log(`[PERSIST] Creating escritura for folder ${folderId}...`);
     const { data: escritura, error: eError } = await supabaseAdmin.from('escrituras').insert([{
         carpeta_id: folderId,
-        nro_protocolo: numero_escritura ? parseInt(numero_escritura, 10) : null,
-        fecha_escritura: fecha_escritura || operation_details?.date,
+        nro_protocolo: safeParseInt(numero_escritura),
+        fecha_escritura: safeParseDate(fecha_escritura) || safeParseDate(operation_details?.date),
         inmueble_princ_id: propertyIds[0] || null,
         notario_interviniente,
         registro: registro_notario,
@@ -370,21 +392,22 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
 
     if (eError) {
         console.error(`[PERSIST] Escritura error:`, eError);
-        return { folderId };
+        return { folderId, success: false, error: eError.message };
     }
 
-    // 4b. Create Operacion record (Crucial for linking participants)
+    // 4b. Create Operacion record
     console.log(`[PERSIST] Creating operation record for escritura ${escritura.id}...`);
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
         escritura_id: escritura.id,
-        tipo_acto: resumen_acto?.toUpperCase() || 'COMPRAVENTA',
-        monto: operation_details?.price || 0,
-        moneda: operation_details?.currency || 'USD'
+        tipo_acto: String(resumen_acto || 'COMPRAVENTA').toUpperCase().substring(0, 100),
+        monto: parseFloat(String(operation_details?.price || 0)) || 0,
+        moneda: String(operation_details?.currency || 'USD').substring(0, 5)
     }]).select().single();
 
     if (opError) console.error(`[PERSIST] Operation error:`, opError);
 
     // 5. Process Personas
+    let persistedClients = 0;
     console.log(`[PERSIST] Processing ${clientes.length} clients...`);
     for (const c of clientes) {
         const dni = normalizeID(c.dni);
@@ -398,26 +421,30 @@ async function persistIngestedData(data: any, file: File, buffer: Buffer, existi
             nombre_completo: toTitleCase(c.nombre_completo),
             cuit: normalizeID(c.cuit),
             nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
-            fecha_nacimiento: c.fecha_nacimiento || null,
+            fecha_nacimiento: safeParseDate(c.fecha_nacimiento),
             domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
             estado_civil_detalle: c.estado_civil || null,
             origen_dato: 'IA_ORCHESTRATOR',
             updated_at: new Date().toISOString()
         }, { onConflict: 'dni' });
 
-        if (pError) console.error(`[PERSIST] Person error (${dni}):`, pError);
+        if (pError) {
+            console.error(`[PERSIST] Person error (${dni}):`, pError);
+        } else {
+            persistedClients++;
+        }
 
         if (escritura && operacion) {
             const { error: linkError } = await supabaseAdmin.from('participantes_operacion').insert([{
                 operacion_id: operacion.id,
                 persona_id: dni,
-                rol: c.rol?.toUpperCase() || 'VENDEDOR'
+                rol: String(c.rol || 'VENDEDOR').toUpperCase().substring(0, 50)
             }]);
             if (linkError) console.error(`[PERSIST] Link error:`, linkError);
         }
     }
 
-    return { folderId };
+    return { folderId, success: true, persistedClients };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }
