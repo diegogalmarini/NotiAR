@@ -3,48 +3,30 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 /**
- * GOLD STANDARD HIERARCHY
- * We list models from most intelligent to most available.
- * Every time the app starts or a critical failure occurs, we find the best "living" model.
+ * C-LEVEL MODEL HIERARCHY (Gemini 3 / 2.5)
+ * GOLD: Maximum accuracy and systemic reasoning (Thinking Mode).
+ * SILVER: Mass extraction speed with Gemini 3.
+ * BRONZE: High-availability and cost-efficiency.
  */
-const MODEL_HIERARCHY = [
-    "gemini-1.5-pro-002",   // Top Quality (Stable identifier)
-    "gemini-1.5-pro",       // Top Quality (Alias)
-    "gemini-2.0-flash-exp", // Next Gen Flash (Very smart)
-    "gemini-1.5-flash"      // Safety net (High availability)
+export const MODEL_HIERARCHY = [
+    "gemini-3-pro-preview",    // GOLD: High-fidelity reasoning
+    "gemini-3-flash-preview",  // SILVER: High-speed extraction
+    "gemini-2.5-flash-lite",   // BRONZE: Efficiency fallback
+    "gemini-1.5-pro-002",      // LEGACY GOLD
+    "gemini-1.5-flash"         // ULTIMATE FALLBACK
 ];
 
-let activeModel: string | null = null;
-let lastCheck = 0;
+/**
+ * getModelHierarchy: Returns the full hierarchy for the SkillExecutor to handle fallbacks.
+ */
+export function getModelHierarchy() {
+    return MODEL_HIERARCHY;
+}
 
 /**
- * getLatestModel: The self-healing engine of NotiAR.
- * It ensures the SaaS never "dies" by falling back to the next best available model.
+ * getLatestModel: Simple entry point for compatibility.
+ * Now just returns the top of the hierarchy. Fallbacks are handled in the SkillExecutor.
  */
 export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT'): Promise<string> {
-    const now = Date.now();
-    // Cache the verified model for 30 minutes to optimize latency
-    if (activeModel && (now - lastCheck < 1800000)) {
-        return activeModel;
-    }
-
-    console.log("[AI_CONFIG] Verifying model health for SaaS Core...");
-
-    for (const modelName of MODEL_HIERARCHY) {
-        try {
-            const model = genAI.getGenerativeModel({ model: modelName });
-            // Cheap operation to verify the model is reachable and active for this API Key
-            await model.countTokens("health-check");
-
-            activeModel = modelName;
-            lastCheck = now;
-            console.log(`[AI_CONFIG] Active Engine Set: ${modelName}`);
-            return modelName;
-        } catch (error) {
-            console.warn(`[AI_CONFIG] Model ${modelName} is UNAVAILABLE. Falling back...`);
-        }
-    }
-
-    // Ultimate fallback if everything fails
-    return "gemini-1.5-flash";
+    return MODEL_HIERARCHY[0];
 }
