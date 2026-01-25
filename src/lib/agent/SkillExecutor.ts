@@ -115,7 +115,7 @@ export class SkillExecutor {
      * Internal runner for a single skill attempt.
      */
     private static async runSkillAttempt(modelName: string, skillDoc: string, userContext: string, file?: File, correctionFeedback: string | null = null): Promise<any> {
-        const isThinkingModel = modelName.includes('pro');
+        const isThinkingModel = modelName.includes('pro') || modelName.includes('thinking');
 
         // Extract optional responseSchema from userContext (injected via contextData)
         let responseSchema: any = null;
