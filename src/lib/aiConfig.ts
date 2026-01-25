@@ -3,15 +3,13 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 /**
- * C-LEVEL MODEL HIERARCHY (Gemini 3 / 2.5)
- * GOLD: Maximum accuracy and systemic reasoning (Thinking Mode).
- * SILVER: Mass extraction speed with Gemini 3.
- * BRONZE: High-availability and cost-efficiency.
+ * FLASH-ONLY HIERARCHY: Velocidad extrema sobre precisión
+ * GOLD/SILVER/BRONZE: Todo usa Flash para evitar latencia del Pro.
  */
 export const MODEL_HIERARCHY = [
-    "gemini-3-pro-preview",    // GOLD: Maximum Accuracy (Thinking Mode)
-    "gemini-3-flash-preview",  // SILVER: High-speed extraction
-    "gemini-2.5-flash-lite"    // BRONZE: Efficiency fallback
+    "gemini-3-flash-preview",  // GOLD: Flash para TODO
+    "gemini-3-flash-preview",  // SILVER: Flash para TODO
+    "gemini-3-flash-preview"   // BRONZE: Flash para TODO
 ];
 
 /**

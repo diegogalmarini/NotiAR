@@ -54,36 +54,8 @@ export class SkillExecutor {
         if (skillSlug === 'notary-timeline-planner') return planTimeline(contextData.targetDate, contextData.jurisdiction, contextData.mode);
         if (skillSlug === 'notary-deed-drafter') return DeedDrafter.generate(contextData as DraftingContext);
 
-        // --- HYBRID PIPELINE FOR LARGE DEEDS ---
-        if (skillSlug === 'notary-entity-extractor' && file && file.size > 2 * 1024 * 1024) {
-            return this.executeHybridPipeline(skillSlug, file, contextData);
-        }
-
+        // --- FLASH DIRECTO: Sin pre-procesamiento ni mapeos ---
         return this.executeSemanticSkill(skillSlug, file, contextData);
-    }
-
-    /**
-     * executeHybridPipeline: 2-step process to optimize context and reasoning.
-     */
-    private static async executeHybridPipeline(skillSlug: string, file: File, contextData: any): Promise<any> {
-        console.log(`[EXECUTOR][HYBRID] Initializing 2-step pipeline for large doc...`);
-        const fileUri = await this.uploadToFileApi(file);
-        const filePart = { fileData: { fileUri, mimeType: file.type || "application/pdf" } };
-
-        // Step 1: Mapping (SILVER Model)
-        const indexPrompt = "ACT AS A NOTARY INDEXER. Map page ranges for: COMPARECENCIA, OBJETO, CIERRE. OUTPUT JSON: { segments: [] }";
-        const silverModelId = MODEL_HIERARCHY[1]; // Gemini 3 Flash
-        const silverModel = this.genAI.getGenerativeModel({ model: silverModelId });
-
-        const indexResult = await silverModel.generateContent([indexPrompt, filePart]);
-        const { segments } = JSON.parse(indexResult.response.text().replace(/```json|```/g, "").trim());
-
-        console.log(`[EXECUTOR][HYBRID] Mapping complete. Triggering GOLD Notary Censor...`);
-
-        // Step 2: Extraction (GOLD Model)
-        contextData.segments = segments;
-        const skillDoc = await getSkillInstruction(skillSlug);
-        return this.runSkillAttempt(MODEL_HIERARCHY[0], skillSlug, skillDoc!, JSON.stringify(contextData), undefined, null, filePart);
     }
 
     private static async executeSemanticSkill(skillSlug: string, file?: File, contextData: any = {}): Promise<any> {
@@ -123,7 +95,7 @@ export class SkillExecutor {
         correctionFeedback: string | null = null,
         providedFilePart: any = null
     ): Promise<any> {
-        const isThinkingModel = modelName.includes('pro') || modelName.includes('thinking');
+        // FLASH NO USA THINKING MODE
         const { ACTA_EXTRACCION_PARTES_SCHEMA } = await import("../aiConfig");
 
         const generationConfig: any = {
@@ -132,7 +104,6 @@ export class SkillExecutor {
         };
 
         const modelConfig: any = { model: modelName, generationConfig };
-        if (isThinkingModel) modelConfig.thinkingConfig = { include_thoughts: true };
 
         const model = this.genAI.getGenerativeModel(modelConfig);
 
