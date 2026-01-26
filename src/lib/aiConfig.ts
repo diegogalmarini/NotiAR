@@ -84,7 +84,11 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                             domicilio: {
                                 type: SchemaType.OBJECT,
                                 properties: {
-                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    valor: {
+                                        type: SchemaType.STRING,
+                                        nullable: true,
+                                        description: "Dirección COMPLETA y LITERAL. Debe incluir el tipo de vía (Calle, Avenida, Pasaje, Ruta) tal cual figura en el texto. Ej: 'Calle San Martín 123' y NO 'San Martín 123'."
+                                    },
                                     evidencia: { type: SchemaType.STRING }
                                 },
                                 required: ["valor", "evidencia"]
