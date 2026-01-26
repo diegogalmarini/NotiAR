@@ -14,7 +14,7 @@ if (typeof globalThis !== 'undefined') {
     if (!g.btoa) g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
-// Flash v1.2.16 - Critical Prompt Injection (DNI/CUIT Rules in System Prompt)
+// Flash v1.2.17 - SCHEMA FIX: Separated DNI/CUIT + Biographical Fields
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
