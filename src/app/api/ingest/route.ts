@@ -14,7 +14,7 @@ if (typeof globalThis !== 'undefined') {
     if (!g.btoa) g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
-// Flash v1.2.1 - Operation Mortgage Core
+// Flash v1.2.2 - UI Role & Validation Fix
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';

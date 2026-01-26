@@ -99,10 +99,20 @@ export class CrossCheckService {
                 const extNorm = this.normalize(extracted || "");
                 const manNorm = this.normalize(manual || "");
 
-                const distExt = this.getLevenshteinDistance(offNorm, extNorm);
-                const distMan = this.getLevenshteinDistance(offNorm, manNorm);
+                // If any source is missing, we cannot validade, so we skip or mark as review if partial
+                if (!offNorm || (!extNorm && !manNorm)) {
+                    details[key] = { match: true, severity: 'LOW', message: "Datos insuficientes para validar." };
+                    continue;
+                }
 
-                if (distExt > 5 || distMan > 5) {
+                const distExt = extNorm ? this.getLevenshteinDistance(offNorm, extNorm) : 0;
+                const distMan = manNorm ? this.getLevenshteinDistance(offNorm, manNorm) : 0;
+
+                // Only penalize if the distance is high AND the value exists
+                const failExt = extNorm && distExt > 5;
+                const failMan = manNorm && distMan > 5;
+
+                if (failExt || failMan) {
                     details[key] = {
                         match: false,
                         severity: 'HIGH',

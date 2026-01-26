@@ -261,23 +261,25 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
         const fieldsToValidate: Record<string, any> = {};
 
-        participants.forEach((p: any) => {
+        participants.forEach((p: any, idx: number) => {
             const person = p.persona || p.personas;
+            const personId = person?.id || `temp_${idx}`;
+
             const extracted = entities.find((e: any) => e.datos?.dni_cuil_cuit?.valor === person?.dni || e.datos?.nombre_completo?.valor === person?.nombre_completo);
 
             // Simulation of OFFICIAL API data (e.g., AFIP)
             // In a real scenario, this would come from a fetched cache or a real-time call
             const officialMock = person?.metadata?.official_data || {
-                nombre_completo: person?.nombre_completo, // Assume matches unless mocked otherwise
+                nombre_completo: person?.nombre_completo || extracted?.datos?.nombre_completo?.valor, // Fallback to avoid empty comparison
                 cuit: person?.cuit
             };
 
-            fieldsToValidate[`nombre_${person?.id}`] = {
+            fieldsToValidate[`nombre_${personId}`] = {
                 official: officialMock.nombre_completo,
                 extracted: extracted?.datos?.nombre_completo?.valor,
                 manual: person?.nombre_completo
             };
-            fieldsToValidate[`cuit_${person?.id}`] = {
+            fieldsToValidate[`cuit_${personId}`] = {
                 official: officialMock.cuit,
                 extracted: extracted?.datos?.dni_cuil_cuit?.valor,
                 manual: person?.cuit
@@ -617,9 +619,19 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                             <div className="px-4 py-2 border-b flex justify-between items-center bg-slate-50">
                                                 <Badge variant="secondary" className={cn(
                                                     "text-[9px] px-2 py-0 h-5 font-bold tracking-wider",
-                                                    p.rol === 'VENDEDOR' ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                    p.rol?.includes('VENDEDOR') ? "bg-amber-100 text-amber-700 border-amber-200" :
+                                                        p.rol?.includes('ACREEDOR') ? "bg-blue-100 text-blue-700 border-blue-200" :
+                                                            p.rol?.includes('DEUDOR') ? "bg-purple-100 text-purple-700 border-purple-200" :
+                                                                p.rol?.includes('FIADOR') ? "bg-slate-100 text-slate-700 border-slate-200" :
+                                                                    "bg-emerald-100 text-emerald-700 border-emerald-200"
                                                 )}>
-                                                    {p.rol === 'VENDEDOR' ? 'VENDEDOR / TRANSMITENTE' : 'COMPRADOR / ADQUIRENTE'}
+                                                    {p.rol?.includes('VENDEDOR') ? 'VENDEDOR / TRANSMITENTE' :
+                                                        p.rol?.includes('ACREEDOR') ? 'ACREEDOR HIPOTECARIO' :
+                                                            p.rol?.includes('DEUDOR') ? 'DEUDOR / MUTUARIO' :
+                                                                p.rol?.includes('FIADOR') ? 'FIADOR / GARANTE' :
+                                                                    p.rol?.includes('CONYUGE') ? 'CÓNYUGE ASINTIENTE' :
+                                                                        p.rol?.includes('APODERADO') ? 'APODERADO' :
+                                                                            'COMPRADOR / ADQUIRENTE'}
                                                 </Badge>
                                                 <div className="flex items-center gap-1">
                                                     <Button
