@@ -195,13 +195,19 @@ function normalizeAIData(raw: any) {
             const d = e.datos || {};
             return {
                 rol: e.rol || 'VENDEDOR',
+                tipo_persona: e.tipo_persona || 'FISICA',
                 nombre_completo: d.nombre_completo?.valor || 'Desconocido',
-                dni: d.dni_cuil_cuit?.valor || null,
-                cuit: d.dni_cuil_cuit?.valor || null,
+                dni: d.dni?.valor || null,  // ✅ Campo separado
+                cuit: d.cuit_cuil?.valor || null,  // ✅ Campo separado
                 estado_civil: d.estado_civil?.valor || null,
                 nacionalidad: d.nacionalidad?.valor || null,
                 domicilio_real: d.domicilio?.valor || null,
-                fecha_nacimiento: null
+                fecha_nacimiento: d.fecha_nacimiento?.valor || null,  // ✅ Nuevo
+                datos_conyuge: d.conyuge ? {  // ✅ Nuevo (objeto completo)
+                    nombre_completo: d.conyuge.nombre_completo || null,
+                    dni: d.conyuge.dni || null,
+                    cuit_cuil: d.conyuge.cuit_cuil || null
+                } : null
             };
         });
     }
@@ -216,6 +222,7 @@ function normalizeAIData(raw: any) {
     }
     return normalized;
 }
+
 
 async function persistIngestedData(aiData: any, file: File, buffer: Buffer, existingFolderId: string) {
     console.log(`[PERSIST] Persisting data for folder ${existingFolderId}...`);
