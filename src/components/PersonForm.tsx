@@ -18,6 +18,7 @@ interface PersonFormProps {
 }
 
 export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps) {
+    const [loading, setLoading] = useState(false);
     const [tipoPersona, setTipoPersona] = useState(
         initialData?.tipo_persona === 'JURIDICA' ||
             ['30', '33', '34'].some((p: string) => initialData?.cuit?.startsWith(p))
