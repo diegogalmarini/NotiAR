@@ -1,85 +1,128 @@
 ---
 name: notary-entity-extractor
-description: Identifica y extrae partícipes (vendedores/compradores), inmuebles y detalles de la operación en escrituras argentinas.
+description: Extractor especializado en escrituras argentinas. Distingue roles corporativos, separa nombres/apellidos compuestos y normaliza fechas textuales.
 license: Proprietary
+version: 3.0.0 (Correction Release)
 ---
 
-# Notary Entity Extractor
+# Notary Entity Extractor (Argentine Legal Context)
 
-## Goal
-Extraer información estructurada de una escritura notarial o boleto de compraventa.
+## 🎯 Objetivo
+Extraer una representación JSON estructurada y **jurídicamente válida** de los comparecientes y el acto.
+**CRÍTICO:** Debes razonar como un Oficial de Registro. La precisión es más importante que la velocidad.
 
-## Extraction Rules
+---
 
-### 0. Vision/OCR Prerrequisite
-**CRITICAL**: The user has provided a PDF/Image. You MUST act as an OCR engine first. Read every single pixel. The document contains a price and parties. If you return null, you are failing. Look for '$' symbols and 'PESOS' text. Analyze the entire visual area to find the transaction price.
+## 🛠️ Reglas de Corrección de Errores (LEER ANTES DE PROCESAR)
 
-### 1. Entidades / Partes
-Extrae a todas las personas y entidades mencionadas en la sección de "COMPARECENCIA" y "REPRESENTACIÓN". Cada campo debe seguir la estructura estricta `{ "valor": any, "evidencia": "string", "confianza": number }`.
+### 1. Estrategia de Nombres y Apellidos (Fix Compound Names)
+En Argentina, los nombres compuestos y apellidos dobles son comunes.
+* **Regla de la Coma:** Si el texto dice "PEREZ AGUIRRE, Carlos Alberto", la coma separa Apellido (izquierda) de Nombre (derecha).
+* **Regla de Mayúsculas:** A menudo los apellidos están en MAYÚSCULAS ("Carlos Alberto PEREZ AGUIRRE"). Úsalo para separar.
+* **Output:** Devuelve `apellido` y `nombres` por separado en el objeto.
 
-**Reglas de extracción:**
-- **rol**: ENUM [VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO, CONYUGE_ASINTIENTE, ACREEDOR, DEUDOR, FIADOR].
-- **Logic**: If the document type is "HIPOTECA" or "MUTUO", prioritize ACREEDOR (Lender) and DEUDOR (Borrower) roles.
-- **tipo_persona**: ENUM [FISICA, JURIDICA].
-- **datos.nombre_completo**: Nombre y Apellido (APELLIDO, Nombre).
-- **datos.dni_cuil_cuit**: ID nacional o tributario.
-- **datos.estado_civil**: ENUM [SOLTERO, CASADO, DIVORCIADO, VIUDO, CONVIVIENTE].
-- **datos.nupcias**: Objeto `{ valor: number (1, 2, etc), descripcion: "1ras, 2das", evidencia: "..." }`.
-- **datos.domicilio**, **datos.nacionalidad**: Extraer literal.
+### 2. Geografía Literal (Fix Address)
+* **NO** normalices ni abrevies direcciones.
+* **INCORRECTO:** "Horacio Quiroga 2256"
+* **CORRECTO:** "calle Horacio Quiroga número 2.256"
+* Debes incluir el tipo de vía (Calle, Avenida, Pasaje, Ruta) tal cual aparece en la escritura.
 
-**Representación:**
-- **es_representado**: Booleano. True si actúa por poder o estatuto.
-- **documento_base**: Nombre del documento justificativo (ej: "Poder Especial ante Esc. X").
-- **folio_evidencia**: Mención del folio o foja de la representación.
+### 3. Lógica de Identidad (Fix DNI vs CUIT)
+Nunca confundas DNI con CUIT. Son matemáticamente distintos.
+* **DNI:** Número de 7 u 8 dígitos (ej: 25.765.599). Si encuentras esto, va al campo `dni`.
+* **CUIT/CUIL:** Número de 11 dígitos con guiones (ej: 20-25765599-8). Si encuentras esto, va al campo `cuit_cuil`.
+* **Verificación:** Si el texto dice "DNI X y CUIT Y", extrae AMBOS por separado.
 
-### 2. Validación Sistémica
-- **coherencia_identidad**: Booleano. ¿Los datos de DNI/CUIL coinciden en todo el texto?
-- **observaciones_criticas**: String. Reportar inconsistencias legales (ej: falta asentimiento conyugal).
+### 4. Datos Biográficos Profundos (Fix Fechas/Cónyuge)
+No te detengas en el nombre. Sigue leyendo la frase completa del compareciente.
+* Busca patrones: "nacido el [FECHA]", "de nacionalidad [PAIS]", "estado civil [ESTADO]".
+* **Cónyuge:** Si dice "casado en X nupcias con [NOMBRE]", extrae a [NOMBRE] como objeto `conyuge`.
 
-### 3. Inmuebles
-Extrae los inmuebles objeto de la operación. Cada campo debe ser un objeto con `{ "valor": "...", "evidencia_origen": "..." }`.
-- **partido**: Ej: Bahía Blanca.
-- **partida_inmobiliaria**: El número de partida.
-- **nomenclatura**: Nomenclatura catastral completa.
-- **transcripcion_literal**: El bloque de texto completo que describe el inmueble.
-- **valuacion_fiscal**: Monto numérico.
+### 5. Conversión de Fechas (Fix "Fecha Pendiente")
+Las escrituras usan lenguaje natural ("quince días del mes de enero del año dos mil veinticinco").
+* **TU TAREA:** Convertir ese texto a formato ISO 8601: `"2025-01-15"`.
+* Nunca devuelvas "Pendiente" si el texto de la fecha está presente en el encabezado.
 
-### 4. Detalles de Operación
-Cada campo debe ser un objeto con `{ "valor": "...", "evidencia_origen": "..." }`.
-- **price**: El monto de la operación (numérico). 
-- **currency**: ENUM ["USD", "ARS"].
-- **fecha_escritura**: Fecha del acto (YYYY-MM-DD).
-- **numero_escritura**: número de protocolo.
-- **resumen_acto**: ENUM ["COMPRAVENTA", "DONACION", "PODER", "HIPOTECA", "OTRO"].
+---
 
-## Expected JSON Output Format (STRICT SCHEMA)
+## 📜 Estructura de Extracción (Paso a Paso)
+
+### PASO 1: Clasificación del Acto
+Determina si es: `COMPRAVENTA`, `HIPOTECA`, `DONACION`, `PODER`.
+* Si hay un Banco involucrado ("Banco de Galicia"), es probable que sea una `HIPOTECA`.
+
+### PASO 2: Extracción de Entidades (Jerarquía de Poder)
+Detecta si hay representación.
+* **Entidad Principal:** ¿Quién es el dueño del interés? (Ej: El Banco, La Sociedad S.A.).
+* **Firmante/Representante:** ¿Quién pone la mano? (Ej: Norman Roberto Giralde).
+* **Instrucción JSON:** Coloca al Banco como la `entidad` principal y a Norman dentro de `representantes`.
+
+### PASO 3: Validación OCR
+* Ignora símbolos de ruido como `$` dentro de números de matrícula (ej: lee `98 $31510/3$` como `98-31510-3`).
+
+---
+
+## 📤 Formato de Salida JSON (Strict Schema)
+
 ```json
 {
   "tipo_objeto": "ACTA_EXTRACCION_PARTES",
+  "meta": {
+    "tipo_acto": "HIPOTECA",
+    "numero_escritura": "24",
+    "fecha_escritura": "2025-01-15", // Convertido de texto a YYYY-MM-DD
+    "lugar": "Bahía Blanca"
+  },
   "entidades": [
     {
-      "rol": "VENDEDOR",
-      "tipo_persona": "FISICA",
-      "datos": {
-        "nombre_completo": { "valor": "...", "evidencia": "...", "confianza": 0.99 },
-        "dni_cuil_cuit": { "valor": "...", "evidencia": "...", "confianza": 0.99 },
-        "estado_civil": { "valor": "CASADO", "evidencia": "..." },
-        "nupcias": { "valor": 1, "descripcion": "1ras", "evidencia": "..." },
-        "domicilio": { "valor": "...", "evidencia": "..." },
-        "nacionalidad": { "valor": "...", "evidencia": "..." }
-      },
+      "rol": "ACREEDOR",
+      "tipo_persona": "JURIDICA",
+      "razon_social": "BANCO DE GALICIA Y BUENOS AIRES S.A.U.",
+      "cuit": "30-50000173-5",
+      "domicilio": "Tte Gral Perón 407, CABA",
       "representacion": {
-        "es_representado": false,
-        "documento_base": null,
-        "folio_evidencia": null
+        "es_representado": true,
+        "detalles_poder": "Escritura de Poder Nro...",
+        "representantes": [
+          {
+            "nombre_completo": "Norman Roberto GIRALDE",
+            "dni": "21.502.903", // Extraído específicamente como DNI
+            "cuit": "20-21502903-5", // Extraído específicamente como CUIT
+            "caracter": "Apoderado"
+          }
+        ]
       }
+    },
+    {
+      "rol": "DEUDOR", // O VENDEDOR/COMPRADOR según corresponda
+      "tipo_persona": "FISICA",
+      "apellido": "PEREZ AGUIRRE",
+      "nombres": "Carlos Alberto",
+      "identificacion": {
+        "dni": "25.765.599",
+        "cuit_cuil": "20-25765599-8"
+      },
+      "biografia": {
+        "fecha_nacimiento": "1977-02-18", // Extraído de "18 de febrero de 1.977"
+        "nacionalidad": "Argentino",
+        "estado_civil": "Casado",
+        "nupcias": "Primeras",
+        "conyuge": {
+            "nombre": "Natalia Nittoli",
+            "requiere_asentimiento": true
+        }
+      },
+      "domicilio_real": "calle Horacio Quiroga número 2.256"
     }
   ],
-  "validación_sistémica": {
-    "coherencia_identidad": true,
-    "observaciones_criticas": null
-  }
+  "inmuebles": [
+    {
+      "nomenclatura": "Circ I, Secc B...",
+      "partida": "12345",
+      "monto_operacion": {
+        "valor": 50000,
+        "moneda": "UVA" // O PESOS/DOLARES
+      }
+    }
+  ]
 }
-```
-
-**STRICT CONSTRAINT**: Si no encuentras evidencia exacta, el campo `valor` debe ser `null`. No inferir.

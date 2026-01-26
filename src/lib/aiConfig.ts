@@ -3,13 +3,22 @@ import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 /**
- * FLASH-ONLY HIERARCHY: Velocidad extrema sobre precisión
- * GOLD/SILVER/BRONZE: Todo usa Flash para evitar latencia del Pro.
+ * HYBRID HIERARCHY v2.0 (Gemini 3 Era)
+ * Estrategia de "Cerebro Híbrido":
+ * - Flash: Para clasificación, chat rápido y tareas de interfaz (Latencia < 500ms).
+ * - Pro: Para lectura jurídica profunda, extracción de hipotecas y redacción compleja (Razonamiento Superior).
  */
+export const MODEL_MAPPING = {
+    fast: "gemini-3-flash-preview",      // Clasificación, UI, Extracción simple
+    complex: "gemini-3-pro-preview",     // Lectura de Escrituras (24.pdf), Hipotecas, Sociedades
+    vision: "gemini-3-pro-preview"       // OCR con ruido, DNI, Planos
+};
+
+// Mantenemos esto por compatibilidad, pero apuntando al modelo más capaz para fallbacks generales
 export const MODEL_HIERARCHY = [
-    "gemini-3-flash-preview",  // GOLD: Flash para TODO
-    "gemini-3-flash-preview",  // SILVER: Flash para TODO
-    "gemini-3-flash-preview"   // BRONZE: Flash para TODO
+    MODEL_MAPPING.complex, // GOLD: Pro
+    MODEL_MAPPING.fast,    // SILVER: Flash
+    MODEL_MAPPING.fast     // BRONZE: Flash
 ];
 
 /**
@@ -33,13 +42,13 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
         },
         entidades: {
             type: SchemaType.ARRAY,
-            description: "Lista de personas físicas o jurídicas participantes",
+            description: "Lista de personas físicas o jurídicas participantes. CRITICO: Distinguir Representantes de Representados.",
             items: {
                 type: SchemaType.OBJECT,
                 properties: {
                     rol: {
                         type: SchemaType.STRING,
-                        description: "VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO, CONYUGE_ASINTIENTE, ACREEDOR, DEUDOR, FIADOR"
+                        description: "VENDEDOR, COMPRADOR, ACREEDOR (Banco), DEUDOR, FIADOR. Si es apoderado, usar el rol de la entidad principal."
                     },
                     tipo_persona: {
                         type: SchemaType.STRING,
@@ -64,7 +73,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                 },
                                 required: ["valor", "evidencia"]
                             },
-                            estado_civil: {
+                            estado_civil: { // Solo para Personas Físicas
                                 type: SchemaType.OBJECT,
                                 properties: {
                                     valor: { type: SchemaType.STRING, nullable: true },
@@ -87,7 +96,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                     valor: {
                                         type: SchemaType.STRING,
                                         nullable: true,
-                                        description: "Dirección COMPLETA y LITERAL. Debe incluir el tipo de vía (Calle, Avenida, Pasaje, Ruta) tal cual figura en el texto. Ej: 'Calle San Martín 123' y NO 'San Martín 123'."
+                                        description: "Dirección COMPLETA y LITERAL. Debe incluir el tipo de vía."
                                     },
                                     evidencia: { type: SchemaType.STRING }
                                 },
@@ -102,16 +111,28 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                 required: ["valor", "evidencia"]
                             }
                         },
-                        required: ["nombre_completo", "dni_cuil_cuit", "estado_civil", "nupcias", "domicilio", "nacionalidad"]
+                        required: ["nombre_completo", "dni_cuil_cuit", "domicilio"] // Estado civil/nupcias opcionales para Jurídicas
                     },
                     representacion: {
                         type: SchemaType.OBJECT,
+                        description: "Detalle de la cadena de mando / poder.",
                         properties: {
-                            es_representado: { type: SchemaType.BOOLEAN },
+                            es_representado: { type: SchemaType.BOOLEAN, description: "True si esta entidad actúa a través de un humano (ej. Banco)." },
+                            representantes: { // Nueva estructura anidada para Norman Giralde
+                                type: SchemaType.ARRAY,
+                                items: {
+                                    type: SchemaType.OBJECT,
+                                    properties: {
+                                        nombre: { type: SchemaType.STRING },
+                                        caracter: { type: SchemaType.STRING, description: "Apoderado, Presidente, Socio Gerente" },
+                                        dni: { type: SchemaType.STRING, nullable: true }
+                                    }
+                                }
+                            },
                             documento_base: { type: SchemaType.STRING, nullable: true },
                             folio_evidencia: { type: SchemaType.STRING, nullable: true }
                         },
-                        required: ["es_representado", "documento_base", "folio_evidencia"]
+                        required: ["es_representado"]
                     }
                 },
                 required: ["rol", "tipo_persona", "datos", "representacion"]
@@ -140,7 +161,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     },
                     transcripcion_literal: {
                         type: SchemaType.OBJECT,
-                        description: "Transcripción COMPLETA y VERBOSA de las medidas, linderos y superficie. NO ABREVIAR.",
+                        description: "Transcripción COMPLETA y VERBOSA de las medidas. Ignorar ruido OCR como '$'.",
                         properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
                         required: ["valor", "evidencia"]
                     },
@@ -247,19 +268,26 @@ export const NOTARY_MORTGAGE_READER_SCHEMA: any = {
 };
 
 /**
- * getLatestModel: Simple entry point for compatibility.
+ * getLatestModel: Inteligencia de Selección de Modelo.
+ * - INGEST (Lectura): Usa PRO para entender estructuras complejas (Bancos, Poderes).
+ * - DRAFT (Redacción): Usa PRO para garantizar precisión legal.
+ * - CLASSIFY (Otros): Usa FLASH para velocidad.
  */
-export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' = 'DRAFT'): Promise<string> {
-    return MODEL_HIERARCHY[0];
+export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' | 'CLASSIFY' = 'DRAFT'): Promise<string> {
+    if (taskType === 'INGEST' || taskType === 'DRAFT') {
+        return MODEL_MAPPING.complex; // Gemini 3 Pro
+    }
+    return MODEL_MAPPING.fast; // Gemini 3 Flash
 }
 
 /**
  * estimateCost: Calculates the USD cost based on token usage.
- * Prices based on Gemini 1.5/3 Pro and Flash tiers.
+ * Updated for Gemini 3 pricing tiers.
  */
 export function estimateCost(modelName: string, inputTokens: number, outputTokens: number): number {
     const isPro = modelName.includes('pro');
-    // Prices per 1M tokens (USD)
+    // Precios Estimados Gemini 3 (Sujeto a cambios oficiales)
+    // Pro: $3.50/$10.50 (aprox) | Flash: $0.10/$0.40
     const inputPrice = isPro ? 3.50 : 0.10;
     const outputPrice = isPro ? 10.50 : 0.40;
 
