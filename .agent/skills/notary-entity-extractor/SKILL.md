@@ -1,167 +1,269 @@
 ---
 name: notary-entity-extractor
-description: Extractor especializado en escrituras argentinas. Distingue roles corporativos, separa nombres/apellidos compuestos y normaliza fechas textuales.
+description: Extractor especializado en escrituras argentinas con manejo de casos edge basados en errores reales del sistema.
 license: Proprietary
-version: 3.0.0 (Correction Release)
+version: 4.0.0 (v1.2.16 - Edge Cases & Real Failures)
 ---
 
-# Notary Entity Extractor (Argentine Legal Context)
+# Notary Entity Extractor - Manual de Casos Edge
 
-## 🎯 Objetivo
-Extraer una representación JSON estructurada y **jurídicamente válida** de los comparecientes y el acto.
-**CRÍTICO:** Debes razonar como un Oficial de Registro. La precisión es más importante que la velocidad.
+> **Nota:** Las reglas críticas están en el System Prompt. Este documento complementa con casos difíciles y contexto jurídico argentino.
 
 ---
 
-## 🛠️ Reglas de Corrección de Errores (LEER ANTES DE PROCESAR)
+## 📋 CASOS REALES RESUELTOS
 
-### 1. Estrategia de Nombres y Apellidos (Fix Compound Names)
-En Argentina, los nombres compuestos y apellidos dobles son comunes.
-* **Regla de la Coma:** Si el texto dice "PEREZ AGUIRRE, Carlos Alberto", la coma separa Apellido (izquierda) de Nombre (derecha).
-* **Regla de Mayúsculas:** A menudo los apellidos están en MAYÚSCULAS ("Carlos Alberto PEREZ AGUIRRE"). Úsalo para separar.
-* **Output:** Devuelve `apellido` y `nombres` por separado en el objeto.
+### Caso 1: Escritura 24.pdf - Préstamo Hipotecario (4 Entidades)
 
-### 2. Geografía Literal (Fix Address)
-* **NO** normalices ni abrevies direcciones.
-* **INCORRECTO:** "Horacio Quiroga 2256"
-* **CORRECTO:** "calle Horacio Quiroga número 2.256"
-* Debes incluir el tipo de vía (Calle, Avenida, Pasaje, Ruta) tal cual aparece en la escritura.
+**Problema Original:** Sistema extraía 3 personas en vez de 4, duplicaba DNI en CUIT.
 
-### 3. Lógica de Identidad (Fix DNI vs CUIT) **⚠️ CRÍTICO**
-**Nunca confundas DNI con CUIT. Son matemáticamente distintos.**
+**Entidades Correctas:**
+1. **Carlos Alberto PEREZ AGUIRRE** - DEUDOR
+   - DNI: `25765599` | CUIT: `20-25765599-8`
+   - Casado con Natalia Nittoli
+   
+2. **Norman Roberto GIRALDE** - REPRESENTANTE del Banco
+   - DNI: `21502903` | CUIT: `20-21502903-5`
+   - Divorciado
+   - **Rol:** Actúa "en nombre y representación del Banco"
 
-#### Reglas Absolutas:
-* **DNI:** Número de 7 u 8 dígitos (ej: `25.765.599` o `25765599`). 
-  - Campo destino: `dni`
-  - Solo para Personas Físicas
-* **CUIT/CUIL:** Número de 11 dígitos con estructura `XY-DDDDDDDD-Z`:
-  - `XY` = Prefijo (20/23/27 = Física, 30/33/34 = Jurídica)
-  - `DDDDDDDD` = DNI (físicas) o número inscripción (jurídicas)
-  - `Z` = Dígito verificador
-  - Campo destino: `cuit_cuil`
+3. **BANCO DE GALICIA Y BUENOS AIRES S.A.U.** - ACREEDOR
+   - CUIT: `30-50000173-5` (sin DNI)
+   - Representado por: Norman Giralde
 
-#### ❌ Anti-Patrón PROHIBIDO:
-**NUNCA copies DNI al campo CUIT sin prefijo/verificador**
+4. **Natalia NITTOLI** - FIADOR / GARANTE
+   - DNI: `28219058` | CUIT: `27-28219058-9`
+   - Casada con Carlos Alberto Perez Aguirre
+   - **Rol:** Art. 470 CCyC (Asentimiento conyugal + Fianza)
 
-Documento dice:
+**Lección:** Un representante legal es una entidad SEPARADA del representado.
+
+---
+
+## 🎯 PATRONES DE IDENTIFICACIÓN DE ROLES
+
+### Comparecientes Directos
+Busca frases como:
+- "comparece" / "comparecen"
+- "INTERVIENEN"
+- "presente a este acto"
+
+### Representantes Legales
+Busca:
+- "en nombre y representación de"
+- "actuando en ejercicio del poder"
+- "en carácter de apoderado"
+
+**Regla:** Extrae AMBOS (representante + representado) como entidades separadas.
+
+### Cónyuges Presentes
+Busca:
+- "PRESENTE a este acto [NOMBRE]"
+- "presta el consentimiento requerido por el artículo 470"
+- "se constituye en fiador solidario"
+
+**Regla:** Si el cónyuge firma, es entidad separada. Si solo se menciona de paso, va en campo `conyuge`.
+
+---
+
+## 🔢 DIFERENCIACIÓN DNI vs CUIT (Casos Edge)
+
+### Edge Case 1: CUIT sin DNI previo
 ```
-DNI 25.765.599
-CUIT 20-25765599-8
+"Norman Roberto GIRALDE, C.U.I.L. número 20-21502903-5"
+```
+**Acción:** Extrae CUIT directamente. Deduce DNI quitando prefijo/verificador.
+
+```json
+{
+  "dni": "21502903",
+  "cuit_cuil": "20-21502903-5"
+}
 ```
 
-✅ **CORRECTO:**
+### Edge Case 2: Persona Jurídica con CUIT largo
+```
+"BANCO DE GALICIA, C.U.I.T. número 30-50000173-5"
+```
+**Acción:** NUNCA inventes DNI para jurídicas.
+
+```json
+{
+  "dni": null,
+  "cuit_cuil": "30-50000173-5"
+}
+```
+
+### Edge Case 3: Solo DNI mencionado
+```
+"Carlos Alberto PEREZ AGUIRRE, DNI 25.765.599"
+```
+**Acción:** Busca en TODO el documento si aparece CUIT después.
+
+Si NO aparece:
 ```json
 {
   "dni": "25765599",
+  "cuit_cuil": null
+}
+```
+
+### Edge Case 4: Formato sin guiones
+```
+"CUIT 20257655998"
+```
+**Acción:** Reconstruye guiones automáticamente (2-8-1):
+
+```json
+{
   "cuit_cuil": "20-25765599-8"
 }
 ```
 
-❌ **INCORRECTO (Error común):**
+---
+
+## 👥 ESTADO CIVIL Y CÓNYUGES
+
+### Caso: "Casado en primeras nupcias"
+```
+"casado en primeras nupcias con Natalia Nittoli"
+```
+
+**Extracción correcta:**
 ```json
 {
-  "dni": "25765599",
-  "cuit_cuil": "25765599"  // Falta prefijo y verificador
+  "estado_civil": "Casado",
+  "regimen_matrimonial": "Primeras nupcias",
+  "conyuge": {
+    "nombre_completo": "Natalia Nittoli",
+    "dni": "28219058",  // Buscar en el documento
+    "cuit_cuil": "27-28219058-9"
+  }
 }
 ```
 
-#### Flujo de Extracción:
-1. Busca palabras clave: "DNI", "CUIT", "CUIL" en el texto
-2. Extrae cada uno a su campo correspondiente
-3. Si solo hay DNI sin CUIT → `cuit_cuil: null` (NO inventes CUIT)
-4. Personas Jurídicas → `dni: null`, solo `cuit_cuil`
-5. Preserva guiones del CUIT
-
-### 4. Datos Biográficos Profundos (Fix Fechas/Cónyuge)
-No te detengas en el nombre. Sigue leyendo la frase completa del compareciente.
-* Busca patrones: "nacido el [FECHA]", "de nacionalidad [PAIS]", "estado civil [ESTADO]".
-* **Cónyuge:** Si dice "casado en X nupcias con [NOMBRE]", extrae a [NOMBRE] como objeto `conyuge`.
-
-### 5. Conversión de Fechas (Fix "Fecha Pendiente")
-Las escrituras usan lenguaje natural ("quince días del mes de enero del año dos mil veinticinco").
-* **TU TAREA:** Convertir ese texto a formato ISO 8601: `"2025-01-15"`.
-* Nunca devuelvas "Pendiente" si el texto de la fecha está presente en el encabezado.
-
----
-
-## 📜 Estructura de Extracción (Paso a Paso)
-
-### PASO 1: Clasificación del Acto
-Determina si es: `COMPRAVENTA`, `HIPOTECA`, `DONACION`, `PODER`.
-* Si hay un Banco involucrado ("Banco de Galicia"), es probable que sea una `HIPOTECA`.
-
-### PASO 2: Extracción de Entidades (Jerarquía de Poder)
-Detecta si hay representación.
-* **Entidad Principal:** ¿Quién es el dueño del interés? (Ej: El Banco, La Sociedad S.A.).
-* **Firmante/Representante:** ¿Quién pone la mano? (Ej: Norman Roberto Giralde).
-* **Instrucción JSON:** Coloca al Banco como la `entidad` principal y a Norman dentro de `representantes`.
-
-### PASO 3: Validación OCR
-* Ignora símbolos de ruido como `$` dentro de números de matrícula (ej: lee `98 $31510/3$` como `98-31510-3`).
-
----
-
-## 📤 Formato de Salida JSON (Strict Schema)
-
+**❌ Incorrecto:**
 ```json
 {
-  "tipo_objeto": "ACTA_EXTRACCION_PARTES",
-  "meta": {
-    "tipo_acto": "HIPOTECA",
-    "numero_escritura": "24",
-    "fecha_escritura": "2025-01-15", // Convertido de texto a YYYY-MM-DD
-    "lugar": "Bahía Blanca"
-  },
-  "entidades": [
-    {
-      "rol": "ACREEDOR",
-      "tipo_persona": "JURIDICA",
-      "razon_social": "BANCO DE GALICIA Y BUENOS AIRES S.A.U.",
-      "cuit": "30-50000173-5",
-      "domicilio": "Tte Gral Perón 407, CABA",
-      "representacion": {
-        "es_representado": true,
-        "detalles_poder": "Escritura de Poder Nro...",
-        "representantes": [
-          {
-            "nombre_completo": "Norman Roberto GIRALDE",
-            "dni": "21.502.903", // Extraído específicamente como DNI
-            "cuit": "20-21502903-5", // Extraído específicamente como CUIT
-            "caracter": "Apoderado"
-          }
-        ]
-      }
-    },
-    {
-      "rol": "DEUDOR", // O VENDEDOR/COMPRADOR según corresponda
-      "tipo_persona": "FISICA",
-      "apellido": "PEREZ AGUIRRE",
-      "nombres": "Carlos Alberto",
-      "identificacion": {
-        "dni": "25.765.599",
-        "cuit_cuil": "20-25765599-8"
-      },
-      "biografia": {
-        "fecha_nacimiento": "1977-02-18", // Extraído de "18 de febrero de 1.977"
-        "nacionalidad": "Argentino",
-        "estado_civil": "Casado",
-        "nupcias": "Primeras",
-        "conyuge": {
-            "nombre": "Natalia Nittoli",
-            "requiere_asentimiento": true
-        }
-      },
-      "domicilio_real": "calle Horacio Quiroga número 2.256"
-    }
-  ],
-  "inmuebles": [
-    {
-      "nomenclatura": "Circ I, Secc B...",
-      "partida": "12345",
-      "monto_operacion": {
-        "valor": 50000,
-        "moneda": "UVA" // O PESOS/DOLARES
-      }
-    }
-  ]
+  "estado_civil": "Casado",
+  "conyuge": "Natalia Nittoli"  // Debe ser objeto, no string
 }
+```
+
+---
+
+## 📆 FECHAS TEXTUALES (Conversión a ISO)
+
+### Patrón Argentino Formal:
+```
+"quince días del mes de enero del año dos mil veinticinco"
+```
+
+**Conversión:** `"2025-01-15"`
+
+### Tabla de Conversión Rápida:
+| Texto | ISO |
+|-------|-----|
+| "dieciocho de febrero de mil novecientos setenta y siete" | `1977-02-18` |
+| "veintiséis de mayo de mil novecientos ochenta" | `1980-05-26` |
+| "cinco de octubre de mil novecientos setenta" | `1970-10-05` |
+
+**Regla:** Si aparece "mil novecientos", estamos en 1900-1999. "Dos mil" = 2000+.
+
+---
+
+## 🏛️ PERSONAS JURÍDICAS
+
+### Indicadores de Entidad Jurídica:
+- S.A. / S.A.U. / S.R.L.
+- Banco / Compañía / Sociedad
+- CUIT empieza con 30/33/34
+
+### Campos Específicos:
+```json
+{
+  "tipo_persona": "Jurídica",
+  "razon_social": "BANCO DE GALICIA Y BUENOS AIRES S.A.U.",
+  "dni": null,
+  "cuit_cuil": "30-50000173-5",
+  "representante_legal": {
+    "nombre": "Norman Roberto Giralde",
+    "dni": "21502903",
+    "cargo": "Apoderado"
+  }
+}
+```
+
+**Regla:** El representante NO reemplaza a la entidad, ambos van en el array.
+
+---
+
+## 📍 DIRECCIONES (Formato Notarial)
+
+### ❌ Incorrecto:
+```
+"Horacio Quiroga 2256"
+```
+
+### ✅ Correcto:
+```
+"calle Horacio Quiroga número 2.256 de esta ciudad"
+```
+
+**Regla:** Mantén el estilo literal de la escritura (tipo de vía + "número" + puntos en miles).
+
+---
+
+## 🔍 FLUJO DE EXTRACCIÓN COMPLETO
+
+1. **Identificar Encabezado:** "comparecen" marca inicio de sección de partes
+2. **Extraer por Orden:** Cada "I)", "II)", "III)" es una entidad
+3. **Leer Párrafo Completo:** No te detengas en el nombre, sigue hasta el punto final
+4. **Buscar Cruzado:** Si menciona cónyuge, buscar sus datos en otro párrafo
+5. **Validar Roles:** Deudor, Acreedor, Garante, Representante
+6. **Verificar Conteo:** ¿Extraje a TODOS los firmantes?
+
+---
+
+## ⚠️ CHECKLIST FINAL
+
+Antes de devolver el JSON, verifica:
+
+- [ ] ¿Todos los CUITs tienen prefijo (XX-) y verificador (-X)?
+- [ ] ¿Las Personas Jurídicas NO tienen DNI?
+- [ ] ¿Los representantes están como entidad separada?
+- [ ] ¿Los cónyuges tienen sus propios datos (si firman)?
+- [ ] ¿Las fechas están en formato ISO (YYYY-MM-DD)?
+- [ ] ¿Las direcciones mantienen "calle ... número ..."?
+- [ ] ¿Extraje a TODOS los comparecientes del documento?
+
+---
+
+## 📚 CONTEXTO LEGAL ARGENTINO
+
+### Artículo 470 CCyC (Asentimiento Conyugal)
+Si un cónyuge grava un bien ganancial, el otro **debe dar consentimiento**.  
+**Indicador:** "PRESENTE a este acto [CÓNYUGE]... presta el consentimiento"
+
+### Roles Típicos en Escrituras:
+- **DEUDOR/MUTUARIO:** Quien recibe el préstamo
+- **ACREEDOR/MUTANTE:** Quien otorga el préstamo (banco)
+- **GARANTE/FIADOR:** Quien garantiza con bienes o firma solidaria
+- **REPRESENTANTE:** Quien firma en nombre de otro (persona jurídica)
+
+---
+
+## 🎓 REGLAS DE ORO
+
+1. **DNI ≠ CUIT** → El DNI son 8 dígitos, el CUIT son 11 con guiones
+2. **Un documento, múltiples entidades** → Extrae TODAS
+3. **Representante ≠ Representado** → Son 2 entidades separadas
+4. **Cónyuge presente = Entidad** → Si firma, va separado
+5. **Literal > Normalizado** → Copia exacto del documento
+6. **Buscar cruzado** → Los datos pueden estar en párrafos separados
+7. **Verificar conteo** → Si dice "comparecen 4 personas", deben ser 4 entidades
+
+---
+
+**Versión 4.0.0** - Actualizado con casos reales del 24.pdf  
+Complementa las reglas del System Prompt con contexto jurídico argentino.
