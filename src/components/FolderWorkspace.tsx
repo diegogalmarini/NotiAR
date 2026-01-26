@@ -666,7 +666,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
                                                         {(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p)))
                                                             ? "Persona Jurídica"
-                                                            : `${person.nacionalidad || "Nacionalidad no informada"} • ${iframeInstruction(person.fecha_nacimiento)}`}
+                                                            : `${person.nacionalidad || "Nacionalidad no informada"} • ${formatDateInstructions(person.fecha_nacimiento)}`}
                                                     </p>
                                                 </div>
 
