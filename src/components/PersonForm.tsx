@@ -18,7 +18,12 @@ interface PersonFormProps {
 }
 
 export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps) {
-    const [loading, setLoading] = useState(false);
+    const [tipoPersona, setTipoPersona] = useState(
+        initialData?.tipo_persona === 'JURIDICA' ||
+            ['30', '33', '34'].some((p: string) => initialData?.cuit?.startsWith(p))
+            ? 'JURIDICA' : 'FISICA'
+    );
+
     const [formData, setFormData] = useState({
         nombre_completo: initialData?.nombre_completo || "",
         dni: initialData?.dni || "",
@@ -33,27 +38,58 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
         telefono: initialData?.contacto?.telefono || "",
     });
 
+    // Auto-switch type based on CUIT input
+    const handleCuitChange = (val: string) => {
+        setFormData({ ...formData, cuit: val });
+        if (['30', '33', '34'].some(p => val.startsWith(p))) {
+            setTipoPersona('JURIDICA');
+        } else if (['20', '23', '27'].some(p => val.startsWith(p))) {
+            setTipoPersona('FISICA');
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
+            // Clean up unrelated fields if Juridica
+            let finalData = { ...formData };
+            if (tipoPersona === 'JURIDICA') {
+                finalData.fecha_nacimiento = "";
+                finalData.nacionalidad = "";
+                finalData.estado = "";
+                finalData.padres = "";
+                finalData.conyuge = "";
+            }
+
+            const payloadCommon = {
+                nombre_completo: finalData.nombre_completo,
+                cuit: finalData.cuit,
+                domicilio_real: { literal: finalData.domicilio_real },
+                contacto: {
+                    email: finalData.email,
+                    telefono: finalData.telefono
+                },
+                tipo_persona: tipoPersona // Ensure backend handles this if possible
+            };
+
             if (initialData) {
-                // Formatting for updatePersona
-                const updatePayload = {
-                    nombre_completo: formData.nombre_completo,
-                    nacionalidad: formData.nacionalidad,
-                    fecha_nacimiento: formData.fecha_nacimiento,
-                    estado_civil: formData.estado,
-                    nombres_padres: formData.padres,
-                    nombre_conyuge: formData.conyuge,
-                    domicilio: formData.domicilio_real,
-                    dni: formData.dni,
-                    cuit: formData.cuit,
-                    email: formData.email,
-                    telefono: formData.telefono
+                const updatePayload: any = {
+                    ...payloadCommon,
+                    domicilio: finalData.domicilio_real, // adapter for updatePersona
+                    dni: finalData.dni
                 };
 
-                const res = await updatePersona(initialData.dni, updatePayload);
+                // Add specifics only check if FISICA
+                if (tipoPersona === 'FISICA') {
+                    updatePayload.nacionalidad = finalData.nacionalidad;
+                    updatePayload.fecha_nacimiento = finalData.fecha_nacimiento;
+                    updatePayload.estado_civil = finalData.estado;
+                    updatePayload.nombres_padres = finalData.padres;
+                    updatePayload.nombre_conyuge = finalData.conyuge;
+                }
+
+                const res = await updatePersona(initialData.dni || initialData.cuit, updatePayload); // CUIT fallback as ID
                 if (res.success) {
                     toast.success("Persona actualizada correctamente");
                     onSuccess(res.data);
@@ -61,28 +97,17 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     toast.error("Error al actualizar: " + res.error);
                 }
             } else {
-                // Formatting for upsertPerson (Create)
-                const payload = {
-                    dni: formData.dni,
-                    cuit: formData.cuit,
-                    nombre_completo: formData.nombre_completo,
-                    nacionalidad: formData.nacionalidad,
-                    fecha_nacimiento: formData.fecha_nacimiento || null,
-                    domicilio_real: { literal: formData.domicilio_real },
-                    estado_civil_detalle: formData.estado,
-                    nombres_padres: formData.padres,
-                    datos_conyuge: { nombre: formData.conyuge },
-                    estado_civil_detallado: { // Legacy
-                        padres: formData.padres,
-                        conyuge: formData.conyuge
-                    },
-                    contacto: {
-                        email: formData.email,
-                        telefono: formData.telefono
-                    }
+                const createPayload: any = {
+                    ...payloadCommon,
+                    dni: finalData.dni,
+                    estado_civil_detalle: finalData.estado, // Legacy structure
+                    nombres_padres: finalData.padres,
+                    datos_conyuge: { nombre: finalData.conyuge },
+                    nacionalidad: finalData.nacionalidad,
+                    fecha_nacimiento: finalData.fecha_nacimiento || null
                 };
 
-                const res = await upsertPerson(payload);
+                const res = await upsertPerson(createPayload);
                 if (res.success) {
                     toast.success("Persona guardada correctamente");
                     onSuccess(res.data);
@@ -99,86 +124,121 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
 
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>Nombre</Label>
-                    <Input
-                        required
-                        value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
-                        onChange={(e) => {
-                            const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
-                            setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
-                        }}
-                        placeholder="Nombres"
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Apellido</Label>
-                    <Input
-                        required
-                        value={formData.nombre_completo.split(" ").slice(-1)[0]}
-                        onChange={(e) => {
-                            const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
-                            setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
-                        }}
-                        placeholder="Apellidos"
-                    />
-                </div>
+        <form onSubmit={handleSubmit} className="space-y-4 pt-1">
+            <div className="flex gap-4 p-1 bg-slate-100/50 rounded-lg justify-center mb-4">
+                <Button
+                    type="button"
+                    variant={tipoPersona === 'FISICA' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTipoPersona('FISICA')}
+                    className="w-1/2"
+                >
+                    Persona Física
+                </Button>
+                <Button
+                    type="button"
+                    variant={tipoPersona === 'JURIDICA' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setTipoPersona('JURIDICA')}
+                    className="w-1/2"
+                >
+                    Persona Jurídica
+                </Button>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            {tipoPersona === 'FISICA' ? (
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Nombre</Label>
+                        <Input
+                            required
+                            value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
+                            onChange={(e) => {
+                                const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
+                                setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
+                            }}
+                            placeholder="Nombres"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Apellido</Label>
+                        <Input
+                            required
+                            value={formData.nombre_completo.split(" ").slice(-1)[0]}
+                            onChange={(e) => {
+                                const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
+                                setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
+                            }}
+                            placeholder="Apellidos"
+                        />
+                    </div>
+                </div>
+            ) : (
                 <div className="space-y-2">
-                    <Label>DNI</Label>
+                    <Label className="flex items-center gap-2">
+                        Razón Social
+                        <span className="text-[10px] text-muted-foreground font-normal">(Nombre de la Entidad / Sociedad)</span>
+                    </Label>
                     <Input
-                        value={formData.dni}
-                        onChange={e => {
-                            const val = e.target.value;
-                            setFormData({ ...formData, dni: val })
-                        }}
-                        placeholder="DNI"
+                        required
+                        value={formData.nombre_completo}
+                        onChange={(e) => setFormData({ ...formData, nombre_completo: e.target.value })}
+                        placeholder="Ej: BANCO DE GALICIA Y BUENOS AIRES S.A.U."
+                        className="font-bold"
                     />
                 </div>
-                <div className="space-y-2">
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+                {tipoPersona === 'FISICA' && (
+                    <div className="space-y-2">
+                        <Label>DNI</Label>
+                        <Input
+                            value={formData.dni}
+                            onChange={e => setFormData({ ...formData, dni: e.target.value })}
+                            placeholder="DNI"
+                        />
+                    </div>
+                )}
+                <div className={tipoPersona === 'JURIDICA' ? "col-span-2 space-y-2" : "space-y-2"}>
                     <Label>CUIT / CUIL</Label>
                     <Input
                         value={formData.cuit}
-                        onChange={e => {
-                            const val = e.target.value;
-                            setFormData({ ...formData, cuit: val })
-                        }}
-                        placeholder="CUIT"
+                        onChange={e => handleCuitChange(e.target.value)}
+                        placeholder="CUIT (Sin guiones)"
                     />
+                    {tipoPersona === 'JURIDICA' && (
+                        <p className="text-[10px] text-muted-foreground">
+                            El CUIT es el identificador principal para Personas Jurídicas.
+                        </p>
+                    )}
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label>Nacionalidad</Label>
-                    <Input
-                        value={formData.nacionalidad}
-                        onChange={e => setFormData({ ...formData, nacionalidad: e.target.value })}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label>Fecha Nacimiento</Label>
-                    <div className="flex flex-col gap-1">
+            {tipoPersona === 'FISICA' && (
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>Nacionalidad</Label>
                         <Input
-                            type="date"
-                            value={formData.fecha_nacimiento}
-                            onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                            value={formData.nacionalidad}
+                            onChange={e => setFormData({ ...formData, nacionalidad: e.target.value })}
                         />
-                        {formData.fecha_nacimiento && (
-                            <span className="text-xs text-muted-foreground ml-1">
-                                Formato: {new Date(formData.fecha_nacimiento + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}
-                            </span>
-                        )}
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Fecha Nacimiento</Label>
+                        <div className="flex flex-col gap-1">
+                            <Input
+                                type="date"
+                                value={formData.fecha_nacimiento}
+                                onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <div className="space-y-2">
-                <Label>Domicilio Real</Label>
+                <Label>{tipoPersona === 'JURIDICA' ? 'Domicilio Legal / Fiscal' : 'Domicilio Real'}</Label>
                 <Input
                     value={formData.domicilio_real}
                     onChange={e => setFormData({ ...formData, domicilio_real: e.target.value })}
@@ -207,36 +267,38 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                 </div>
             </div>
 
-            <div className="border-t pt-4 mt-2">
-                <p className="text-sm font-bold text-indigo-700 mb-4 uppercase tracking-wider">Estado Civil y Filiación</p>
-                <div className="space-y-4">
-                    <div className="space-y-2">
-                        <Label>Estado Civil (Detalle)</Label>
-                        <Textarea
-                            rows={3}
-                            value={formData.estado}
-                            onChange={e => setFormData({ ...formData, estado: e.target.value })}
-                            placeholder="Ej: Casado en primeras nupcias con..."
-                            className="resize-none"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Filiación (Padres)</Label>
-                        <Input
-                            value={formData.padres}
-                            onChange={e => setFormData({ ...formData, padres: e.target.value })}
-                            placeholder="Hijo de [Padre] y de [Madre]"
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Cónyuge (Nombre)</Label>
-                        <Input
-                            value={formData.conyuge}
-                            onChange={e => setFormData({ ...formData, conyuge: e.target.value })}
-                        />
+            {tipoPersona === 'FISICA' && (
+                <div className="border-t pt-4 mt-2">
+                    <p className="text-sm font-bold text-indigo-700 mb-4 uppercase tracking-wider">Estado Civil y Filiación</p>
+                    <div className="space-y-4">
+                        <div className="space-y-2">
+                            <Label>Estado Civil (Detalle)</Label>
+                            <Textarea
+                                rows={3}
+                                value={formData.estado}
+                                onChange={e => setFormData({ ...formData, estado: e.target.value })}
+                                placeholder="Ej: Casado en primeras nupcias con..."
+                                className="resize-none"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Filiación (Padres)</Label>
+                            <Input
+                                value={formData.padres}
+                                onChange={e => setFormData({ ...formData, padres: e.target.value })}
+                                placeholder="Hijo de [Padre] y de [Madre]"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Cónyuge (Nombre)</Label>
+                            <Input
+                                value={formData.conyuge}
+                                onChange={e => setFormData({ ...formData, conyuge: e.target.value })}
+                            />
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-6">
                 <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>
