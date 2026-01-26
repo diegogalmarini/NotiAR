@@ -658,45 +658,59 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                             <div className="p-4 pt-3 space-y-3">
                                                 {/* Core Identity */}
                                                 <div>
-                                                    <h3 className="text-base font-bold text-slate-800 leading-tight">{person.nombre_completo}</h3>
+                                                    <h3 className="text-base font-bold text-slate-800 leading-tight">
+                                                        {person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))
+                                                            ? person.nombre_completo.toUpperCase()
+                                                            : person.nombre_completo}
+                                                    </h3>
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                                                        {person.nacionalidad || "Nacionalidad no informada"} • {formatDateInstructions(person.fecha_nacimiento)}
+                                                        {(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p)))
+                                                            ? "Persona Jurídica"
+                                                            : `${person.nacionalidad || "Nacionalidad no informada"} • ${iframeInstruction(person.fecha_nacimiento)}`}
                                                     </p>
                                                 </div>
 
                                                 {/* ID Grid */}
                                                 <div className="grid grid-cols-2 gap-3 pb-1">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">DNI</p>
-                                                        <p className="text-[13px] text-slate-700 font-bold">{person.dni || "No informado"}</p>
-                                                    </div>
-                                                    <div>
+                                                    {(person.tipo_persona !== 'JURIDICA' && !['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) && (
+                                                        <div>
+                                                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">DNI</p>
+                                                            <p className="text-[13px] text-slate-700 font-bold">{person.dni || "No informado"}</p>
+                                                        </div>
+                                                    )}
+                                                    <div className={(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) ? "col-span-2" : ""}>
                                                         <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">CUIT / CUIL</p>
                                                         <p className="text-[13px] text-slate-700 font-bold">{person.cuit ? formatCUIT(person.cuit) : "No informado"}</p>
                                                     </div>
                                                 </div>
 
-                                                {/* Details Grid */}
-                                                <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-y py-3 border-slate-100">
-                                                    <div>
-                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Filiación</p>
-                                                        <p className="text-[12px] text-slate-700 font-medium leading-tight">
-                                                            {person.nombres_padres || "Filiación no informada"}
-                                                        </p>
+                                                {/* Details Grid (Only for Natural Persons) */}
+                                                {!(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) && (
+                                                    <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-y py-3 border-slate-100">
+                                                        <div>
+                                                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Filiación</p>
+                                                            <p className="text-[12px] text-slate-700 font-medium leading-tight">
+                                                                {person.nombres_padres || "Filiación no informada"}
+                                                            </p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Cónyuge</p>
+                                                            <p className="text-[12px] text-slate-700 font-medium leading-tight">
+                                                                {person.datos_conyuge?.nombre ? (
+                                                                    <span className="bg-pink-50 text-pink-700 px-1 py-0.5 rounded border border-pink-100 font-bold">
+                                                                        ❤️ {person.datos_conyuge.nombre}
+                                                                    </span>
+                                                                ) : "No informado"}
+                                                            </p>
+                                                        </div>
+                                                        <div className="col-span-2">
+                                                            <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Estado Civil</p>
+                                                            <p className="text-[12px] text-slate-700 leading-snug">
+                                                                {person.estado_civil_detalle || "No detallado"}
+                                                            </p>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Cónyuge</p>
-                                                        <p className="text-[12px] text-slate-700 font-medium leading-tight">
-                                                            {person.datos_conyuge?.nombre || "No informado"}
-                                                        </p>
-                                                    </div>
-                                                    <div className="col-span-2">
-                                                        <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Estado Civil</p>
-                                                        <p className="text-[12px] text-slate-700 leading-snug">
-                                                            {person.estado_civil_detalle || "No detallado"}
-                                                        </p>
-                                                    </div>
-                                                </div>
+                                                )}
 
                                                 {/* Address & Contact */}
                                                 <div className="space-y-2">
