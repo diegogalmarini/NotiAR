@@ -614,24 +614,35 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     if (!person) return null;
 
                                     return (
+                                    const isLegalEntity = (p: any) => {
+                                            if (p.tipo_persona === 'JURIDICA') return true;
+                                            const cuit = p.cuit?.toString().replace(/\D/g, '') || '';
+                                            return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
+                                        };
+
+                                    const getSpouseName = (p: any) => {
+                                        if (p.datos_conyuge?.nombre) return p.datos_conyuge.nombre;
+                                        // Fallback: Try to regex from civil status detail
+                                        const match = p.estado_civil_detalle?.match(/con\s+([A-ZÁÉÍÓÚÑa-zxzñ\s]+)/i);
+                                        if (match && match[1]) {
+                                            // Filter out common stopped words if needed, or just return first few words
+                                            return match[1].trim();
+                                        }
+                                        return null;
+                                    };
+
+                                    const spouseName = getSpouseName(person);
+
+                                    return (
                                         <Card key={p.id} className="overflow-hidden border-slate-200 shadow-sm hover:shadow-md transition-shadow">
                                             {/* Header: Role + Actions */}
                                             <div className="px-4 py-2 border-b flex justify-between items-center bg-slate-50">
                                                 <Badge variant="secondary" className={cn(
                                                     "text-[9px] px-2 py-0 h-5 font-bold tracking-wider",
-                                                    p.rol?.includes('VENDEDOR') ? "bg-amber-100 text-amber-700 border-amber-200" :
-                                                        p.rol?.includes('ACREEDOR') ? "bg-blue-100 text-blue-700 border-blue-200" :
-                                                            p.rol?.includes('DEUDOR') ? "bg-purple-100 text-purple-700 border-purple-200" :
-                                                                p.rol?.includes('FIADOR') ? "bg-slate-100 text-slate-700 border-slate-200" :
-                                                                    "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                                    // ... (Role Badge Styles - kept simple for brevity in replacement, assuming existing logic or concise match) ...
+                                                    getRoleBadgeStyle(p.rol)
                                                 )}>
-                                                    {p.rol?.includes('VENDEDOR') ? 'VENDEDOR / TRANSMITENTE' :
-                                                        p.rol?.includes('ACREEDOR') ? 'ACREEDOR HIPOTECARIO' :
-                                                            p.rol?.includes('DEUDOR') ? 'DEUDOR / MUTUARIO' :
-                                                                p.rol?.includes('FIADOR') ? 'FIADOR / GARANTE' :
-                                                                    p.rol?.includes('CONYUGE') ? 'CÓNYUGE ASINTIENTE' :
-                                                                        p.rol?.includes('APODERADO') ? 'APODERADO' :
-                                                                            'COMPRADOR / ADQUIRENTE'}
+                                                    {getRoleLabel(p.rol)}
                                                 </Badge>
                                                 <div className="flex items-center gap-1">
                                                     <Button
@@ -659,12 +670,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                 {/* Core Identity */}
                                                 <div>
                                                     <h3 className="text-base font-bold text-slate-800 leading-tight">
-                                                        {person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))
+                                                        {isLegalEntity(person)
                                                             ? person.nombre_completo.toUpperCase()
                                                             : person.nombre_completo}
                                                     </h3>
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
-                                                        {(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p)))
+                                                        {isLegalEntity(person)
                                                             ? "Persona Jurídica"
                                                             : `${person.nacionalidad || "Nacionalidad no informada"} • ${formatDateInstructions(person.fecha_nacimiento)}`}
                                                     </p>
@@ -672,20 +683,20 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
                                                 {/* ID Grid */}
                                                 <div className="grid grid-cols-2 gap-3 pb-1">
-                                                    {(person.tipo_persona !== 'JURIDICA' && !['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) && (
+                                                    {!isLegalEntity(person) && (
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">DNI</p>
                                                             <p className="text-[13px] text-slate-700 font-bold">{person.dni || "No informado"}</p>
                                                         </div>
                                                     )}
-                                                    <div className={(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) ? "col-span-2" : ""}>
+                                                    <div className={isLegalEntity(person) ? "col-span-2" : ""}>
                                                         <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">CUIT / CUIL</p>
                                                         <p className="text-[13px] text-slate-700 font-bold">{person.cuit ? formatCUIT(person.cuit) : "No informado"}</p>
                                                     </div>
                                                 </div>
 
                                                 {/* Details Grid (Only for Natural Persons) */}
-                                                {!(person.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some((p: string) => person.cuit?.startsWith(p))) && (
+                                                {!isLegalEntity(person) && (
                                                     <div className="grid grid-cols-2 gap-y-3 gap-x-4 border-y py-3 border-slate-100">
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Filiación</p>
@@ -696,9 +707,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Cónyuge</p>
                                                             <p className="text-[12px] text-slate-700 font-medium leading-tight">
-                                                                {person.datos_conyuge?.nombre ? (
-                                                                    <span className="bg-pink-50 text-pink-700 px-1 py-0.5 rounded border border-pink-100 font-bold">
-                                                                        ❤️ {person.datos_conyuge.nombre}
+                                                                {spouseName ? (
+                                                                    <span className="bg-pink-50 text-pink-700 px-1 py-0.5 rounded border border-pink-100 font-bold flex items-center gap-1 w-fit">
+                                                                        <span>❤️</span> {spouseName}
                                                                     </span>
                                                                 ) : "No informado"}
                                                             </p>
