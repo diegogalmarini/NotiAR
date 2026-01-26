@@ -132,24 +132,37 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
             break;
         case 'ESCRITURA':
         case 'BOLETO_COMPRAVENTA':
+        case 'HIPOTECA':
+        case 'PRESTAMO':
             const entities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
             const normEntities = normalizeAIData(entities);
 
+            // Special handling for Mortgages
+            let mortgageDetails = null;
+            if (docType === 'HIPOTECA' || docType === 'PRESTAMO') {
+                mortgageDetails = await SkillExecutor.execute('notary-mortgage-reader', file, { extractedText });
+            }
+
             // Financial calculations (optional for some documents but part of the standard flow)
             try {
+                const isUva = mortgageDetails?.financial_terms?.capital?.currency === 'UVA';
+                const uvaRate = mortgageDetails?.financial_terms?.uva_quoted?.valor || 1;
+
                 const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
-                    price: normEntities.operation_details?.price || 0,
-                    currency: normEntities.operation_details?.currency || 'USD'
+                    price: isUva ? mortgageDetails?.financial_terms?.capital?.valor : (normEntities.operation_details?.price || 0),
+                    currency: isUva ? 'UVA' : (normEntities.operation_details?.currency || 'USD'),
+                    exchangeRate: isUva ? uvaRate : 1 // Logic will handle USD conversion separately if needed, for UVA we pass the rate here
                 });
+
                 const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
                     price: normEntities.operation_details?.price || 0,
                     moneda: normEntities.operation_details?.currency || 'USD',
                     parties: normEntities.clientes || []
                 });
-                aiData = { ...normEntities, tax_calculation: taxes, compliance };
+                aiData = { ...normEntities, mortgage: mortgageDetails, tax_calculation: taxes, compliance };
             } catch (e) {
-                console.warn("[PIPELINE] Secondary tools failed (Taxes/UIF):", e);
-                aiData = normEntities;
+                console.warn("[PIPELINE] Secondary tools failed (Taxes/UIF/Mortgage):", e);
+                aiData = { ...normEntities, mortgage: mortgageDetails };
             }
             break;
         default:

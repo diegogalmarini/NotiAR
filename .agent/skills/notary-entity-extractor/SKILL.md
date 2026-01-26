@@ -18,7 +18,8 @@ Extraer información estructurada de una escritura notarial o boleto de comprave
 Extrae a todas las personas y entidades mencionadas en la sección de "COMPARECENCIA" y "REPRESENTACIÓN". Cada campo debe seguir la estructura estricta `{ "valor": any, "evidencia": "string", "confianza": number }`.
 
 **Reglas de extracción:**
-- **rol**: ENUM [VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO, CONYUGE_ASINTIENTE].
+- **rol**: ENUM [VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO, CONYUGE_ASINTIENTE, ACREEDOR, DEUDOR, FIADOR].
+- **Logic**: If the document type is "HIPOTECA" or "MUTUO", prioritize ACREEDOR (Lender) and DEUDOR (Borrower) roles.
 - **tipo_persona**: ENUM [FISICA, JURIDICA].
 - **datos.nombre_completo**: Nombre y Apellido (APELLIDO, Nombre).
 - **datos.dni_cuil_cuit**: ID nacional o tributario.

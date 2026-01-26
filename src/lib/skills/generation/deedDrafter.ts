@@ -10,6 +10,8 @@ export interface DraftingContext {
     inmuebles: any[];
     tax_calculation: any;
     compliance: any;
+    mortgage?: any; // New optional mortgage details
+    operation_type?: string;
 }
 
 /**
@@ -33,9 +35,10 @@ export class DeedDrafter {
         const safeClientes = clientes || [];
         const safeInmuebles = inmuebles || [];
         const dateTxt = fecha ? formatNotaryDate(fecha) : "FECHA PENDIENTE";
+        const isMortgage = acto_titulo?.toUpperCase().includes('HIPOTECA') || context.operation_type === 'HIPOTECA';
 
-        const vendors = safeClientes.filter(c => c.rol?.includes('VENDEDOR'));
-        const buyers = safeClientes.filter(c => c.rol?.includes('COMPRADOR'));
+        const vendors = safeClientes.filter(c => c.rol?.includes('VENDEDOR') || c.rol?.includes('ACREEDOR'));
+        const buyers = safeClientes.filter(c => c.rol?.includes('COMPRADOR') || c.rol?.includes('DEUDOR'));
 
         let text = `ESCRITURA NUMERO ${(numero_escritura || "___").toUpperCase()}.- ${(acto_titulo || "ACTO").toUpperCase()}.- `;
         text += `En la ciudad de Bahía Blanca, provincia de Buenos Aires, a los ${dateTxt}, `;
@@ -47,16 +50,32 @@ export class DeedDrafter {
             text += `por una parte ${formattedName}, ${c.nacionalidad || 'argentino'}, DNI ${c.dni || "___"}${i === safeClientes.length - 1 ? '.' : '; '}`;
         });
 
-        text += `\n\nINTERVENCION: Los comparecientes intervienen por su propio derecho. Y el vendedor DICE: Que VENDE, CEDE y TRANSFIERE a favor de la parte compradora, el siguiente Inmueble: `;
+        text += `\n\nINTERVENCION: Los comparecientes intervienen por su propio derecho. `;
+
+        if (isMortgage) {
+            text += `Y el deudor DICE: Que CONSTITUYE DERECHO REAL DE HIPOTECA en primer grado de privilegio, a favor de la parte acreedora, sobre el siguiente Inmueble: `;
+        } else {
+            text += `Y el vendedor DICE: Que VENDE, CEDE y TRANSFIERE a favor de la parte compradora, el siguiente Inmueble: `;
+        }
 
         // Inmueble
         safeInmuebles.forEach(i => {
             text += `\n${i.transcripcion_literal || '[FALTA DESCRIPCION TECNICA]'}`;
         });
 
-        // Precio
-        const moneyTxt = formatNotaryMoney(tax_calculation?.baseCalculoArs || 0, 'ARS');
-        text += `\n\nPRECIO: La presente operación se realiza por el precio total de ${moneyTxt}, que la parte vendedora manifiesta haber recibido con anterioridad a este acto.`;
+        // Precio / Capital
+        if (isMortgage && context.mortgage) {
+            const m = context.mortgage.financial_terms;
+            const capitalTxt = formatNotaryMoney(m.capital?.valor || 0, m.capital?.currency || 'UVA');
+            text += `\n\nCAPITAL Y CLAUSULAS FINANCIERAS: La presente hipoteca se constituye por la suma de ${capitalTxt}. `;
+            text += `Se conviene una tasa de interés de ${m.rate?.valor || '___'}, bajo el sistema de amortización ${m.system?.valor || 'FRANCES'}. `;
+            if (context.mortgage.legal_status?.letra_hipotecaria) {
+                text += `Se procede a la creación de la respectiva Letra Hipotecaria Escritural. `;
+            }
+        } else {
+            const moneyTxt = formatNotaryMoney(tax_calculation?.baseCalculoArs || 0, 'ARS');
+            text += `\n\nPRECIO: La presente operación se realiza por el precio total de ${moneyTxt}, que la parte vendedora manifiesta haber recibido con anterioridad a este acto.`;
+        }
 
         // Compliance & PEPs
         if (compliance?.risk_level === 'HIGH' || compliance?.alerts?.length > 0) {

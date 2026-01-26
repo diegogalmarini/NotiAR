@@ -39,7 +39,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                 properties: {
                     rol: {
                         type: SchemaType.STRING,
-                        description: "VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO o CONYUGE_ASINTIENTE"
+                        description: "VENDEDOR, COMPRADOR, APODERADO, USUFRUCTUARIO, CONYUGE_ASINTIENTE, ACREEDOR, DEUDOR, FIADOR"
                     },
                     tipo_persona: {
                         type: SchemaType.STRING,
@@ -154,7 +154,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
             properties: {
                 precio: {
                     type: SchemaType.OBJECT,
-                    properties: { valor: { type: SchemaType.NUMBER }, moneda: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    properties: { valor: { type: SchemaType.NUMBER }, moneda: { type: SchemaType.STRING, description: "ARS, USD, UVA" }, evidencia: { type: SchemaType.STRING } },
                     required: ["valor", "moneda", "evidencia"]
                 },
                 fecha_escritura: {
@@ -195,6 +195,51 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
         }
     },
     required: ["tipo_objeto", "entidades", "inmuebles", "detalles_operacion", "validacion_sistemica"]
+};
+
+/**
+ * NOTARY_MORTGAGE_READER_SCHEMA
+ * Specific schema for financial mortgage terms.
+ */
+export const NOTARY_MORTGAGE_READER_SCHEMA: any = {
+    type: SchemaType.OBJECT,
+    properties: {
+        financial_terms: {
+            type: SchemaType.OBJECT,
+            properties: {
+                capital: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.NUMBER }, currency: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "currency", "evidencia"]
+                },
+                uva_quoted: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.NUMBER }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                },
+                rate: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                },
+                system: {
+                    type: SchemaType.OBJECT,
+                    properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
+                    required: ["valor", "evidencia"]
+                }
+            },
+            required: ["capital", "uva_quoted", "rate", "system"]
+        },
+        legal_status: {
+            type: SchemaType.OBJECT,
+            properties: {
+                grado: { type: SchemaType.STRING },
+                letra_hipotecaria: { type: SchemaType.BOOLEAN }
+            },
+            required: ["grado", "letra_hipotecaria"]
+        }
+    },
+    required: ["financial_terms", "legal_status"]
 };
 
 /**

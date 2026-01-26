@@ -65,6 +65,7 @@ export class SkillExecutor {
 
         const config = await import("../aiConfig");
         if (skillSlug === 'notary-entity-extractor') contextData.responseSchema = config.ACTA_EXTRACCION_PARTES_SCHEMA;
+        if (skillSlug === 'notary-mortgage-reader') contextData.responseSchema = config.NOTARY_MORTGAGE_READER_SCHEMA;
 
         const userContext = `INPUT CONTEXT:\n${JSON.stringify(contextData, null, 2)}`;
         let lastError: Error | null = null;
@@ -97,11 +98,12 @@ export class SkillExecutor {
         providedFilePart: any = null
     ): Promise<any> {
         // FLASH NO USA THINKING MODE
-        const { ACTA_EXTRACCION_PARTES_SCHEMA } = await import("../aiConfig");
+        const { ACTA_EXTRACCION_PARTES_SCHEMA, NOTARY_MORTGAGE_READER_SCHEMA } = await import("../aiConfig");
 
         const generationConfig: any = {
             responseMimeType: "application/json",
-            responseSchema: skillSlug === "notary-entity-extractor" ? ACTA_EXTRACCION_PARTES_SCHEMA : undefined
+            responseSchema: skillSlug === "notary-entity-extractor" ? ACTA_EXTRACCION_PARTES_SCHEMA :
+                skillSlug === "notary-mortgage-reader" ? NOTARY_MORTGAGE_READER_SCHEMA : undefined
         };
 
         const modelConfig: any = { model: modelName, generationConfig };
