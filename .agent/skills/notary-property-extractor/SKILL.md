@@ -48,7 +48,7 @@ def extract_property_description(full_text):
 
     # 2. Definición de Triggers
     # Inicio: Busca frases típicas de inicio de descripción
-    start_pattern = r"(?:UN LOTE|UNA FRACCI[ÓO]N|LA UNIDAD FUNCIONAL|UNA UNIDAD FUNCIONAL|UN INMUEBLE|UNA FINCA|UN DEPARTAMENTO)"
+    start_pattern = r"(?:(?:UNA|LA)\s+UNIDAD\s+FUNCIONAL|(?:UN|EL)\s+LOTE|(?:UNA|LA)\s+FRACCI[ÓO]N|(?:UN|EL)\s+INMUEBLE|(?:UNA|LA)\s+FINCA|UN\s+DEPARTAMENTO|QUE\s+ES\s+PARTE\s+DEL|QUE\s+SE\s+DESIGNA)"
     
     # Fin: Busca donde terminan los linderos y empiezan los datos administrativos
     # (?=...) es un lookahead positivo para detenerse ANTES de consumir esa frase

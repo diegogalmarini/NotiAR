@@ -25,84 +25,95 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
             ? 'JURIDICA' : 'FISICA'
     );
 
+    // State split for better UX
+    const [nameParts, setNameParts] = useState(() => {
+        // Only if "apellidos" not explicitly extracted by AI, try heuristic
+        // But better to just default to "Surname = Last Word" and let user fix
+        const full = initialData?.nombre_completo || "";
+        const parts = full.trim().split(" ");
+        if (parts.length > 2) {
+            // Heuristic: "Diego Galmarini" -> Name: Diego, Last: Galmarini
+            // "Carlos Alberto Perez Aguirre" -> Name: Carlos Alberto, Last: Perez Aguirre (Ambiguous)
+            // Default: Last 2 words are surname if > 2, else last word.
+            // Actually, safest is Last 1 word if 2 total, else User decides.
+            // Let's rely on manual fix. Default: everything but last word is Name.
+            const last = parts.pop();
+            return { nombre: parts.join(" "), apellido: last || "" };
+        } else if (parts.length === 2) {
+            return { nombre: parts[0], apellido: parts[1] };
+        }
+        return { nombre: full, apellido: "" };
+    });
+
     const [formData, setFormData] = useState({
         nombre_completo: initialData?.nombre_completo || "",
         dni: initialData?.dni || "",
-        cuit: initialData?.cuit || "",
-        nacionalidad: initialData?.nacionalidad || "Argentino/a",
-        fecha_nacimiento: initialData?.fecha_nacimiento || "",
-        domicilio_real: initialData?.domicilio_real?.literal || "",
-        estado: initialData?.estado_civil_detalle || initialData?.estado_civil_detallado?.estado || "",
+        // Critical: Do NOT autofill CUIT from DNI unless explicitly same
+        cuit: initialData?.cuit_cuil || initialData?.cuit || "",
+        nacionalidad: initialData?.nacionalidad || "",
+        fecha_nacimiento: initialData?.fecha_nacimiento ? new Date(initialData.fecha_nacimiento).toISOString().split('T')[0] : "",
+        domicilio_real: initialData?.domicilio_real?.literal || initialData?.domicilio_real || "",
+        estado: initialData?.estado_civil_detalle || initialData?.estado_civil_detallado?.estado || initialData?.estado_civil || "",
         padres: initialData?.nombres_padres || initialData?.estado_civil_detallado?.padres || "",
-        conyuge: initialData?.datos_conyuge?.nombre || initialData?.estado_civil_detallado?.conyuge || "",
+        conyuge: initialData?.datos_conyuge?.nombre || initialData?.estado_civil_detallado?.conyuge || initialData?.conyuge?.nombre || "",
         email: initialData?.contacto?.email || "",
         telefono: initialData?.contacto?.telefono || "",
     });
 
-    // Auto-switch type based on CUIT input
+    // Update full name on parts change
+    useEffect(() => {
+        if (tipoPersona === 'FISICA') {
+            setFormData(prev => ({ ...prev, nombre_completo: `${nameParts.nombre} ${nameParts.apellido}`.trim() }));
+        }
+    }, [nameParts, tipoPersona]);
+
     // Auto-switch type based on CUIT input
     const handleCuitChange = (val: string) => {
-        // Strip non-digits checks
         const cleanVal = val.replace(/\D/g, '');
-
-        // Auto-format for display: XX-XXXXXXXX-X
         let formatted = cleanVal;
         if (cleanVal.length > 2) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2)}`;
         if (cleanVal.length > 10) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2, 10)}-${cleanVal.slice(10, 11)}`;
 
-        setFormData({ ...formData, cuit: formatted });
+        setFormData(prev => ({ ...prev, cuit: formatted }));
 
-        // Robust check for Legal Entity prefix
+        // Only switch if explicit entity prefix found
         if (['30', '33', '34'].some(p => cleanVal.startsWith(p))) {
             setTipoPersona('JURIDICA');
-        } else if (['20', '23', '27'].some(p => cleanVal.startsWith(p))) {
-            setTipoPersona('FISICA');
         }
     };
-
-    // Initial check on mount
-    useEffect(() => {
-        if (initialData?.cuit) {
-            const cleanCuit = initialData.cuit.toString().replace(/\D/g, '');
-            if (['30', '33', '34'].some((p: string) => cleanCuit.startsWith(p))) {
-                setTipoPersona('JURIDICA');
-            }
-        }
-    }, [initialData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Clean up unrelated fields if Juridica
             let finalData = { ...formData };
+            // Sanitization
             if (tipoPersona === 'JURIDICA') {
                 finalData.fecha_nacimiento = "";
                 finalData.nacionalidad = "";
                 finalData.estado = "";
-                finalData.padres = "";
                 finalData.conyuge = "";
             }
+
+            // Allow manual override for DNI vs CUIT
+            // User complained they were same. Now inputs are distinct.
 
             const payloadCommon = {
                 nombre_completo: finalData.nombre_completo,
                 cuit: finalData.cuit,
                 domicilio_real: { literal: finalData.domicilio_real },
-                contacto: {
-                    email: finalData.email,
-                    telefono: finalData.telefono
-                },
-                tipo_persona: tipoPersona // Ensure backend handles this if possible
+                contacto: { email: finalData.email, telefono: finalData.telefono },
+                tipo_persona: tipoPersona
             };
+
+            const targetId = initialData?.id || initialData?.dni || initialData?.cuit; // More robust ID target extraction
 
             if (initialData) {
                 const updatePayload: any = {
                     ...payloadCommon,
-                    domicilio: finalData.domicilio_real, // adapter for updatePersona
+                    domicilio: finalData.domicilio_real,
                     dni: finalData.dni
                 };
-
-                // Add specifics only check if FISICA
                 if (tipoPersona === 'FISICA') {
                     updatePayload.nacionalidad = finalData.nacionalidad;
                     updatePayload.fecha_nacimiento = finalData.fecha_nacimiento;
@@ -110,31 +121,29 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     updatePayload.nombres_padres = finalData.padres;
                     updatePayload.nombre_conyuge = finalData.conyuge;
                 }
-
-                const res = await updatePersona(initialData.dni || initialData.cuit, updatePayload); // CUIT fallback as ID
+                const res = await updatePersona(targetId, updatePayload);
                 if (res.success) {
-                    toast.success("Persona actualizada correctamente");
+                    toast.success("Persona actualizada");
                     onSuccess(res.data);
                 } else {
-                    toast.error("Error al actualizar: " + res.error);
+                    toast.error("Error: " + res.error);
                 }
             } else {
                 const createPayload: any = {
                     ...payloadCommon,
                     dni: finalData.dni,
-                    estado_civil_detalle: finalData.estado, // Legacy structure
+                    estado_civil_detalle: finalData.estado,
                     nombres_padres: finalData.padres,
                     datos_conyuge: { nombre: finalData.conyuge },
                     nacionalidad: finalData.nacionalidad,
                     fecha_nacimiento: finalData.fecha_nacimiento || null
                 };
-
                 const res = await upsertPerson(createPayload);
                 if (res.success) {
-                    toast.success("Persona guardada correctamente");
+                    toast.success("Persona creada");
                     onSuccess(res.data);
                 } else {
-                    toast.error("Error al guardar: " + res.error);
+                    toast.error("Error: " + res.error);
                 }
             }
         } catch (err: any) {
@@ -174,24 +183,18 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         <Label>Nombre</Label>
                         <Input
                             required
-                            value={formData.nombre_completo.split(" ").slice(0, -1).join(" ")}
-                            onChange={(e) => {
-                                const apellido = formData.nombre_completo.split(" ").slice(-1).join(" ");
-                                setFormData({ ...formData, nombre_completo: e.target.value + " " + apellido })
-                            }}
-                            placeholder="Nombres"
+                            value={nameParts.nombre}
+                            onChange={(e) => setNameParts({ ...nameParts, nombre: e.target.value })}
+                            placeholder="Nombres (Ej: Carlos Alberto)"
                         />
                     </div>
                     <div className="space-y-2">
                         <Label>Apellido</Label>
                         <Input
                             required
-                            value={formData.nombre_completo.split(" ").slice(-1)[0]}
-                            onChange={(e) => {
-                                const nombre = formData.nombre_completo.split(" ").slice(0, -1).join(" ");
-                                setFormData({ ...formData, nombre_completo: nombre + " " + e.target.value })
-                            }}
-                            placeholder="Apellidos"
+                            value={nameParts.apellido}
+                            onChange={(e) => setNameParts({ ...nameParts, apellido: e.target.value })}
+                            placeholder="Apellidos (Ej: Perez Aguirre)"
                         />
                     </div>
                 </div>
