@@ -67,16 +67,24 @@ export function ComplianceTrafficLight({ compliance, crossCheck }: ComplianceTra
                         </DialogDescription>
                     </DialogHeader>
 
-                    <div className="space-y-4 mt-4">
-                        {crossCheck?.details && Object.entries(crossCheck.details).map(([field, info]) => (
-                            <div key={field} className={cn("p-3 rounded-lg border flex items-start gap-3", info.match ? "bg-emerald-50 border-emerald-100" : (info.severity === 'HIGH' ? "bg-rose-50 border-rose-100" : "bg-amber-50 border-amber-100"))}>
-                                {info.match ? <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" /> : <AlertCircle className={cn("w-4 h-4 mt-0.5", info.severity === 'HIGH' ? "text-rose-600" : "text-amber-600")} />}
-                                <div>
-                                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">{field.replace(/_/g, ' ')}</p>
-                                    <p className="text-sm font-medium">{info.message}</p>
+                    <div className="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
+                        {crossCheck?.details && Object.entries(crossCheck.details).map(([field, info]) => {
+                            // Format label: nombre_temp_0 -> NOMBRE (Participante 1)
+                            const parts = field.split('_');
+                            const types = parts[0];
+                            const id = parts.slice(1).join('_');
+                            const label = `${types.toUpperCase()} ${id.includes('temp') ? `(Participante #${parseInt(id.split('temp_')[1]) + 1})` : ''}`;
+
+                            return (
+                                <div key={field} className={cn("p-3 rounded-lg border flex items-start gap-3", info.match ? "bg-emerald-50 border-emerald-100" : (info.severity === 'HIGH' ? "bg-rose-50 border-rose-100" : "bg-amber-50 border-amber-100"))}>
+                                    {info.match ? <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5" /> : <AlertCircle className={cn("w-4 h-4 mt-0.5", info.severity === 'HIGH' ? "text-rose-600" : "text-amber-600")} />}
+                                    <div>
+                                        <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-0.5">{label}</p>
+                                        <p className="text-sm font-medium">{info.message}</p>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         {crossCheck?.state === 'CRITICAL_DISCREPANCY' && (
                             <div className="p-4 bg-red-600 text-white rounded-lg flex items-center gap-3 animate-pulse">
