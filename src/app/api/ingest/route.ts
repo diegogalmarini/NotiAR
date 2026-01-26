@@ -14,7 +14,7 @@ if (typeof globalThis !== 'undefined') {
     if (!g.btoa) g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
-// Flash v1.2.5 - Legal Entity Cards
+// Flash v1.2.6 - Hotfix Build Error
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
