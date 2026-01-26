@@ -633,12 +633,11 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     const person = p.persona || p.personas;
                                     if (!person) return null;
 
-                                    return (
                                     const isLegalEntity = (p: any) => {
-                                            if (p.tipo_persona === 'JURIDICA') return true;
-                                            const cuit = p.cuit?.toString().replace(/\D/g, '') || '';
-                                            return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
-                                        };
+                                        if (p.tipo_persona === 'JURIDICA') return true;
+                                        const cuit = p.cuit?.toString().replace(/\D/g, '') || '';
+                                        return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
+                                    };
 
                                     const getSpouseName = (p: any) => {
                                         if (p.datos_conyuge?.nombre) return p.datos_conyuge.nombre;
