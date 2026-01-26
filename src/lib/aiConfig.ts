@@ -65,8 +65,18 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                 },
                                 required: ["valor", "evidencia"]
                             },
-                            dni_cuil_cuit: {
+                            dni: {
                                 type: SchemaType.OBJECT,
+                                description: "DNI: 7-8 dígitos SIN guiones. Ej: 25765599. SOLO para Personas Físicas. null para Jurídicas.",
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
+                                required: ["valor", "evidencia"]
+                            },
+                            cuit_cuil: {
+                                type: SchemaType.OBJECT,
+                                description: "CUIT/CUIL: 11 dígitos con formato XY-DDDDDDDD-Z. Ej: 20-25765599-8. Preservar guiones. null si no está en documento.",
                                 properties: {
                                     valor: { type: SchemaType.STRING, nullable: true },
                                     evidencia: { type: SchemaType.STRING }
@@ -109,9 +119,29 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                     evidencia: { type: SchemaType.STRING }
                                 },
                                 required: ["valor", "evidencia"]
+                            },
+                            fecha_nacimiento: {
+                                type: SchemaType.OBJECT,
+                                description: "Fecha en formato ISO YYYY-MM-DD. Convertir texto a ISO.",
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
+                                required: ["valor", "evidencia"]
+                            },
+                            conyuge: {
+                                type: SchemaType.OBJECT,
+                                description: "Datos del cónyuge si está casado y se menciona. null si soltero/divorciado.",
+                                properties: {
+                                    nombre_completo: { type: SchemaType.STRING, nullable: true },
+                                    dni: { type: SchemaType.STRING, nullable: true },
+                                    cuit_cuil: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
+                                required: ["evidencia"]
                             }
                         },
-                        required: ["nombre_completo", "dni_cuil_cuit", "domicilio"] // Estado civil/nupcias opcionales para Jurídicas
+                        required: ["nombre_completo", "dni", "cuit_cuil", "domicilio"] // dni y cuit_cuil separados
                     },
                     representacion: {
                         type: SchemaType.OBJECT,
