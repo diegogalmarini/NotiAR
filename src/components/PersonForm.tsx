@@ -41,13 +41,32 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
 
     // Auto-switch type based on CUIT input
     const handleCuitChange = (val: string) => {
+        // Strip non-digits for logic check
+        const cleanVal = val.replace(/\D/g, '');
+        // Format for display (auto-dash XX-XXXXXXXX-X)
+        let formatted = val;
+        // Simple formatter: if purely numeric and length sufficient
+        // Actually, let's keep it raw for input but formatted for logic
+
         setFormData({ ...formData, cuit: val });
-        if (['30', '33', '34'].some(p => val.startsWith(p))) {
+
+        // Robust check for Legal Entity prefix
+        if (['30', '33', '34'].some(p => cleanVal.startsWith(p))) {
             setTipoPersona('JURIDICA');
-        } else if (['20', '23', '27'].some(p => val.startsWith(p))) {
+        } else if (['20', '23', '27'].some(p => cleanVal.startsWith(p))) {
             setTipoPersona('FISICA');
         }
     };
+
+    // Initial check on mount
+    useEffect(() => {
+        if (initialData?.cuit) {
+            const cleanCuit = initialData.cuit.toString().replace(/\D/g, '');
+            if (['30', '33', '34'].some((p: string) => cleanCuit.startsWith(p))) {
+                setTipoPersona('JURIDICA');
+            }
+        }
+    }, [initialData]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
