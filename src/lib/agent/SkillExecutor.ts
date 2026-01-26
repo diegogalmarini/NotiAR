@@ -110,6 +110,21 @@ export class SkillExecutor {
 
         const model = this.genAI.getGenerativeModel(modelConfig);
 
+        // v1.2.16: Critical Rules Injection
+        const criticalRules = skillSlug === 'notary-entity-extractor' ? `
+
+⚠️ REGLAS CRÍTICAS - DNI vs CUIT (OBLIGATORIO):
+1. DNI: 7-8 dígitos (ej: 25765599) → campo "dni"
+2. CUIT: 11 dígitos XY-DDDDDDDD-Z (ej: 20-25765599-8) → campo "cuit_cuil"
+3. PROHIBIDO: Copiar DNI al campo CUIT sin prefijo/verificador
+4. Si documento dice "DNI 25765599" y "CUIT 20-25765599-8" → extrae AMBOS por separado
+5. Si solo hay DNI → deja cuit_cuil = null (NO inventes CUIT)
+6. Personas Jurídicas: NUNCA tienen DNI, solo CUIT (prefijo 30/33/34)
+7. EXTRAE TODOS los comparecientes (incluyendo representantes legales)
+8. Si dice "casado con X", extrae X como cónyuge con sus datos completos
+
+` : '';
+
         const systemPrompt = `
             ROL: ERES UN EXPERTO ESCRIBANO ARGENTINO EN EXTRACCIÓN DE DATOS (RIGOR NOTARIAL).
             
@@ -118,7 +133,7 @@ export class SkillExecutor {
             2. EVIDENCIA TEXTUAL: Para cada campo, extrae el fragmento exacto que justifica el valor.
             3. CRITERIO DE VERDAD: Si un dato no está presente de ninguna forma, usa null. Pero si el dato es deducible sin ambigüedad del contexto legal, extráelo.
             4. INTEGRIDAD: Asegura que los nombres coincidan exactamente con el DNI/CUIT mencionado.
-            
+            ${criticalRules}
             ${userContext.includes("segments") ? "ENFOQUE: Concéntrate especialmente en los segmentos de páginas indicados en el contexto." : ""}
 
             PROTOCOLO:
