@@ -696,7 +696,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
                                                         {isLegalEntity(person)
                                                             ? "Persona Jurídica"
-                                                            : `${person.nacionalidad || "Nacionalidad no informada"} • ${formatDateInstructions(person.fecha_nacimiento)}`}
+                                                            : `${person.nacionalidad || "No informada"} • ${formatDateInstructions(person.fecha_nacimiento)}`}
                                                     </p>
                                                 </div>
 
@@ -720,7 +720,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Filiación</p>
                                                             <p className="text-[12px] text-slate-700 font-medium leading-tight">
-                                                                {person.nombres_padres || "Filiación no informada"}
+                                                                {person.nombres_padres || "No informada"}
                                                             </p>
                                                         </div>
                                                         <div>
