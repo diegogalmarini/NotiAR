@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,15 +40,17 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
     });
 
     // Auto-switch type based on CUIT input
+    // Auto-switch type based on CUIT input
     const handleCuitChange = (val: string) => {
-        // Strip non-digits for logic check
+        // Strip non-digits checks
         const cleanVal = val.replace(/\D/g, '');
-        // Format for display (auto-dash XX-XXXXXXXX-X)
-        let formatted = val;
-        // Simple formatter: if purely numeric and length sufficient
-        // Actually, let's keep it raw for input but formatted for logic
 
-        setFormData({ ...formData, cuit: val });
+        // Auto-format for display: XX-XXXXXXXX-X
+        let formatted = cleanVal;
+        if (cleanVal.length > 2) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2)}`;
+        if (cleanVal.length > 10) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2, 10)}-${cleanVal.slice(10, 11)}`;
+
+        setFormData({ ...formData, cuit: formatted });
 
         // Robust check for Legal Entity prefix
         if (['30', '33', '34'].some(p => cleanVal.startsWith(p))) {
