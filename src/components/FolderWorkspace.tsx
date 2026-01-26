@@ -343,33 +343,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                     )}
                 </TabsList>
                 <div className="flex items-center gap-3">
-                    <ComplianceTrafficLight
-                        compliance={currentEscritura?.analysis_metadata?.compliance}
-                        crossCheck={crossCheckResult}
-                    />
-                    <Badge variant="outline" className="px-3 py-1 bg-slate-50 font-mono text-[10px]">
-                        ID: {carpeta.id.slice(0, 8)}
-                    </Badge>
-
-                    {/* INGESTION PROGRESS INDICATOR */}
-                    {carpeta.ingesta_estado && carpeta.ingesta_estado !== 'COMPLETADO' && (
-                        <div className={cn(
-                            "flex items-center gap-2 px-3 py-1.5 rounded-full border text-[11px] font-bold animate-pulse",
-                            carpeta.ingesta_estado === 'ERROR' ? "bg-red-50 text-red-600 border-red-100" : "bg-indigo-50 text-indigo-700 border-indigo-100"
-                        )}>
-                            <Activity className={cn("h-3 w-3", carpeta.ingesta_estado === 'PROCESANDO' && "animate-spin")} />
-                            {carpeta.ingesta_paso || 'Procesando...'}
-                            {carpeta.ingesta_estado === 'ERROR' && (
-                                <button onClick={() => window.location.reload()} className="underline ml-1">Reintentar</button>
-                            )}
-                        </div>
-                    )}
-
-                    <Button variant="ghost" size="sm" onClick={() => router.refresh()} className="h-8 w-8 p-0" title="Actualizar datos">
-                        <Activity className="h-4 w-4 text-slate-400" />
-                    </Button>
-
-                    <StatusStepper folderId={carpeta.id} currentStatus={carpeta.estado} />
+                    {/* Cleaned up UI - specific request */}
 
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
