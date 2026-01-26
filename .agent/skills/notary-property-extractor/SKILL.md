@@ -47,12 +47,13 @@ def extract_property_description(full_text):
     clean_text = re.sub(r'[ \t]+', ' ', full_text)
 
     # 2. Definición de Triggers
-    # Inicio: Busca frases típicas de inicio de descripción
-    start_pattern = r"(?:(?:UNA|LA)\s+UNIDAD\s+FUNCIONAL|(?:UN|EL)\s+LOTE|(?:UNA|LA)\s+FRACCI[ÓO]N|(?:UN|EL)\s+INMUEBLE|(?:UNA|LA)\s+FINCA|UN\s+DEPARTAMENTO|QUE\s+ES\s+PARTE\s+DEL|QUE\s+SE\s+DESIGNA)"
+    # Inicio: Captura desde variantes narrativas o técnicas
+    # Incluye preambles como "una unidad...que es parte del edificio ubicado en..."
+    start_pattern = r"(?:(?:UNA|LA)\s+UNIDAD\s+FUNCIONAL|(?:UN|EL)\s+(?:LOTE|DEPARTAMENTO|INMUEBLE)|(?:UNA|LA)\s+(?:FRACCI[ÓO]N|FINCA)|QUE\s+(?:ES\s+PARTE\s+DEL|SE\s+DESIGNA|FORMA\s+PARTE)|UBICAD[OA]\s+EN)"
     
     # Fin: Busca donde terminan los linderos y empiezan los datos administrativos
     # (?=...) es un lookahead positivo para detenerse ANTES de consumir esa frase
-    end_pattern = r"(?=\s*(?:NOMENCLATURA CATASTRAL|VALUACI[ÓO]N FISCAL|PARTIDO DE|MATR[ÍI]CULA|ZONA|CIRCUNSCRIPCI[ÓO]N))"
+    end_pattern = r"(?=\s*(?:NOMENCLATURA\s+CATASTRAL|VALUACI[ÓO]N\s+FISCAL|PARTIDA\s*:?|MATR[ÍI]CULA|CIRCUNSCRIPCI[ÓO]N))"
 
     # 3. Regex Compuesta
     # Flags: re.IGNORECASE (mayúsculas/minúsculas), re.DOTALL (el punto matchea saltos de línea)

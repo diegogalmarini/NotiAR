@@ -27,11 +27,50 @@ En Argentina, los nombres compuestos y apellidos dobles son comunes.
 * **CORRECTO:** "calle Horacio Quiroga número 2.256"
 * Debes incluir el tipo de vía (Calle, Avenida, Pasaje, Ruta) tal cual aparece en la escritura.
 
-### 3. Lógica de Identidad (Fix DNI vs CUIT)
-Nunca confundas DNI con CUIT. Son matemáticamente distintos.
-* **DNI:** Número de 7 u 8 dígitos (ej: 25.765.599). Si encuentras esto, va al campo `dni`.
-* **CUIT/CUIL:** Número de 11 dígitos con guiones (ej: 20-25765599-8). Si encuentras esto, va al campo `cuit_cuil`.
-* **Verificación:** Si el texto dice "DNI X y CUIT Y", extrae AMBOS por separado.
+### 3. Lógica de Identidad (Fix DNI vs CUIT) **⚠️ CRÍTICO**
+**Nunca confundas DNI con CUIT. Son matemáticamente distintos.**
+
+#### Reglas Absolutas:
+* **DNI:** Número de 7 u 8 dígitos (ej: `25.765.599` o `25765599`). 
+  - Campo destino: `dni`
+  - Solo para Personas Físicas
+* **CUIT/CUIL:** Número de 11 dígitos con estructura `XY-DDDDDDDD-Z`:
+  - `XY` = Prefijo (20/23/27 = Física, 30/33/34 = Jurídica)
+  - `DDDDDDDD` = DNI (físicas) o número inscripción (jurídicas)
+  - `Z` = Dígito verificador
+  - Campo destino: `cuit_cuil`
+
+#### ❌ Anti-Patrón PROHIBIDO:
+**NUNCA copies DNI al campo CUIT sin prefijo/verificador**
+
+Documento dice:
+```
+DNI 25.765.599
+CUIT 20-25765599-8
+```
+
+✅ **CORRECTO:**
+```json
+{
+  "dni": "25765599",
+  "cuit_cuil": "20-25765599-8"
+}
+```
+
+❌ **INCORRECTO (Error común):**
+```json
+{
+  "dni": "25765599",
+  "cuit_cuil": "25765599"  // Falta prefijo y verificador
+}
+```
+
+#### Flujo de Extracción:
+1. Busca palabras clave: "DNI", "CUIT", "CUIL" en el texto
+2. Extrae cada uno a su campo correspondiente
+3. Si solo hay DNI sin CUIT → `cuit_cuil: null` (NO inventes CUIT)
+4. Personas Jurídicas → `dni: null`, solo `cuit_cuil`
+5. Preserva guiones del CUIT
 
 ### 4. Datos Biográficos Profundos (Fix Fechas/Cónyuge)
 No te detengas en el nombre. Sigue leyendo la frase completa del compareciente.
