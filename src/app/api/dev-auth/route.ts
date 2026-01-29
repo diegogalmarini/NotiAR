@@ -46,11 +46,12 @@ export async function POST(req: Request) {
 
             // Extraer tokens de la respuesta
             const { properties } = data;
+            const props = properties as any;
 
             return NextResponse.json({
                 success: true,
-                access_token: properties.access_token,
-                refresh_token: properties.refresh_token,
+                access_token: props.access_token,
+                refresh_token: props.refresh_token,
                 message: 'Tokens generados. Usar setSession() en console'
             });
         }
