@@ -36,13 +36,14 @@ export async function GET(request: NextRequest) {
             }
         )
 
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (!error) {
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error && data.session) {
+            console.log(`[CALLBACK] Success for ${data.session.user.email}. Path: ${redirectTo}`);
             return response
         }
 
-        console.error('[CALLBACK] Auth error:', error.message)
-        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
+        console.error('[CALLBACK] Exchange failed:', error?.message || 'No session returned');
+        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error?.message || 'Auth exchange failed')}`)
     }
 
     return NextResponse.redirect(`${origin}/login`)
