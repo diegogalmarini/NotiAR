@@ -274,15 +274,18 @@ function normalizeAIData(raw: any) {
             equivalente_ars_cesion: raw.cesion_beneficiario?.precio_cesion?.equivalente_ars || raw.precio_cesion?.equivalente_ars || null
         },
         // Beneficiary assignment (fiduciary operations)
-        cesion_beneficiario: raw.cesion_beneficiario ? {
-            cedente_nombre: raw.cesion_beneficiario.cedente?.nombre || null,
-            cedente_fecha_incorporacion: raw.cesion_beneficiario.cedente?.fecha_incorporacion || null,
-            cesionario_nombre: raw.cesion_beneficiario.cesionario?.nombre || null,
-            cesionario_dni: raw.cesion_beneficiario.cesionario?.dni || null,
-            precio_cesion: raw.cesion_beneficiario.precio_cesion?.monto || null,
-            moneda_cesion: raw.cesion_beneficiario.precio_cesion?.moneda || null,
-            fecha_cesion: raw.cesion_beneficiario.fecha_cesion || null
-        } : null
+        cesion_beneficiario: (raw.cesion_beneficiario || raw.cesion || raw.transferencia) ? (() => {
+            const src = raw.cesion_beneficiario || raw.cesion || raw.transferencia;
+            return {
+                cedente_nombre: src.cedente?.nombre || src.cedente || null,
+                cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
+                cesionario_nombre: src.cesionario?.nombre || src.cesionario || null,
+                cesionario_dni: src.cesionario?.dni || null,
+                precio_cesion: (src.precio_cesion?.monto || src.precio?.monto || null),
+                moneda_cesion: (src.precio_cesion?.moneda || src.precio?.moneda || null),
+                fecha_cesion: src.fecha_cesion || src.fecha || null
+            };
+        })() : null
     };
     if (raw.entidades && Array.isArray(raw.entidades)) {
         const allClients: any[] = [];
@@ -341,6 +344,16 @@ function normalizeAIData(raw: any) {
                         break;
                     }
                 }
+            }
+
+            // DEDUPLICATION: If this person is already listed in representatives, skip as separate card
+            // unless they are also a principal party (complex case, but usually AI gets confused)
+            const isDuplicateOfRep = raw.entidades.some((ent: any) =>
+                ent.representacion?.representantes?.some((r: any) => normalizeID(r.dni) === normalizeID(d.dni))
+            );
+            if (isDuplicateOfRep && e.rol !== 'APODERADO/REPRESENTANTE') {
+                console.log(`[PIPELINE] Skipping entity ${rawNombre} as it is already a representative.`);
+                return;
             }
 
             const mainClient = {

@@ -267,12 +267,29 @@ Si NO aparece:
 
 **Regla de Ubicación**: Los datos del Cedente suelen estar en el "Anexo", "Constancia Notarial" o en los "Incisos" de antecedentes. Aunque no firme la escritura actual, es parte de la operación y debe ser extraído.
 
-### Indicadores de Cesión:
-- "cesión de condición de beneficiario"
-- "cesión de derechos fiduciarios"
-- "beneficiario original" → "beneficiario final"
-- Dos personas mencionadas: cedente y cesionario
-- Precio de cesión en USD
+### 💰 Estructura JSON Estandarizada para Fideicomisos:
+Para asegurar la extracción, usa **SIEMPRE** estos campos en el raíz:
+
+```json
+{
+  "precio_cesion": {
+    "monto": 23000,
+    "moneda": "USD",
+    "tipo_cambio": 1084.5,
+    "equivalente_ars": 24943500
+  },
+  "precio_construccion": {
+    "monto": 126212.66,
+    "moneda": "ARS"
+  },
+  "cesion_beneficiario": {
+    "cedente": { "nombre": "Claudio Wagner", "fecha_incorporacion": "2013-06-05" },
+    "cesionario": { "nombre": "Juan Moran", "dni": "34877009" },
+    "precio_cesion": { "monto": 23000, "moneda": "USD" },
+    "fecha_cesion": "2025-03-06"
+  }
+}
+```
 
 ### Búsqueda en Constancias Notariales
 
