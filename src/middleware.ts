@@ -1,9 +1,10 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 // Super admin emails
 const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 
+// Public routes
 const PUBLIC_ROUTES = [
     '/',
     '/login',
@@ -33,7 +34,7 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
                         request,
                     })
@@ -45,7 +46,7 @@ export async function middleware(request: NextRequest) {
         }
     )
 
-    // IMPORTANT: Use getUser() instead of getSession() for better security validation
+    // IMPORTANT: Use getUser() instead of getSession() for consistency in SSR
     const {
         data: { user },
     } = await supabase.auth.getUser()
@@ -58,7 +59,11 @@ export async function middleware(request: NextRequest) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         url.searchParams.set('redirectTo', pathname)
-        return NextResponse.redirect(url)
+
+        // ✅ CRITICAL FIX: Transfer cookies from supabaseResponse to the redirect response
+        const redirectResponse = NextResponse.redirect(url)
+        supabaseResponse.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value, c))
+        return redirectResponse
     }
 
     if (user && !isPublicRoute) {
@@ -76,7 +81,11 @@ export async function middleware(request: NextRequest) {
         if (!profile || profile.approval_status !== 'approved') {
             const url = request.nextUrl.clone()
             url.pathname = (profile?.approval_status === 'rejected') ? '/unauthorized' : '/pending-approval'
-            return NextResponse.redirect(url)
+
+            // ✅ CRITICAL FIX: Transfer cookies to redirect
+            const approvalRedirectResponse = NextResponse.redirect(url)
+            supabaseResponse.cookies.getAll().forEach(c => approvalRedirectResponse.cookies.set(c.name, c.value, c))
+            return approvalRedirectResponse
         }
     }
 
