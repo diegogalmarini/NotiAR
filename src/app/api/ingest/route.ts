@@ -256,25 +256,70 @@ function normalizeAIData(raw: any) {
         notario: ops.escribano_nombre?.valor || null,
         registro: ops.registro_numero?.valor || null,
         operation_details: {
-            price: ops.precio?.valor || raw.price?.valor || 0,
-            currency: ops.precio?.moneda || raw.currency?.valor || 'USD',
-            date: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor
-        }
+            price: raw.precio_cesion?.monto || ops.precio?.valor || raw.price?.valor || 0,
+            currency: raw.precio_cesion?.moneda || ops.precio?.moneda || raw.currency?.valor || 'USD',
+            date: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor,
+            // Dual pricing for fiduciary operations
+            precio_construccion: raw.precio_construccion?.monto || null,
+            precio_cesion: raw.precio_cesion?.monto || null,
+            tipo_cambio_cesion: raw.precio_cesion?.tipo_cambio || null,
+            equivalente_ars_cesion: raw.precio_cesion?.equivalente_ars || null
+        },
+        // Beneficiary assignment (fiduciary operations)
+        cesion_beneficiario: raw.cesion_beneficiario ? {
+            cedente_nombre: raw.cesion_beneficiario.cedente?.nombre || null,
+            cedente_fecha_incorporacion: raw.cesion_beneficiario.cedente?.fecha_incorporacion || null,
+            cesionario_nombre: raw.cesion_beneficiario.cesionario?.nombre || null,
+            cesionario_dni: raw.cesion_beneficiario.cesionario?.dni || null,
+            precio_cesion: raw.cesion_beneficiario.precio_cesion?.monto || null,
+            moneda_cesion: raw.cesion_beneficiario.precio_cesion?.moneda || null,
+            fecha_cesion: raw.cesion_beneficiario.fecha_cesion || null
+        } : null
     };
     if (raw.entidades && Array.isArray(raw.entidades)) {
         const allClients: any[] = [];
         raw.entidades.forEach((e: any) => {
             const d = e.datos || {};
             const rawCuit = d.cuit_cuil?.valor?.toString().replace(/\D/g, '') || '';
-            const forcedTipoPersona = (e.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some(p => rawCuit.startsWith(p))) ? 'JURIDICA' : (e.tipo_persona || 'FISICA');
 
-            const isEntity = forcedTipoPersona === 'JURIDICA';
+            // Detect FIDEICOMISO as separate entity type
+            const isFideicomiso = e.tipo_entidad === 'FIDEICOMISO' ||
+                (d.nombre_completo?.toString() || d.razon_social?.toString() || d.nombre?.toString() || '').toUpperCase().includes('FIDEICOMISO');
+
+            const forcedTipoPersona = isFideicomiso
+                ? 'FIDEICOMISO'
+                : (e.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some(p => rawCuit.startsWith(p)))
+                    ? 'JURIDICA'
+                    : (e.tipo_persona || 'FISICA');
+
+            const isEntity = forcedTipoPersona === 'JURIDICA' || forcedTipoPersona === 'FIDEICOMISO';
+
+            // CLEANING: If it's a Fideicomiso, remove the "administrado por..." or "fiduciaria..." part from the name if concatenated
+            let finalNombre = isEntity
+                ? (extractString(d.nombre_completo, false) || extractString(d.razon_social, false) || extractString(d.nombre, false) || 'Desconocido')
+                : (extractString(d.nombre_completo) || 'Desconocido');
+
+            if (isFideicomiso) {
+                // Remove everything after S.A., SRL, or specific trustee indicators to avoid combined cards
+                const trusteeIndicators = ['S.A.', 'SRL', 'S.A', 'SOCIEDAD ANONIMA', 'ADMINISTRADO POR', 'FIDUCIARIA'];
+                const upperNombre = finalNombre.toUpperCase();
+                for (const indicator of trusteeIndicators) {
+                    const index = upperNombre.indexOf(indicator);
+                    if (index > 15) { // Only truncate if it's late in the string (likely concatenated)
+                        finalNombre = finalNombre.substring(0, index).trim();
+                        // If it ends with "POR", trim it too
+                        if (finalNombre.toUpperCase().endsWith(' POR')) {
+                            finalNombre = finalNombre.substring(0, finalNombre.length - 4).trim();
+                        }
+                        break;
+                    }
+                }
+            }
+
             const mainClient = {
                 rol: extractString(e.rol) || 'VENDEDOR',
                 tipo_persona: forcedTipoPersona,
-                nombre_completo: isEntity
-                    ? (extractString(d.nombre_completo, false) || extractString(d.razon_social, false) || extractString(d.nombre, false) || 'Desconocido')
-                    : (extractString(d.nombre_completo) || 'Desconocido'),
+                nombre_completo: finalNombre,
                 dni: extractString(d.dni) || null,
                 cuit: formatCUIT(extractString(d.cuit_cuil)),
                 estado_civil: extractString(d.estado_civil) || null,
@@ -443,7 +488,17 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         escritura_id: escritura?.id || null, // Tolerante si escritura falló
         tipo_acto: String(resumen_acto || 'COMPRAVENTA').toUpperCase().substring(0, 100),
         monto_operacion: parseFloat(String(operation_details?.price || 0)) || 0,
-        nro_acto: aiData.numero_escritura ? String(safeParseInt(aiData.numero_escritura) || aiData.numero_escritura) : null
+        nro_acto: aiData.numero_escritura ? String(safeParseInt(aiData.numero_escritura) || aiData.numero_escritura) : null,
+        // Dual pricing for fiduciary operations
+        precio_construccion: operation_details?.precio_construccion || null,
+        precio_cesion: operation_details?.precio_cesion || null,
+        moneda_cesion: operation_details?.currency?.includes('USD') ? 'USD' : 'ARS',
+        tipo_cambio_cesion: operation_details?.tipo_cambio_cesion || null,
+        equivalente_ars_cesion: operation_details?.equivalente_ars_cesion || null,
+        // Beneficiary assignment
+        beneficiario_cedente: aiData.cesion_beneficiario?.cedente_nombre || null,
+        beneficiario_cesionario: aiData.cesion_beneficiario?.cesionario_nombre || null,
+        fecha_cesion: safeParseDate(aiData.cesion_beneficiario?.fecha_cesion) || null
     }]).select().single();
 
     if (opError) db_logs.push(`Op Error: ${opError.message}`);
@@ -461,8 +516,14 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         }
 
         if (!finalID) {
-            console.warn(`[PERSIST] Skipping entity ${c.nombre_completo} - NO ID (DNI/CUIT)`);
-            continue;
+            // FALLBACK for CEDENTES or other critical actors without ID in the text
+            if (c.rol === 'CEDENTE' || c.rol === 'PROPIETARIO ANTERIOR') {
+                finalID = `TEMP-${Date.now()}-${c.nombre_completo.substring(0, 5).toUpperCase()}`;
+                console.log(`[PERSIST] Entity ${c.nombre_completo} has no ID, generated fallback: ${finalID}`);
+            } else {
+                console.warn(`[PERSIST] Skipping entity ${c.nombre_completo} - NO ID (DNI/CUIT)`);
+                continue;
+            }
         }
 
         // --- SMART CHECK: Persona ---
@@ -474,7 +535,8 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
         const extractedPersona = {
             dni: finalID,
-            nombre_completo: c.tipo_persona === 'JURIDICA' ? c.nombre_completo : toTitleCase(c.nombre_completo),
+            tipo_persona: c.tipo_persona || 'FISICA',  // NEW: Add tipo_persona
+            nombre_completo: c.tipo_persona === 'JURIDICA' || c.tipo_persona === 'FIDEICOMISO' ? c.nombre_completo : toTitleCase(c.nombre_completo),
             cuit: normalizeID(c.cuit),
             cuit_tipo: c.cuit_tipo || 'CUIT',
             cuit_is_formal: c.cuit_is_formal ?? true,

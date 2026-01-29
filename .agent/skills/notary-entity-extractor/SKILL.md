@@ -234,6 +234,165 @@ Si NO aparece:
 
 ---
 
+## 🏦 FIDEICOMISOS (Entidades Especiales)
+
+### Indicadores de Fideicomiso:
+- Palabra "FIDEICOMISO" en el nombre
+- CUIT propio (generalmente 30-XXXXXXXX-X)
+- "Administrado por" / "Fiduciaria" / "Fiduciario"
+- Instrumento de constitución mencionado
+- "CUIT del fideicomiso"
+
+### Diferencia CRÍTICA: Fiduciaria ≠ Fideicomiso
+
+```
+❌ Incorrecto: "FIDEICOMISO G-4 SOMAJOFA S.A." (Combinado)
+✅ Correcto: 
+   1. "SOMAJOFA S.A." (Rol: FIDUCIARIA)
+   2. "FIDEICOMISO G-4" (Rol: VENDEDOR_FIDUCIARIO / VEHICULO)
+```
+
+**Regla de Oro**: Si el documento menciona "FIDEICOMISO [NOMBRE]" administrado por "EMPRESA X", debes generar **DOS** objetos en el array `entidades`.
+- El Fideicomiso lleva el CUIT que empieza con 30-71... (generalmente).
+- La Fiduciaria lleva su propio CUIT.
+- **NUNCA** concatenes los nombres en el campo `nombre` o `razon_social`.
+
+---
+
+## 📄 CESIONES DE BENEFICIARIO (Operaciones Fiduciarias)
+
+### 👥 Participantes Obligatorios en Cesión:
+1. **Cedente**: El beneficiario original (ej: "Claudio Wagner"). **DEBE** incluirse en el array de `entidades` con `rol: "CEDENTE"`.
+2. **Cesionario**: El nuevo beneficiario (ej: "Juan Moran"). **DEBE** incluirse en el array de `entidades` con `rol: "CESIONARIO" / "COMPRADOR"`.
+
+**Regla de Ubicación**: Los datos del Cedente suelen estar en el "Anexo", "Constancia Notarial" o en los "Incisos" de antecedentes. Aunque no firme la escritura actual, es parte de la operación y debe ser extraído.
+
+### Indicadores de Cesión:
+- "cesión de condición de beneficiario"
+- "cesión de derechos fiduciarios"
+- "beneficiario original" → "beneficiario final"
+- Dos personas mencionadas: cedente y cesionario
+- Precio de cesión en USD
+
+### Búsqueda en Constancias Notariales
+
+**Ubicación típica**: Sección "CONSTANCIAS NOTARIALES" incisos c), d), e)
+
+Ejemplo de texto:
+```
+"c) De agregar a la presente Incorporación a Contrato de Fideicomiso 
+    suscripta a favor de Claudio Jorge Wagner, con fecha 25 de junio de 2.013.
+    
+d) De agregar a la presente cesión de condición de beneficiario, 
+   suscripta por Claudio Jorge Wagner a favor de Juan Francisco Moran 
+   del día de la fecha, por la suma de Dólares Estadounidenses 
+   Veintitrés mil (U$S 23.000)."
+```
+
+### Extracción Correcta:
+
+```json
+{
+  "cesion_beneficiario": {
+    "cedente": {
+      "nombre": "Claudio Jorge Wagner",
+      "fecha_incorporacion": "2013-06-25",
+      "rol": "BENEFICIARIO_ORIGINAL"
+    },
+    "cesionario": {
+      "nombre": "Juan Francisco Moran",
+      "dni": "34877009",
+      "rol": "BENEFICIARIO_FINAL"
+    },
+    "precio_cesion": {
+      "monto": 23000,
+      "moneda": "USD"
+    },
+    "fecha_cesion": "2025-03-06"
+  }
+}
+```
+
+**Regla CRÍTICA**: El beneficiario CEDENTE debe ir en el array de `clientes` aunque NO comparezca físicamente.
+
+---
+
+## 💰 DOBLE PRECIO EN FIDEICOMISOS
+
+### Caso: Fideicomiso al Costo + Cesión de Beneficiario
+
+En operaciones fiduciarias de "construcción al costo", hay **DOS precios distintos**:
+
+#### 1. Precio de Construcción (Bajo)
+- Monto aportado por beneficiario durante construcción
+- Ya integrado ANTES del acto
+- Incluye terreno proporcional + obra
+
+**Indicadores**:
+- "costo de construcción"
+- "ha sido integrado antes de este acto"
+- "importe correspondiente al costo de construcción"
+
+#### 2. Precio de Cesión (Alto - Valor de Mercado)
+- Precio real pagado por beneficiario final a beneficiario original
+- Valor comercial actual del inmueble
+- Generalmente en USD
+
+**Indicadores**:
+- "cesión de condición de beneficiario"
+- "por la suma de Dólares..."
+- Monto mucho más alto que construcción
+
+### Ejemplo Real (103.pdf):
+
+```json
+{
+  "precio_construccion": {
+    "monto": 126212.66,
+    "moneda": "ARS",
+    "concepto": "Costo construcción + terreno proporcional",
+    "estado": "INTEGRADO_ANTES_ACTO"
+  },
+  "precio_cesion": {
+    "monto": 23000,
+    "moneda": "USD",
+    "equivalente_ars": 24943500,
+    "tipo_cambio": 1084.50,
+    "fecha_tipo_cambio": "2025-03-05",
+    "concepto": "Cesión de beneficiario"
+  },
+  "precio_fiscal": "CESION"  // Para impuestos, usar precio de CESIÓN
+}
+```
+
+**Regla Fiscal CRÍTICA**: 
+- Para cálculo de **Impuesto de Sellos** e **ITI**: Usar precio de **CESIÓN** (más alto)
+- Para **honorarios notariales**: Usar precio de **CESIÓN**
+- El precio de construcción es **histórico**, el de cesión es el **actual**
+
+### Cómo Detectar los Dos Precios
+
+1. Buscar en párrafo principal:
+   ```
+   "por la suma de PESOS CIENTO VEINTISEIS MIL... ($ 126.212,66), 
+    importe correspondiente al costo de construcción..."
+   ```
+
+2. Buscar en constancias notariales inciso d) o e):
+   ```
+   "cesión... por la suma de Dólares Estadounidenses 
+    Veintitrés mil (U$S 23.000)"
+   ```
+
+3. Buscar conversión a pesos:
+   ```
+   "el precio equivale a PESOS VEINTICUATRO MILLONES 
+    NOVECIENTOS CUARENTA Y TRES MIL QUINIENTOS ($24.943.500)"
+   ```
+
+**Regla**: Si encuentras DOS montos muy diferentes, uno en ARS (bajo) y otro en USD (alto), es doble precio.
+
+
 ## 📍 DIRECCIONES (Formato Notarial)
 
 ### ❌ Incorrecto:
