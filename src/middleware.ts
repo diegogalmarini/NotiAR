@@ -12,6 +12,7 @@ const PUBLIC_ROUTES = [
     '/auth/callback',
     '/auth/callback-client',
     '/api/ingest',
+    '/api/auth-diag',
     '/pending-approval',
     '/unauthorized',
 ];
