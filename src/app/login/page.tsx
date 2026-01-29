@@ -58,8 +58,8 @@ function LoginForm() {
     };
 
     const handleGoogleLogin = async () => {
-        // Use browser origin directly to avoid env mismatches in production
-        const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, "");
+        // ALWAYS use browser origin - never use env variables which might be set to localhost
+        const siteUrl = window.location.origin;
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
