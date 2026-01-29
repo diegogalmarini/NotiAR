@@ -6,10 +6,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Solo disponible en development
-if (process.env.NODE_ENV !== 'development') {
-    throw new Error('Este endpoint solo funciona en development');
-}
+export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,6 +20,9 @@ const supabase = createClient(
 );
 
 export async function POST(req: Request) {
+    if (process.env.NODE_ENV !== 'development') {
+        return NextResponse.json({ error: 'Prohibido en producción' }, { status: 403 });
+    }
     try {
         const { email, action } = await req.json();
         const userEmail = email || 'test@notiar.dev';
