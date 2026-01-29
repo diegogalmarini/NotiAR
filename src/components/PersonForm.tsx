@@ -32,7 +32,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
 
         // Handle "SURNAME, Name" format (common in AI output and notary standard)
         if (full.includes(",")) {
-            const [last, ...firstParts] = full.split(",").map(s => s.trim());
+            const [last, ...firstParts] = full.split(",").map((s: string) => s.trim());
             return {
                 nombre: firstParts.join(", "),
                 apellido: last.toUpperCase()
