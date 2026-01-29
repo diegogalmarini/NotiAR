@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
                     supabaseResponse = NextResponse.next({
                         request,
                     })
@@ -70,13 +70,18 @@ export async function middleware(request: NextRequest) {
 
         const redirectResponse = NextResponse.redirect(url)
         // transfer any cookies (like CSRF or newly cleared ones)
-        supabaseResponse.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value, c))
+        supabaseResponse.cookies.getAll().forEach(c => {
+            console.log(`[MW] Propagating cookie to redirect: ${c.name}`);
+            redirectResponse.cookies.set(c.name, c.value, c);
+        });
         return redirectResponse
     }
 
-    // IF we have a user, just let them through for this diagnostic phase
-    // (We bypass profile status check temporarily to see if the session sticks)
     if (user) {
+        if (pathname === '/login') {
+            console.log(`[MW] ALREADY AUTHENTICATED: ${user.email}. Sending to /dashboard`);
+            return NextResponse.redirect(new URL('/dashboard', request.url));
+        }
         console.log(`[MW] AUTH OK: ${user.email} at ${pathname}`);
     }
 

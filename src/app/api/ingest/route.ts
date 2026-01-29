@@ -1,18 +1,15 @@
-// --- SERVER-SIDE BROWSER POLYFILLS (IMMEDIATE FORCE) ---
+// --- SERVER-SIDE BROWSER POLYFILLS (SAFE) ---
 if (typeof globalThis !== 'undefined') {
     const g = globalThis as any;
-    if (!g.window) Object.defineProperty(g, 'window', { value: g, writable: true, configurable: true });
-    if (!g.location) {
-        Object.defineProperty(g, 'location', {
-            value: { protocol: 'https:', host: 'localhost', href: 'https://localhost/' },
-            writable: true,
-            configurable: true
-        });
-    }
-    if (g.window && !g.window.location) g.window.location = g.location;
+    if (!g.window) g.window = g;
+    if (!g.self) g.self = g;
+
+    // Polyfill character encoding
     if (!g.atob) g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
-    if (!g.btoa) g.atob = (str: string) => Buffer.from(str, 'binary').toString('base64');
-    console.log("[ROUTE] Aggressive Polyfills applied.");
+    if (!g.btoa) g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+
+    // Ensure navigator exists minimally
+    if (!g.navigator) g.navigator = { userAgent: 'Node.js/NotiAR' };
 }
 // Flash v1.2.17 - SCHEMA FIX: Separated DNI/CUIT + Biographical Fields
 import { NextResponse, after } from 'next/server';

@@ -9,25 +9,21 @@ export async function GET(request: NextRequest) {
     const origin = requestUrl.origin
 
     if (code) {
-        const cookieStore = await cookies()
+        // We create the response object first so we can attach cookies directly to it
+        const response = NextResponse.redirect(`${origin}${redirectTo}`)
+
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
             process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
             {
                 cookies: {
                     getAll() {
-                        return cookieStore.getAll()
+                        return request.cookies.getAll()
                     },
                     setAll(cookiesToSet) {
-                        try {
-                            cookiesToSet.forEach(({ name, value, options }) =>
-                                cookieStore.set(name, value, options)
-                            )
-                        } catch (error) {
-                            // The `setAll` method was called from a Server Component.
-                            // This can be ignored if you have middleware refreshing
-                            // user sessions.
-                        }
+                        cookiesToSet.forEach(({ name, value, options }) =>
+                            response.cookies.set(name, value, options)
+                        )
                     },
                 },
             }
@@ -37,7 +33,7 @@ export async function GET(request: NextRequest) {
 
         if (!error) {
             console.log(`[CALLBACK] Auth SUCCESS. Redirecting to ${redirectTo}`);
-            return NextResponse.redirect(`${origin}${redirectTo}`)
+            return response
         }
 
         console.error('[CALLBACK] Exchange error:', error.message);
