@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabaseServer';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
@@ -23,7 +23,40 @@ export async function GET(request: NextRequest) {
     if (code) {
         console.log('[CALLBACK] PKCE flow - exchanging code for session...');
 
-        const supabase = await createClient();
+        // Final redirect URL
+        const finalRedirect = redirectTo.startsWith('http')
+            ? new URL(redirectTo).pathname + new URL(redirectTo).search
+            : redirectTo;
+
+        const response = NextResponse.redirect(`${origin}${finalRedirect}`);
+
+        // Create a dedicated client for this route to ensure cookies are set on the redirect response
+        const supabase = createServerClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            {
+                cookies: {
+                    get(name: string) {
+                        return request.cookies.get(name)?.value;
+                    },
+                    set(name: string, value: string, options: CookieOptions) {
+                        response.cookies.set({
+                            name,
+                            value,
+                            ...options,
+                        });
+                    },
+                    remove(name: string, options: CookieOptions) {
+                        response.cookies.set({
+                            name,
+                            value: '',
+                            ...options,
+                        });
+                    },
+                },
+            }
+        );
+
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (exchangeError) {
@@ -32,13 +65,7 @@ export async function GET(request: NextRequest) {
         }
 
         console.log('[CALLBACK] PKCE session established for user:', data.user?.email);
-
-        // Ensure the redirect is to a relative path to avoid absolute URL issues
-        const finalRedirect = redirectTo.startsWith('http')
-            ? new URL(redirectTo).pathname + new URL(redirectTo).search
-            : redirectTo;
-
-        return NextResponse.redirect(`${origin}${finalRedirect}`);
+        return response;
     }
 
     // No code = Implicit flow (hash-based tokens)
