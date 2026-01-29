@@ -8,7 +8,8 @@ import { useRouter } from "next/navigation";
 import { SendFichaDialog } from "./SendFichaDialog";
 import { EditarClienteDialog } from "./EditarClienteDialog";
 import { DeleteClienteDialog } from "./DeleteClienteDialog";
-import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
+import { cn, formatDateInstructions } from "@/lib/utils";
+import { formatCUIT, isLegalEntity, formatPersonName } from "@/lib/utils/normalization";
 
 interface ClientDetailHeaderProps {
     persona: {
@@ -56,22 +57,25 @@ export function ClientDetailHeader({ persona, onClienteUpdated }: ClientDetailHe
                         </div>
                         <div className="space-y-2">
                             <div className="flex items-center gap-3">
-                                <h1 className="text-2xl font-bold text-slate-900">{persona.nombre_completo}</h1>
+                                <h1 className="text-2xl font-bold text-slate-900">
+                                    {isLegalEntity(persona) ? persona.nombre_completo.toUpperCase() : formatPersonName(persona.nombre_completo)}
+                                </h1>
                                 <div className="inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-tight border bg-slate-100 text-slate-600 border-slate-200">
                                     {persona.origen_dato || 'Manual'}
                                 </div>
                             </div>
 
-                            {/* Document Info */}
                             <div className="flex flex-wrap gap-4 text-sm">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-[10px] uppercase font-bold text-slate-400">DNI</span>
-                                    <span className="font-mono text-slate-700">
-                                        {persona.dni && persona.dni.startsWith('SIN-DNI-')
-                                            ? <Badge variant="outline" className="font-mono text-[10px] bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
-                                            : (persona.dni || 'N/A')}
-                                    </span>
-                                </div>
+                                {!isLegalEntity(persona) && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] uppercase font-bold text-slate-400">DNI</span>
+                                        <span className="font-mono text-slate-700">
+                                            {persona.dni && persona.dni.startsWith('SIN-DNI-')
+                                                ? <Badge variant="outline" className="font-mono text-[10px] bg-slate-50 text-slate-500 border-dashed">Pendiente</Badge>
+                                                : (persona.dni || 'N/A')}
+                                        </span>
+                                    </div>
+                                )}
                                 {persona.cuit && (
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] uppercase font-bold text-slate-400">CUIT</span>
@@ -80,7 +84,9 @@ export function ClientDetailHeader({ persona, onClienteUpdated }: ClientDetailHe
                                 )}
                                 {persona.fecha_nacimiento && (
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] uppercase font-bold text-slate-400">NAC</span>
+                                        <span className="text-[10px] uppercase font-bold text-slate-400">
+                                            {isLegalEntity(persona) ? 'Const' : 'Nac'}
+                                        </span>
                                         <span className="text-slate-600">{formatDateInstructions(persona.fecha_nacimiento)}</span>
                                     </div>
                                 )}

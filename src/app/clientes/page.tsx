@@ -21,6 +21,7 @@ import { SendFichaDialog } from "@/components/SendFichaDialog";
 import { DeleteClienteDialog } from "@/components/DeleteClienteDialog";
 import { useRouter } from "next/navigation";
 import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
+import { isLegalEntity, formatPersonName } from "@/lib/utils/normalization";
 
 export default function ClientesPage() {
     const router = useRouter();
@@ -122,24 +123,30 @@ export default function ClientesPage() {
                                 <TableRow key={persona.dni} className="group hover:bg-slate-50/50">
                                     <TableCell className="py-2.5">
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-normal text-slate-700 leading-tight">{persona.nombre_completo}</span>
+                                            <span className="text-sm font-normal text-slate-700 leading-tight">
+                                                {isLegalEntity(persona)
+                                                    ? persona.nombre_completo.toUpperCase()
+                                                    : formatPersonName(persona.nombre_completo)}
+                                            </span>
                                             {persona.fecha_nacimiento && (
                                                 <span className="text-[9px] text-muted-foreground font-light uppercase tracking-tighter">
-                                                    Nac: {formatDateInstructions(persona.fecha_nacimiento)}
+                                                    {isLegalEntity(persona) ? 'Const:' : 'Nac:'} {formatDateInstructions(persona.fecha_nacimiento)}
                                                 </span>
                                             )}
                                         </div>
                                     </TableCell>
                                     <TableCell className="py-2.5">
                                         <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[9px] uppercase font-normal text-slate-400">DNI</span>
-                                                <span className="font-mono text-[11px] font-light text-slate-700">
-                                                    {persona.dni && persona.dni.startsWith('SIN-DNI-')
-                                                        ? <Badge variant="outline" className="font-mono text-[9px] px-1 py-0 h-4 bg-slate-50 text-slate-500 border-dashed font-light">Pendiente</Badge>
-                                                        : (persona.dni || 'N/A')}
-                                                </span>
-                                            </div>
+                                            {!isLegalEntity(persona) && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="text-[9px] uppercase font-normal text-slate-400">DNI</span>
+                                                    <span className="font-mono text-[11px] font-light text-slate-700">
+                                                        {persona.dni && persona.dni.startsWith('SIN-DNI-')
+                                                            ? <Badge variant="outline" className="font-mono text-[9px] px-1 py-0 h-4 bg-slate-50 text-slate-500 border-dashed font-light">Pendiente</Badge>
+                                                            : (persona.dni || 'N/A')}
+                                                    </span>
+                                                </div>
+                                            )}
                                             {persona.cuit && (
                                                 <div className="flex items-center gap-1.5">
                                                     <span className="text-[9px] uppercase font-normal text-slate-400">CUIT</span>

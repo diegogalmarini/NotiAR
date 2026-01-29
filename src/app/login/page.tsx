@@ -30,7 +30,7 @@ function LoginForm() {
         e.preventDefault();
         setLoading(true);
 
-        const { error } = await supabase.auth.signInWithPassword({
+        const { error, data } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
@@ -39,8 +39,22 @@ function LoginForm() {
 
         if (error) {
             toast.error(error.message);
+            return;
         }
-        // The actual redirection will be handled by the auth/callback route or a listener
+
+        // ✅ FIX: Redirect explicitly after successful login
+        if (data.session) {
+            console.log("Login successful, session found:", data.session.user.email);
+            console.log("Redirecting to:", redirectTo);
+            toast.success("Sesión iniciada correctamente. Redirigiendo...");
+
+            // Un pequeño delay para que el toast se vea y las cookies se asienten
+            setTimeout(() => {
+                window.location.href = redirectTo;
+            }, 500);
+        } else {
+            console.warn("Login seemed successful but no session was returned.");
+        }
     };
 
     const handleGoogleLogin = async () => {
@@ -105,7 +119,7 @@ function LoginForm() {
                         />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+                        {loading ? "Iniciando..." : "INICIAR SESIÓN (PRUEBA LOCAL)"}
                     </Button>
                 </form>
 

@@ -1,0 +1,29 @@
+[POLYFILLS] Server-side browser globals injected.
+------------------------------------------
+­ƒº¬ SMOKE TEST: THE FRANKENSTEIN DEED
+------------------------------------------
+[TEST] Step 1: Classification...
+[CLASSIFIER] Identifying document type...
+[EXECUTOR] Routing: notary-document-classifier
+[EXECUTOR] ÔÜí FLASH: Starting notary-document-classifier | Has file: true | File size: 0
+[SKILLS] Fetching instruction for: notary-document-classifier
+[EXECUTOR][RETRY] gemini-3-flash-preview failed: file.arrayBuffer is not a function
+[EXECUTOR][RETRY] gemini-3-pro-preview failed: file.arrayBuffer is not a function
+[EXECUTOR][RETRY] gemini-3-flash-preview failed: file.arrayBuffer is not a function
+[CLASSIFIER] Error during classification: Error: Execution failed: file.arrayBuffer is not a function
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:88:15)
+    at async classifyDocument (C:\Users\diego\NotiAr\src\lib\skills\routing\documentClassifier.ts:24:24)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:52:32)
+[TEST] Result: UNKNOWN (Conf: 0)
+ÔØî FAILED: Did not identify as ESCRITURA
+
+[TEST] Step 2: Semantic Extraction...
+[EXECUTOR] Routing: notary-entity-extractor
+[EXECUTOR] ÔÜí FLASH: Starting notary-entity-extractor | Has file: true | File size: 0
+[SKILLS] Fetching instruction for: notary-entity-extractor
+[EXECUTOR][RETRY] gemini-3-flash-preview failed: file.arrayBuffer is not a function
+[EXECUTOR][RETRY] gemini-3-pro-preview failed: file.arrayBuffer is not a function
+[EXECUTOR][RETRY] gemini-3-flash-preview failed: file.arrayBuffer is not a function
+ÔØî TEST CRASHED: Error: Execution failed: file.arrayBuffer is not a function
+    at Function.executeSemanticSkill (C:\Users\diego\NotiAr\src\lib\agent\SkillExecutor.ts:88:15)
+    at async runSmokeTest (C:\Users\diego\NotiAr\scripts\test-ingest-flow.ts:61:26)

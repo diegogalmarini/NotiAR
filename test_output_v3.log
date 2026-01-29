@@ -1,0 +1,103 @@
+[POLYFILLS] Server-side browser globals injected.
+------------------------------------------
+­ƒº¬ SMOKE TEST: THE FRANKENSTEIN DEED
+------------------------------------------
+[TEST] Step 1: Classification...
+[CLASSIFIER] Identifying document type...
+[EXECUTOR] Routing: notary-document-classifier
+[EXECUTOR] ÔÜí FLASH: Starting notary-document-classifier | Has file: true | File size: 0
+[SKILLS] Fetching instruction for: notary-document-classifier
+[EXECUTOR][notary-document-classifier] Raw response: [
+  {
+    "clasificacion": {
+      "tipo_documento": "ESCRITURA_PUBLICA",
+      "confianza": 1.0,
+      "evidencia": "ESCRITURA NUMERO QUINIENTOS. En la ciudad de Bahia Blanca... ANTE MI, Alejandro Atilio Galmarini"
+    },
+    "cabecera": {
+      "numero_escritura": "QUINIENTOS",
+      "fecha": "23 de Enero de 2026",
+      "lugar": "Bahia Blanca",
+      "escribano_autorizante": "Alejandro Atilio Galmarini",
+      "evidencia": "ESCRITURA NUMERO QUINIENTOS. En la ciudad de Bahia Blanca, 23 de Ener...
+[EXECUTOR][notary-document-classifier] Ô£à FLASH SUCCESS: Extracted 0 entities
+[TEST] Result: UNKNOWN (Conf: 0.5)
+ÔØî FAILED: Did not identify as ESCRITURA
+
+[TEST] Step 2: Semantic Extraction...
+[EXECUTOR] Routing: notary-entity-extractor
+[EXECUTOR] ÔÜí FLASH: Starting notary-entity-extractor | Has file: true | File size: 0
+[SKILLS] Fetching instruction for: notary-entity-extractor
+[EXECUTOR][notary-entity-extractor] Raw response: {
+  "tipo_objeto": "ACTA_EXTRACCION_PARTES",
+  "entidades": [
+    {
+      "rol": "VENDEDOR",
+      "tipo_persona": "FISICA",
+      "datos": {
+        "nombre_completo": {
+          "nombres": "Juan",
+          "apellidos": "PEREZ",
+          "evidencia": "PEREZ, Juan"
+        },
+        "dni": {
+          "valor": "10000001",
+          "evidencia": "DNI 10.000.001"
+        },
+        "cuit_cuil": {
+          "valor": null,
+          "evidencia": "No consta en el documento"
+        },
+        "do...
+[EXECUTOR][notary-entity-extractor] Ô£à FLASH SUCCESS: Extracted 3 entities
+
+[TEST] Step 3: Deterministic Calculation...
+[EXECUTOR] Routing: notary-tax-calculator
+
+[TEST] Step 4: Semantic Compliance Audit...
+[EXECUTOR] Routing: notary-uif-compliance
+[EXECUTOR] ÔÜí FLASH: Starting notary-uif-compliance | Has file: false | File size: 0
+[SKILLS] Fetching instruction for: notary-uif-compliance
+[EXECUTOR][notary-uif-compliance] Raw response: {
+  "transaccion": {
+    "detalles_precio": {
+      "monto_original": 150000,
+      "moneda": "USD",
+      "cotizacion_aplicada": 1150,
+      "monto_pesificado_ars": 172500000,
+      "evidencia": "\"price\": 150000, \"moneda\": \"USD\""
+    },
+    "sujetos_obligados": [
+      {
+        "nombre_completo": "Juan Perez",
+        "es_pep": false,
+        "evidencia": "\"name\": \"Juan Perez\", \"is_pep\": false"
+      },
+      {
+        "nombre_completo": "Pedro El Escamoso",
+        "es_pep": true,...
+[EXECUTOR][notary-uif-compliance] Ô£à FLASH SUCCESS: Extracted 0 entities
+
+[TEST] Step 5: Generating Deed Draft...
+[EXECUTOR] Routing: notary-deed-drafter
+
+------------------------------------------
+­ƒôè FINAL SMOKE TEST JSON OUTPUT:
+{
+  "classification": {
+    "document_type": "UNKNOWN",
+    "confidence": 0.5
+  },
+  "extraction": {
+    "vendedor": "PEREZ",
+    "comprador": "EL ESCAMOSO",
+    "acreedor": "BANCO DE GALICIA Y BUENOS AIRES S.A.U."
+  },
+  "taxes": {
+    "total_ars": 8929500,
+    "sellos": 1650000,
+    "iti": 2587500
+  },
+  "deed_draft": "ESCRITURA NUMERO QUINIENTOS.- COMPRAVENTA INMOBILIARIA.- En la ciudad de Bah├¡a Blanca, provincia de Buenos Aires, a los veinticuatro de enero de dos mil veintiseis, ante m├¡, ALEJANDRO ATILIO GALMARINI, Notario Titular del Registro SETENTA, COMPARECEN: por una parte PEREZ, Juan, argentino, DNI 10.000.001; por una parte ESCAMOSO, Pedro El, colombiano, DNI 20.000.002.\n\nINTERVENCION: Los comparecientes intervienen por su propio derecho. Y el vendedor DICE: Que VENDE, CEDE y TRANSFIERE a favor de la parte compradora, el siguiente Inmueble: \nUN LOTE DE TERRENO ubicado en la ciudad de Bah├¡a Blanca, calle Estomba 450...\n\nPRECIO: La presente operaci├│n se realiza por el precio total de PESOS CIENTO SETENTA Y DOS MILLONES QUINIENTOS MIL ($ 172.500.000,00), que la parte vendedora manifiesta haber recibido con anterioridad a este acto.\n\nIMPUESTOS Y TASAS: Se hace constar que se retienen las siguientes sumas: Impuesto de Sellos: PESOS UN MILL├ôN SEISCIENTOS CINCUENTA MIL ($ 1.650.000,00); ITI: PESOS DOS MILLONES QUINIENTOS OCHENTA Y SIETE MIL QUINIENTOS ($ 2.587.500,00). \n\nCIERRE: Leo a los comparecientes, quienes se ratifican en su contenido y firman ante m├¡, de lo que doy fe."
+}
+------------------------------------------

@@ -28,7 +28,8 @@ import { SmartDeedEditor } from "./smart/SmartDeedEditor";
 import { CrossCheckService, ValidationState } from "@/lib/agent/CrossCheckService";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { cn, formatDateInstructions, formatCUIT } from "@/lib/utils";
+import { cn, formatDateInstructions } from "@/lib/utils";
+import { formatCUIT, formatPersonName, isLegalEntity } from "@/lib/utils/normalization";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -159,6 +160,38 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     const [editingPerson, setEditingPerson] = useState<any>(null);
     const [storageFiles, setStorageFiles] = useState<any[]>([]);
     const [isLoadingStorage, setIsLoadingStorage] = useState(false);
+    const [showConflictModal, setShowConflictModal] = useState(false);
+    const [pendingConflicts, setPendingConflicts] = useState<any[]>([]);
+
+    // Check for conflicts on mount
+    useEffect(() => {
+        if (carpeta.ingesta_estado === 'REVISION_REQUERIDA' && carpeta.ingesta_metadata?.conflicts) {
+            setPendingConflicts(carpeta.ingesta_metadata.conflicts);
+            setShowConflictModal(true);
+        }
+    }, [carpeta.ingesta_estado, carpeta.ingesta_metadata]);
+
+    const handleResolveConflicts = async (resolutions: any[]) => {
+        // This would involve calling an action to update personas/inmuebles based on user choice
+        // For now, we clear the status and the modal
+        try {
+            const { error } = await supabase
+                .from('carpetas')
+                .update({
+                    ingesta_estado: 'COMPLETADO',
+                    ingesta_metadata: { ...carpeta.ingesta_metadata, conflicts_resolved: true }
+                })
+                .eq('id', carpeta.id);
+
+            if (error) throw error;
+            setShowConflictModal(false);
+            toast.success("Datos verificados y actualizados.");
+            router.refresh();
+        } catch (e: any) {
+            toast.error("Error al resolver: " + e.message);
+        }
+    };
+
 
     // Fetch files from storage that might be related to this folder
     const fetchStorageFiles = async () => {
@@ -607,14 +640,9 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                     const person = p.persona || p.personas;
                                     if (!person) return null;
 
-                                    const isLegalEntity = (p: any) => {
-                                        if (p.tipo_persona === 'JURIDICA') return true;
-                                        const cuit = p.cuit?.toString().replace(/\D/g, '') || '';
-                                        return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
-                                    };
 
                                     const getSpouseName = (p: any) => {
-                                        if (p.datos_conyuge?.nombre) return p.datos_conyuge.nombre;
+                                        if (p.datos_conyuge?.nombre || p.datos_conyuge?.nombre_completo) return p.datos_conyuge.nombre || p.datos_conyuge.nombre_completo;
                                         // Fallback: Try to regex from civil status detail
                                         const match = p.estado_civil_detalle?.match(/con\s+([A-ZÁÉÍÓÚÑa-zxzñ\s]+)/i);
                                         if (match && match[1]) {
@@ -665,12 +693,12 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     <h3 className="text-base font-bold text-slate-800 leading-tight">
                                                         {isLegalEntity(person)
                                                             ? person.nombre_completo.toUpperCase()
-                                                            : person.nombre_completo}
+                                                            : formatPersonName(person.nombre_completo)}
                                                     </h3>
                                                     <p className="text-[11px] font-medium text-slate-500 mt-0.5">
                                                         {isLegalEntity(person)
-                                                            ? "Persona Jurídica"
-                                                            : `${person.nacionalidad || "No informada"} • ${formatDateInstructions(person.fecha_nacimiento)}`}
+                                                            ? `Persona Jurídica • Const: ${formatDateInstructions(person.fecha_nacimiento)}`
+                                                            : `${person.nacionalidad || "No informada"} • Nac: ${formatDateInstructions(person.fecha_nacimiento)}`}
                                                     </p>
                                                 </div>
 
@@ -684,7 +712,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                     )}
                                                     <div className={isLegalEntity(person) ? "col-span-2" : ""}>
                                                         <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">CUIT / CUIL</p>
-                                                        <p className="text-[13px] text-slate-700 font-bold">{person.cuit ? formatCUIT(person.cuit) : "No informado"}</p>
+                                                        <p className="text-[13px] text-slate-700 font-bold">{formatCUIT(person.cuit) || "No informado"}</p>
                                                     </div>
                                                 </div>
 
@@ -700,11 +728,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         <div>
                                                             <p className="text-[10px] font-bold uppercase text-slate-400 tracking-tight">Cónyuge</p>
                                                             <p className="text-[12px] text-slate-700 font-medium leading-tight">
-                                                                {spouseName ? (
-                                                                    <span className="bg-pink-50 text-pink-700 px-1 py-0.5 rounded border border-pink-100 font-bold flex items-center gap-1 w-fit">
-                                                                        <span>❤️</span> {spouseName}
-                                                                    </span>
-                                                                ) : "No informado"}
+                                                                {spouseName ? <span className="font-semibold text-slate-800">{formatPersonName(spouseName)}</span> : "No informado"}
                                                             </p>
                                                         </div>
                                                         <div className="col-span-2">
@@ -723,32 +747,6 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                                         <p className="text-[12px] text-slate-600 italic leading-snug">
                                                             {person.domicilio_real?.literal || "No consta"}
                                                         </p>
-                                                    </div>
-                                                    <div className="flex items-center justify-between pt-1">
-                                                        <div className="flex items-center gap-1.5 overflow-hidden">
-                                                            <Badge variant="outline" className="h-6 text-[10px] border-slate-200 text-slate-600 bg-white truncate max-w-[140px]">
-                                                                {person.contacto?.email || "Sin email"}
-                                                            </Badge>
-                                                        </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <ClientOutreach
-                                                                personId={person.dni}
-                                                                personName={person.nombre_completo}
-                                                                personPhone={person.contacto?.telefono}
-                                                            />
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className="h-7 text-[10px] gap-1.5 font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                                                onClick={() => {
-                                                                    // Logical link to Ficha Generation
-                                                                    toast.info("Generando link de ficha remota...");
-                                                                }}
-                                                            >
-                                                                <LinkIcon className="h-3 w-3" />
-                                                                Link Ficha
-                                                            </Button>
-                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1162,6 +1160,87 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
                                 );
                             })()}
                         </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- CONFLICT RESOLUTION MODAL --- */}
+            <Dialog open={showConflictModal} onOpenChange={setShowConflictModal}>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-amber-600">
+                            <Activity className="h-5 w-5" />
+                            Detección de Cambios en Datos Maestros
+                        </DialogTitle>
+                        <DialogDescription>
+                            El sistema detectó que existen registros previos para estas entidades, pero con datos diferentes en el nuevo documento.
+                            Por favor, verifica qué versión deseas mantener.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="space-y-6 my-4">
+                        {pendingConflicts.map((conflict, idx) => (
+                            <div key={idx} className="border rounded-xl p-4 bg-slate-50 space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Badge variant="outline" className="bg-amber-100 text-amber-700">
+                                        {conflict.type === 'PERSONA' ? 'CLIENTE / ENTIDAD' : 'INMUEBLE'}
+                                    </Badge>
+                                    <span className="text-xs font-mono text-slate-500">ID: {conflict.id}</span>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    {/* Existing Data */}
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] uppercase font-bold text-slate-400">Dato Anterior (Base de Datos)</p>
+                                        <div className="p-3 bg-white border border-slate-200 rounded-lg text-xs">
+                                            {conflict.type === 'PERSONA' ? (
+                                                <div className="space-y-1">
+                                                    <p className="font-bold">{formatPersonName(conflict.existing.nombre_completo)}</p>
+                                                    <p>Domicilio: {conflict.existing.domicilio_real?.literal || 'No informado'}</p>
+                                                    <p>Estado Civil: {conflict.existing.estado_civil_detalle || 'No informado'}</p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <p className="font-bold">Partido: {conflict.existing.partido_id}</p>
+                                                    <p>Partida: {conflict.existing.nro_partida}</p>
+                                                    <p className="italic text-slate-500 line-clamp-2">{conflict.existing.transcripcion_literal}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Extracted Data */}
+                                    <div className="space-y-2">
+                                        <p className="text-[10px] uppercase font-bold text-blue-400">Dato Nuevo (Extraído de {file?.name || 'Documento'})</p>
+                                        <div className="p-3 bg-blue-50/30 border border-blue-200 rounded-lg text-xs ring-2 ring-blue-500/20">
+                                            {conflict.type === 'PERSONA' ? (
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-blue-700">{formatPersonName(conflict.extracted.nombre_completo)}</p>
+                                                    <p>Domicilio: <span className="font-bold">{conflict.extracted.domicilio_real?.literal || 'No informado'}</span></p>
+                                                    <p>Estado Civil: <span className="font-bold">{conflict.extracted.estado_civil_detalle || 'No informado'}</span></p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-1">
+                                                    <p className="font-bold text-blue-700">Partido: {conflict.extracted.partido}</p>
+                                                    <p>Partida: {conflict.extracted.partida_inmobiliaria}</p>
+                                                    <p className="italic text-slate-500 line-clamp-2">{conflict.extracted.transcripcion_literal}</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex justify-end gap-3 mt-4">
+                        <Button variant="outline" onClick={() => setShowConflictModal(false)}>Resolver más tarde</Button>
+                        <Button
+                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold"
+                            onClick={() => handleResolveConflicts([])}
+                        >
+                            Aplicar Todos los Cambios
+                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

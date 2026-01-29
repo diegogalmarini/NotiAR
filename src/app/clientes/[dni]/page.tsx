@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Folder, FileText, Activity } from "lucide-react";
 import { redirect } from "next/navigation";
 import { formatDateInstructions, formatCUIT } from "@/lib/utils";
+import { formatPersonName } from "@/lib/utils/normalization";
 
 export default async function ClientDetailPage({ params }: { params: Promise<{ dni: string }> }) {
     const { dni } = await params;
@@ -147,7 +148,7 @@ export default async function ClientDetailPage({ params }: { params: Promise<{ d
                                     {persona.datos_conyuge?.nombre && (
                                         <div>
                                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cónyuge</p>
-                                            <p className="text-sm text-slate-900 mt-1">{persona.datos_conyuge.nombre}</p>
+                                            <p className="text-sm text-slate-900 mt-1">{formatPersonName(persona.datos_conyuge.nombre)}</p>
                                         </div>
                                     )}
                                 </CardContent>

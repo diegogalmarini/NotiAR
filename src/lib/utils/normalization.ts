@@ -1,73 +1,78 @@
-export function toTitleCase(str: string): string {
-    if (!str) return "";
-    const lower = str.toLowerCase().trim();
-    const exceptions = ["de", "del", "la", "las", "los", "y", "e"];
 
-    return lower.split(' ').map((word, index) => {
-        // Si es una excepción y no es la primera palabra, dejar en minúscula
-        if (exceptions.includes(word) && index !== 0) return word;
-        return word.charAt(0).toUpperCase() + word.slice(1);
-    }).join(' ');
+export function normalizeID(id: string | null | undefined): string | null {
+    if (!id) return null;
+    // Remove all non-alphanumeric characters
+    const cleaned = id.replace(/[^a-zA-Z0-9]/g, '');
+    return cleaned.length > 0 ? cleaned : null;
 }
 
-export function normalizeID(id: string): string {
-    if (!id) return "";
-    // Elimina puntos, guiones, espacios y letras. Devuelve solo números.
-    return id.toString().replace(/[^0-9]/g, "");
-}
-
-export function normalizeAddress(addr: string): string {
-    // Misma lógica que TitleCase pero forzando palabras clave a mayúscula si es necesario
-    return toTitleCase(addr);
+export function toTitleCase(str: string | null | undefined): string | null {
+    if (!str) return null;
+    return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 /**
- * Valida un número de CUIT/CUIL argentino
- * Formato: XX-XXXXXXXX-X (11 dígitos en total)
- * @param cuit - El CUIT/CUIL a validar (con o sin guiones)
- * @returns true si el CUIT es válido, false en caso contrario
+ * Formatea un CUIT/CUIL al formato argentino estándar: XX-XXXXXXXX-X
+ * Si el CUIT no tiene exactamente 11 dígitos, lo devuelve sin cambios.
  */
-export function validateCUIT(cuit: string): boolean {
-    if (!cuit) return false;
+export function formatCUIT(cuit: string | null | undefined): string | null {
+    if (!cuit) return null;
 
-    // Remover guiones y espacios
-    const cleaned = cuit.replace(/[-\s]/g, '');
+    // Limpiar caracteres no numéricos
+    const clean = cuit.replace(/\D/g, "");
 
-    // Verificar que tenga 11 dígitos
-    if (!/^\d{11}$/.test(cleaned)) return false;
-
-    // Extraer dígitos
-    const digits = cleaned.split('').map(Number);
-    const checkDigit = digits[10];
-
-    // Multiplicadores para el algoritmo
-    const multipliers = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
-
-    // Calcular suma
-    let sum = 0;
-    for (let i = 0; i < 10; i++) {
-        sum += digits[i] * multipliers[i];
+    // Si tiene menos de 11, devolvemos lo que hay (formateo parcial si es posible)
+    if (clean.length < 11) {
+        if (clean.length > 2 && clean.length <= 10) return `${clean.slice(0, 2)}-${clean.slice(2)}`;
+        if (clean.length > 10) return `${clean.slice(0, 2)}-${clean.slice(2, 10)}-${clean.slice(10)}`;
+        return clean;
     }
 
-    // Calcular dígito verificador
-    let verifier = 11 - (sum % 11);
-    if (verifier === 11) verifier = 0;
-    if (verifier === 10) verifier = 9;
-
-    return verifier === checkDigit;
+    // Formatear estándar: XX-XXXXXXXX-X (tomando solo los primeros 11 si hubiera más)
+    const fixed = clean.slice(0, 11);
+    return `${fixed.slice(0, 2)}-${fixed.slice(2, 10)}-${fixed.slice(10)}`;
 }
 
 /**
- * Formatea un CUIT/CUIL al formato estándar XX-XXXXXXXX-X
- * @param cuit - El CUIT/CUIL a formatear
- * @returns El CUIT formateado o la cadena original si no es válido
+ * Detects and formats surnames to uppercase. 
+ * Heuristic: In Argentina, if there are 3+ words, usually the last 2 are surnames. 
+ * If 2 words, the second is surname.
  */
-export function formatCUIT(cuit: string): string {
-    if (!cuit) return "";
+export function formatPersonName(fullname: string | null | undefined): string {
+    if (!fullname) return "";
 
-    const cleaned = cuit.replace(/[-\s]/g, '');
+    // Handle "SURNAME, Name" (Standardize to "Name SURNAME")
+    if (fullname.includes(",")) {
+        const [last, ...firstParts] = fullname.split(",").map(s => s.trim());
+        return `${firstParts.join(" ")} ${last.toUpperCase()}`;
+    }
 
-    if (cleaned.length !== 11) return cuit;
+    const parts = fullname.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        // "Juan Carlos Perez" -> "Juan Carlos PEREZ"
+        // Solo capitalizamos el ÚLTIMO término si no hay coma, para evitar "Norman ROBERTO Giralde"
+        const last = parts.pop()?.toUpperCase();
+        return `${parts.join(" ")} ${last}`;
+    }
 
-    return `${cleaned.slice(0, 2)}-${cleaned.slice(2, 10)}-${cleaned.slice(10)}`;
+    return fullname.toUpperCase();
+
+    return fullname.toUpperCase();
+}
+
+export function isLegalEntity(persona: any): boolean {
+    if (!persona) return false;
+    if (persona.tipo_persona === 'JURIDICA') return true;
+
+    const cuit = (persona.cuit_cuil || persona.cuit)?.toString().replace(/\D/g, '') || '';
+    // Argentinian CUIT/CUIL prefixes for legal entities: 30, 33, 34
+    return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
+}
+
+export function getCuitLabel(tipo: 'CUIT' | 'CUIL' | string | null | undefined, isFormal: boolean = true): string {
+    const t = (tipo || 'CUIT').toUpperCase();
+    if (isFormal) {
+        return t === 'CUIL' ? 'C.U.I.L.' : 'C.U.I.T.';
+    }
+    return t;
 }

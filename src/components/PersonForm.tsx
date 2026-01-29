@@ -9,7 +9,8 @@ import { upsertPerson } from "@/app/actions/carpeta";
 import { updatePersona } from "@/app/actions/personas";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { formatDateInstructions } from "@/lib/utils";
+import { cn, formatDateInstructions } from "@/lib/utils";
+import { formatCUIT, formatPersonName, toTitleCase } from "@/lib/utils/normalization";
 
 interface PersonFormProps {
     initialData?: any;
@@ -27,20 +28,28 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
 
     // State split for better UX
     const [nameParts, setNameParts] = useState(() => {
-        // Only if "apellidos" not explicitly extracted by AI, try heuristic
-        // But better to just default to "Surname = Last Word" and let user fix
         const full = initialData?.nombre_completo || "";
+
+        // Handle "SURNAME, Name" format (common in AI output and notary standard)
+        if (full.includes(",")) {
+            const [last, ...firstParts] = full.split(",").map(s => s.trim());
+            return {
+                nombre: firstParts.join(", "),
+                apellido: last.toUpperCase()
+            };
+        }
+
         const parts = full.trim().split(" ");
-        if (parts.length > 2) {
-            // Heuristic: "Diego Galmarini" -> Name: Diego, Last: Galmarini
-            // "Carlos Alberto Perez Aguirre" -> Name: Carlos Alberto, Last: Perez Aguirre (Ambiguous)
-            // Default: Last 2 words are surname if > 2, else last word.
-            // Actually, safest is Last 1 word if 2 total, else User decides.
-            // Let's rely on manual fix. Default: everything but last word is Name.
+        if (parts.length >= 2) {
+            // Heuristic: Last word is usually the primary surname in simple cases,
+            // but for "Carlos Alberto Perez Aguirre" it might fail.
+            // Default: Everything but the last word is Name.
+            // BUT if user said "Nittoli Natalia", then "Nittoli" is surname.
+            // Actually, if there is no comma, but uppercase vs lowercase mix? No.
+            // Let's stick to: if parts.length > 2, last 2 items are likely surname in Argentina (composite).
+            // Actually, let's keep it simple: everything but last word is name, last word is surname.
             const last = parts.pop();
-            return { nombre: parts.join(" "), apellido: last || "" };
-        } else if (parts.length === 2) {
-            return { nombre: parts[0], apellido: parts[1] };
+            return { nombre: parts.join(" "), apellido: (last || "").toUpperCase() };
         }
         return { nombre: full, apellido: "" };
     });
@@ -49,30 +58,40 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
         nombre_completo: initialData?.nombre_completo || "",
         dni: initialData?.dni || "",
         // Critical: Do NOT autofill CUIT from DNI unless explicitly same
-        cuit: initialData?.cuit_cuil || initialData?.cuit || "",
+        cuit: formatCUIT(initialData?.cuit_cuil || initialData?.cuit || ""),
         nacionalidad: initialData?.nacionalidad || "",
         fecha_nacimiento: initialData?.fecha_nacimiento ? new Date(initialData.fecha_nacimiento).toISOString().split('T')[0] : "",
         domicilio_real: initialData?.domicilio_real?.literal || initialData?.domicilio_real || "",
         estado: initialData?.estado_civil_detalle || initialData?.estado_civil_detallado?.estado || initialData?.estado_civil || "",
         padres: initialData?.nombres_padres || initialData?.estado_civil_detallado?.padres || "",
-        conyuge: initialData?.datos_conyuge?.nombre || initialData?.estado_civil_detallado?.conyuge || initialData?.conyuge?.nombre || "",
+        conyuge: (initialData?.datos_conyuge?.nombre || initialData?.datos_conyuge?.nombre_completo || initialData?.estado_civil_detallado?.conyuge || initialData?.conyuge?.nombre)
+            ? formatPersonName(initialData?.datos_conyuge?.nombre || initialData?.datos_conyuge?.nombre_completo || initialData?.estado_civil_detallado?.conyuge || initialData?.conyuge?.nombre)
+            : "",
         email: initialData?.contacto?.email || "",
         telefono: initialData?.contacto?.telefono || "",
+        cuit_tipo: initialData?.cuit_tipo || 'CUIT',
+        cuit_is_formal: initialData?.cuit_is_formal ?? true,
     });
 
     // Update full name on parts change
     useEffect(() => {
         if (tipoPersona === 'FISICA') {
-            setFormData(prev => ({ ...prev, nombre_completo: `${nameParts.nombre} ${nameParts.apellido}`.trim() }));
+            const apellidoUpper = (nameParts.apellido || "").toUpperCase();
+            const nombreTitle = toTitleCase(nameParts.nombre || "") || "";
+            const tempFull = nombreTitle ? `${nombreTitle} ${apellidoUpper}` : apellidoUpper;
+            if (formData.nombre_completo !== tempFull) {
+                setFormData(prev => ({
+                    ...prev,
+                    nombre_completo: tempFull
+                }));
+            }
         }
-    }, [nameParts, tipoPersona]);
+    }, [nameParts, tipoPersona, formData.nombre_completo]);
 
     // Auto-switch type based on CUIT input
     const handleCuitChange = (val: string) => {
         const cleanVal = val.replace(/\D/g, '');
-        let formatted = cleanVal;
-        if (cleanVal.length > 2) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2)}`;
-        if (cleanVal.length > 10) formatted = `${cleanVal.slice(0, 2)}-${cleanVal.slice(2, 10)}-${cleanVal.slice(10, 11)}`;
+        const formatted = formatCUIT(val) || "";
 
         setFormData(prev => ({ ...prev, cuit: formatted }));
 
@@ -89,10 +108,11 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
             let finalData = { ...formData };
             // Sanitization
             if (tipoPersona === 'JURIDICA') {
-                finalData.fecha_nacimiento = "";
+                finalData.dni = ""; // Entities don't have DNI
                 finalData.nacionalidad = "";
                 finalData.estado = "";
                 finalData.conyuge = "";
+                finalData.padres = "";
             }
 
             // Allow manual override for DNI vs CUIT
@@ -119,8 +139,11 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     updatePayload.fecha_nacimiento = finalData.fecha_nacimiento;
                     updatePayload.estado_civil = finalData.estado;
                     updatePayload.nombres_padres = finalData.padres;
-                    updatePayload.nombre_conyuge = finalData.conyuge;
+                    updatePayload.nombre_conyuge = formatPersonName(finalData.conyuge);
                 }
+                updatePayload.cuit_tipo = finalData.cuit_tipo;
+                updatePayload.cuit_is_formal = finalData.cuit_is_formal;
+
                 const res = await updatePersona(targetId, updatePayload);
                 if (res.success) {
                     toast.success("Persona actualizada");
@@ -134,9 +157,11 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     dni: finalData.dni,
                     estado_civil_detalle: finalData.estado,
                     nombres_padres: finalData.padres,
-                    datos_conyuge: { nombre: finalData.conyuge },
+                    datos_conyuge: { nombre_completo: formatPersonName(finalData.conyuge) },
                     nacionalidad: finalData.nacionalidad,
-                    fecha_nacimiento: finalData.fecha_nacimiento || null
+                    fecha_nacimiento: finalData.fecha_nacimiento || null,
+                    cuit_tipo: finalData.cuit_tipo,
+                    cuit_is_formal: finalData.cuit_is_formal
                 };
                 const res = await upsertPerson(createPayload);
                 if (res.success) {
@@ -226,21 +251,47 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     </div>
                 )}
                 <div className={tipoPersona === 'JURIDICA' ? "col-span-2 space-y-2" : "space-y-2"}>
-                    <Label>CUIT / CUIL</Label>
+                    <div className="flex items-center justify-between">
+                        <Label>Identificación Tributaria</Label>
+                        <div className="flex items-center gap-2 bg-slate-100 p-0.5 rounded text-[10px] font-bold">
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, cuit_tipo: 'CUIT' })}
+                                className={cn("px-2 py-0.5 rounded", formData.cuit_tipo === 'CUIT' ? "bg-white shadow-sm" : "text-muted-foreground")}
+                            >
+                                CUIT
+                            </button>
+                            <button
+                                type="button"
+                                disabled={tipoPersona === 'JURIDICA'}
+                                onClick={() => setFormData({ ...formData, cuit_tipo: 'CUIL' })}
+                                className={cn("px-2 py-0.5 rounded", formData.cuit_tipo === 'CUIL' ? "bg-white shadow-sm" : "text-muted-foreground", tipoPersona === 'JURIDICA' && "opacity-50 cursor-not-allowed")}
+                            >
+                                CUIL
+                            </button>
+                        </div>
+                    </div>
                     <Input
                         value={formData.cuit}
                         onChange={e => handleCuitChange(e.target.value)}
-                        placeholder="CUIT (Sin guiones)"
+                        placeholder={(formData.cuit_tipo || 'CUIT') + " (Sin guiones)"}
                     />
-                    {tipoPersona === 'JURIDICA' && (
-                        <p className="text-[10px] text-muted-foreground">
-                            El CUIT es el identificador principal para Personas Jurídicas.
-                        </p>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                        <input
+                            type="checkbox"
+                            id="is_formal"
+                            checked={formData.cuit_is_formal}
+                            onChange={(e) => setFormData({ ...formData, cuit_is_formal: e.target.checked })}
+                            className="h-3 w-3"
+                        />
+                        <Label htmlFor="is_formal" className="text-[10px] text-muted-foreground font-normal cursor-pointer">
+                            Usar formato formal con puntos (Ej: {formData.cuit_tipo === 'CUIL' ? 'C.U.I.L.' : 'C.U.I.T.'})
+                        </Label>
+                    </div>
                 </div>
             </div>
 
-            {tipoPersona === 'FISICA' && (
+            {tipoPersona === 'FISICA' ? (
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label>Nacionalidad</Label>
@@ -251,14 +302,21 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     </div>
                     <div className="space-y-2">
                         <Label>Fecha Nacimiento</Label>
-                        <div className="flex flex-col gap-1">
-                            <Input
-                                type="date"
-                                value={formData.fecha_nacimiento}
-                                onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                            />
-                        </div>
+                        <Input
+                            type="date"
+                            value={formData.fecha_nacimiento}
+                            onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                        />
                     </div>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    <Label>Fecha de Constitución / Contrato Social</Label>
+                    <Input
+                        type="date"
+                        value={formData.fecha_nacimiento}
+                        onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
+                    />
                 </div>
             )}
 
@@ -319,6 +377,13 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                             <Input
                                 value={formData.conyuge}
                                 onChange={e => setFormData({ ...formData, conyuge: e.target.value })}
+                                onBlur={(e) => {
+                                    const formatted = formatPersonName(e.target.value);
+                                    if (formatted !== "Sin nombre") {
+                                        setFormData(prev => ({ ...prev, conyuge: formatted }));
+                                    }
+                                }}
+                                placeholder="Nombre completo del cónyuge"
                             />
                         </div>
                     </div>

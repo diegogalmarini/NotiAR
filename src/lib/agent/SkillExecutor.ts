@@ -20,10 +20,12 @@ export class SkillExecutor {
     /**
      * uploadToFileApi: Efficient upload for documents > 2MB.
      */
-    private static async uploadToFileApi(file: File): Promise<string> {
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const tempPath = path.join(os.tmpdir(), `notiar_${Date.now()}_${file.name}`);
+    private static async uploadToFileApi(file: any): Promise<string> {
+        const buffer = file.buffer || (file.arrayBuffer ? Buffer.from(await file.arrayBuffer()) : file);
+        if (!(buffer instanceof Buffer)) throw new Error("Could not extract buffer from file object");
+
+        const fileName = file.name || `notiar_${Date.now()}.pdf`;
+        const tempPath = path.join(os.tmpdir(), fileName);
         fs.writeFileSync(tempPath, buffer);
 
         try {
@@ -38,16 +40,18 @@ export class SkillExecutor {
         }
     }
 
-    private static async fileToGenerativePart(file: File): Promise<any> {
-        const arrayBuffer = await file.arrayBuffer();
-        const base64Data = Buffer.from(arrayBuffer).toString('base64');
-        return { inlineData: { data: base64Data, mimeType: file.type || "application/pdf" } };
+    private static async fileToGenerativePart(file: any): Promise<any> {
+        const buffer = file.buffer || (file.arrayBuffer ? Buffer.from(await file.arrayBuffer()) : file);
+        if (!(buffer instanceof Buffer)) throw new Error("Could not extract buffer from file object");
+
+        const base64Data = buffer.toString('base64');
+        return { inlineData: { data: base64Data, mimeType: file.type || file.mimeType || "application/pdf" } };
     }
 
     /**
      * Executes a skill with deterministic or semantic routing.
      */
-    static async execute(skillSlug: string, file?: File, contextData?: any): Promise<any> {
+    static async execute(skillSlug: string, file?: any, contextData?: any): Promise<any> {
         console.log(`[EXECUTOR] Routing: ${skillSlug}`);
 
         if (skillSlug === 'notary-tax-calculator') return calculateNotaryExpenses(contextData as TaxCalculationInput);
@@ -58,7 +62,7 @@ export class SkillExecutor {
         return this.executeSemanticSkill(skillSlug, file, contextData);
     }
 
-    private static async executeSemanticSkill(skillSlug: string, file?: File, contextData: any = {}): Promise<any> {
+    private static async executeSemanticSkill(skillSlug: string, file?: any, contextData: any = {}): Promise<any> {
         console.log(`[EXECUTOR] ⚡ FLASH: Starting ${skillSlug} | Has file: ${!!file} | File size: ${file?.size || 0}`);
         const skillDoc = await getSkillInstruction(skillSlug);
         if (!skillDoc) throw new Error(`Skill ${skillSlug} not found.`);
@@ -93,7 +97,7 @@ export class SkillExecutor {
         skillSlug: string,
         skillDoc: string,
         userContext: string,
-        file?: File,
+        file?: any,
         correctionFeedback: string | null = null,
         providedFilePart: any = null
     ): Promise<any> {
@@ -113,15 +117,16 @@ export class SkillExecutor {
         // v1.2.16: Critical Rules Injection
         const criticalRules = skillSlug === 'notary-entity-extractor' ? `
 
-⚠️ REGLAS CRÍTICAS - DNI vs CUIT (OBLIGATORIO):
-1. DNI: 7-8 dígitos (ej: 25765599) → campo "dni"
-2. CUIT: 11 dígitos XY-DDDDDDDD-Z (ej: 20-25765599-8) → campo "cuit_cuil"
-3. PROHIBIDO: Copiar DNI al campo CUIT sin prefijo/verificador
-4. Si documento dice "DNI 25765599" y "CUIT 20-25765599-8" → extrae AMBOS por separado
-5. Si solo hay DNI → deja cuit_cuil = null (NO inventes CUIT)
-6. Personas Jurídicas: NUNCA tienen DNI, solo CUIT (prefijo 30/33/34)
-7. EXTRAE TODOS los comparecientes (incluyendo representantes legales)
-8. Si dice "casado con X", extrae X como cónyuge con sus datos completos
+⚠️ REGLAS DE ORO (CRÍTICAS PARA EL ÉXITO):
+1. **IDENTIDAD Y NOMBRES:** Detecta nombres compuestos (ej: "Maria del Carmen") y apellidos multiples. NO mezcles apellidos en el campo nombre.
+2. **CUIT/CUIL OBLIGATORIO:** Formato estricto XX-DDDDDDDD-X (con guiones). Si el doc tiene "20257655998", conviértelo a "20-25765599-8".
+3. **BANCOS Y APODERADOS (CRÍTICO):** SIEMPRE busca la entidad financiera ("Banco Galicia", "Banco Nacion", etc).
+   - Si dice "norman giralde en representacion de BANCO GALICIA", extrae DOS entidades:
+   - Entidad 1: "BANCO GALICIA" (Rol: ACREEDOR, Tipo: JURIDICA).
+   - Entidad 2: "NORMAN GIRALDE" (Rol: REPRESENTANTE, Tipo: FISICA).
+4. **CÓNYUGES:** Si dice "casado/a con X", extrae a X. El Schema tiene un campo 'conyuge' para esto.
+5. **INMUEBLES (TRANSCRIPCIÓN):** El campo 'transcripcion_literal' debe ser UNA COPIA EXACTA, PALABRA POR PALABRA. Comienza desde la ubicación ("UNIDAD FUNCIONAL... que es parte del edificio...") hasta el final de medidas. NO RESUMAS. NO EXTRAIGAS SOLO POLIGONOS.
+6. **FALTANTES:** Busca en todo el documento. Si falta un CUIT, no inventes, pero asegúrate de que no esté en la foja de firmas.
 
 ` : '';
 

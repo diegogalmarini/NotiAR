@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Copy, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
 import { markAsSigned, updateRegistryStatus } from "@/app/actions/inscription";
+import { formatPersonName } from "@/lib/utils/normalization";
 import { toast } from "sonner";
 
 export function InscriptionTracker({ data }: { data: any }) {
@@ -212,7 +213,7 @@ export function InscriptionTracker({ data }: { data: any }) {
                                     )}>
                                     <div className="flex flex-col">
                                         <span className="text-xs text-muted-foreground">{p.rol}</span>
-                                        <span className="font-medium">{p.personas.nombre_completo}</span>
+                                        <span className="font-medium">{formatPersonName(p.personas.nombre_completo)}</span>
                                         <span className="text-xs text-slate-500">CUIL: {p.persona_id}</span>
                                     </div>
                                     <Copy className="h-4 w-4 text-slate-400" />

@@ -35,6 +35,7 @@ async function runSmokeTest() {
         ANTE MI, Alejandro Atilio Galmarini, comparecen:
         Por una parte PEREZ, Juan (DNI 10.000.001), argentino, de estado civil soltero.
         Por la otra parte Pedro El Escamoso (DNI 20.000.002), colombiano.
+        Interviene tambien el BANCO DE GALICIA Y BUENOS AIRES S.A.U. (CUIT 30-50000281-4) como ACREEDOR.
         PRIMERO: El primero VENDE y el segundo COMPRA el siguiente inmueble ubicado en Estomba 450.
         PRECIO: La suma de CIENTO CINCUENTA MIL DOLARES ESTADOUNIDENSES (USD 150.000).
         Valuacion Fiscal: $50.000.000.
@@ -58,7 +59,8 @@ async function runSmokeTest() {
 
         // STEP 2: SEMANTIC EXTRACTION (Entity Extractor)
         console.log("\n[TEST] Step 2: Semantic Extraction...");
-        const entities = await SkillExecutor.execute('notary-entity-extractor', mockFileData as any, { text: mockText });
+        const extractionResponse = await SkillExecutor.execute('notary-entity-extractor', mockFileData as any, { text: mockText });
+        const entities = extractionResponse.entidades || [];
 
         // STEP 3: DETERMINISTIC CALCULATION (Tax Calculator)
         console.log("\n[TEST] Step 3: Deterministic Calculation...");
@@ -107,8 +109,10 @@ async function runSmokeTest() {
         const finalResult = {
             classification,
             extraction: {
-                vendedor: entities.clientes?.find((c: any) => c.rol?.includes('VENDEDOR'))?.nombre_completo,
-                comprador: entities.clientes?.find((c: any) => c.rol?.includes('COMPRADOR'))?.nombre_completo,
+                vendedor: entities.find((c: any) => c.rol?.includes('VENDEDOR'))?.datos?.nombre_completo?.apellidos,
+                comprador: entities.find((c: any) => c.rol?.includes('COMPRADOR'))?.datos?.nombre_completo?.apellidos,
+                acreedor: entities.find((c: any) => c.rol?.includes('ACREEDOR'))?.datos?.nombre_completo?.valor ||
+                    entities.find((c: any) => c.rol?.includes('ACREEDOR'))?.datos?.nombre_completo?.nombres
             },
             taxes: {
                 total_ars: taxes.totalExpensesArs,

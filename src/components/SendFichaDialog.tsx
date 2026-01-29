@@ -15,6 +15,7 @@ import {
 import { Share2, MessageCircle, Mail, Copy, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { generateFichaLink } from "@/app/actions/fichas";
+import { formatPersonName } from "@/lib/utils/normalization";
 import { cn } from "@/lib/utils";
 
 interface SendFichaDialogProps {
@@ -97,7 +98,7 @@ export function SendFichaDialog({ persona }: SendFichaDialogProps) {
                             </DialogTitle>
                         </div>
                         <DialogDescription className="text-slate-500 text-sm">
-                            Genera un enlace para que <strong className="text-slate-900">{persona.nombre_completo}</strong> complete su información personal.
+                            Genera un enlace para que <strong className="text-slate-900">{formatPersonName(persona.nombre_completo)}</strong> complete su información personal.
                         </DialogDescription>
                     </DialogHeader>
                 </div>

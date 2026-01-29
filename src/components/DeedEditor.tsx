@@ -16,6 +16,7 @@ import { Wand2, Save, Copy, Loader2, FileDown, FileText, Award } from "lucide-re
 import { generateDeedDraft, saveDeedDraft } from "@/app/actions/draft";
 import { getEscribanos, Escribano } from "@/app/actions/escribanos";
 import { exportToDocx } from "@/lib/utils/export";
+import { formatCUIT, formatPersonName } from "@/lib/utils/normalization";
 import { toast } from "sonner";
 
 interface DeedEditorProps {
@@ -167,7 +168,9 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                             <div className="space-y-1">
                                 <p className="font-bold text-indigo-700 uppercase tracking-tighter text-[10px]">Inmueble</p>
                                 <p className="text-slate-900 leading-tight font-semibold">
-                                    {dataSummary.inmuebles?.direccion_completa || "No vinculado"}
+                                    {dataSummary.inmuebles?.direccion_completa ||
+                                        dataSummary.inmuebles?.nomenclatura ||
+                                        (dataSummary.inmuebles?.partido_id ? `${dataSummary.inmuebles.partido_id}` : "No vinculado")}
                                 </p>
                                 <p className="text-slate-500">
                                     Partida: {dataSummary.inmuebles?.nro_partida || "N/A"}
@@ -175,14 +178,19 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                             </div>
 
                             <div className="space-y-3">
-                                <p className="font-bold text-indigo-700 uppercase tracking-tighter text-[10px]">Participantes</p>
+                                <div className="flex justify-between items-center">
+                                    <p className="font-bold text-indigo-700 uppercase tracking-tighter text-[10px]">Participantes</p>
+                                    <Badge variant="secondary" className="text-[9px] cursor-pointer hover:bg-slate-200" onClick={() => window.location.hash = "mesa"}>
+                                        + Agregar
+                                    </Badge>
+                                </div>
                                 {dataSummary.operaciones?.[0]?.participantes_operacion?.map((p: any) => {
                                     const person = p.persona || p.personas;
                                     if (!person) return null;
 
                                     return (
                                         <div key={p.id} className="p-3 bg-white rounded-xl border border-slate-200 shadow-sm space-y-1.5">
-                                            <p className="font-bold text-slate-900">{person.nombre_completo}</p>
+                                            <p className="font-bold text-slate-900">{formatPersonName(person.nombre_completo)}</p>
                                             <div className="flex justify-between items-center">
                                                 <Badge variant="outline" className="text-[9px] py-0 px-1 bg-indigo-50 text-indigo-700 border-indigo-100">{p.rol}</Badge>
                                                 <span className="text-[9px] font-mono text-slate-400">{person.tax_id || p.persona_id}</span>
@@ -223,6 +231,6 @@ export function DeedEditor({ escrituraId, initialContent, dataSummary }: DeedEdi
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

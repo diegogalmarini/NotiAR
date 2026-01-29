@@ -9,15 +9,15 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
  * - Pro: Para lectura jurídica profunda, extracción de hipotecas y redacción compleja (Razonamiento Superior).
  */
 export const MODEL_MAPPING = {
-    fast: "gemini-3-flash-preview",      // Clasificación, UI, Extracción simple
-    complex: "gemini-3-pro-preview",     // Lectura de Escrituras (24.pdf), Hipotecas, Sociedades
-    vision: "gemini-3-pro-preview"       // OCR con ruido, DNI, Planos
+    fast: "gemini-2.5-flash",      // Clasificación, UI, Extracción simple
+    complex: "gemini-2.5-pro",     // Lectura de Escrituras (24.pdf), Hipotecas, Sociedades
+    vision: "gemini-2.5-flash"      // OCR con ruido, DNI, Planos
 };
 
-// Mantenemos esto por compatibilidad, pero apuntando al modelo más capaz para fallbacks generales
+// Mantenemos esto por compatibilidad, pero apuntando a FLASH como prioridad para evitar timeouts
 export const MODEL_HIERARCHY = [
+    MODEL_MAPPING.fast,    // SILVER: Flash (Now Primary for speed)
     MODEL_MAPPING.complex, // GOLD: Pro
-    MODEL_MAPPING.fast,    // SILVER: Flash
     MODEL_MAPPING.fast     // BRONZE: Flash
 ];
 
@@ -60,10 +60,11 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                             nombre_completo: {
                                 type: SchemaType.OBJECT,
                                 properties: {
-                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    nombres: { type: SchemaType.STRING, description: "Solo Nombres (ej: Juan Carlos)" },
+                                    apellidos: { type: SchemaType.STRING, description: "Solo Apellidos (ej: Perez Garcia)" },
                                     evidencia: { type: SchemaType.STRING }
                                 },
-                                required: ["valor", "evidencia"]
+                                required: ["nombres", "apellidos", "evidencia"]
                             },
                             dni: {
                                 type: SchemaType.OBJECT,
@@ -129,9 +130,18 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                                 },
                                 required: ["valor", "evidencia"]
                             },
+                            nombres_padres: {
+                                type: SchemaType.OBJECT,
+                                description: "Nombres del padre y de la madre si se mencionan. Ej: 'Hijo de Juan y Maria'.",
+                                properties: {
+                                    valor: { type: SchemaType.STRING, nullable: true },
+                                    evidencia: { type: SchemaType.STRING }
+                                },
+                                required: ["valor", "evidencia"]
+                            },
                             conyuge: {
                                 type: SchemaType.OBJECT,
-                                description: "Datos del cónyuge si está casado y se menciona. null si soltero/divorciado.",
+                                description: "Datos detallados del cónyuge (Nombre, DNI, CUIT). Extraer exhaustivamente si se mencionan en cualquier parte del documento.",
                                 properties: {
                                     nombre_completo: { type: SchemaType.STRING, nullable: true },
                                     dni: { type: SchemaType.STRING, nullable: true },
@@ -148,15 +158,21 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                         description: "Detalle de la cadena de mando / poder.",
                         properties: {
                             es_representado: { type: SchemaType.BOOLEAN, description: "True si esta entidad actúa a través de un humano (ej. Banco)." },
-                            representantes: { // Nueva estructura anidada para Norman Giralde
+                            representantes: {
                                 type: SchemaType.ARRAY,
                                 items: {
                                     type: SchemaType.OBJECT,
                                     properties: {
                                         nombre: { type: SchemaType.STRING },
                                         caracter: { type: SchemaType.STRING, description: "Apoderado, Presidente, Socio Gerente" },
-                                        dni: { type: SchemaType.STRING, nullable: true }
-                                    }
+                                        dni: { type: SchemaType.STRING, nullable: true },
+                                        cuit_cuil: { type: SchemaType.STRING, nullable: true },
+                                        nacionalidad: { type: SchemaType.STRING, nullable: true },
+                                        fecha_nacimiento: { type: SchemaType.STRING, nullable: true, description: "Formato YYYY-MM-DD" },
+                                        estado_civil: { type: SchemaType.STRING, nullable: true },
+                                        domicilio: { type: SchemaType.STRING, nullable: true }
+                                    },
+                                    required: ["nombre", "caracter"]
                                 }
                             },
                             documento_base: { type: SchemaType.STRING, nullable: true },
@@ -191,7 +207,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     },
                     transcripcion_literal: {
                         type: SchemaType.OBJECT,
-                        description: "Transcripción COMPLETA y VERBOSA de las medidas. Ignorar ruido OCR como '$'.",
+                        description: "Transcripción COMPLETA, NARRATIVA Y LITERAL del Inmueble. Debe comenzar desde la ubicación ('un departamento...', 'una unidad funcional...') copiando antecedentes, medidas, linderos y nomenclatura sin resumir NADA.",
                         properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
                         required: ["valor", "evidencia"]
                     },
@@ -304,7 +320,9 @@ export const NOTARY_MORTGAGE_READER_SCHEMA: any = {
  * - CLASSIFY (Otros): Usa FLASH para velocidad.
  */
 export async function getLatestModel(taskType: 'INGEST' | 'DRAFT' | 'CLASSIFY' = 'DRAFT'): Promise<string> {
+    // ⚠️ CRITICAL: Use PRO for all heavy lifting (Ingestion & Drafting) to avoid missing entities.
     if (taskType === 'INGEST' || taskType === 'DRAFT') {
+        console.log(`[AI_CONFIG] Using GOLD Model (${MODEL_MAPPING.complex}) for ${taskType}`);
         return MODEL_MAPPING.complex; // Gemini 3 Pro
     }
     return MODEL_MAPPING.fast; // Gemini 3 Flash

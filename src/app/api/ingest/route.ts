@@ -11,14 +11,14 @@ if (typeof globalThis !== 'undefined') {
     }
     if (g.window && !g.window.location) g.window.location = g.location;
     if (!g.atob) g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
-    if (!g.btoa) g.btoa = (str: string) => Buffer.from(str, 'binary').toString('base64');
+    if (!g.btoa) g.atob = (str: string) => Buffer.from(str, 'binary').toString('base64');
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
 // Flash v1.2.17 - SCHEMA FIX: Separated DNI/CUIT + Biographical Fields
-import { NextResponse } from 'next/server';
+import { NextResponse, unstable_after as after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
-import { normalizeID, toTitleCase } from '@/lib/utils/normalization';
+import { normalizeID, toTitleCase, formatCUIT } from '@/lib/utils/normalization';
 import { SkillExecutor } from '@/lib/agent/SkillExecutor';
 import { classifyDocument } from '@/lib/skills/routing/documentClassifier';
 
@@ -26,10 +26,49 @@ export const maxDuration = 300;
 
 // --- HELPERS ---
 
+function extractString(val: any, joinWithComma: boolean = true): string | null {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'string') return val;
+    if (typeof val === 'number') return String(val);
+    if (val.valor) return String(val.valor);
+    if (val.razon_social) return extractString(val.razon_social);
+    if (val.nombre) return extractString(val.nombre);
+    if (val.apellidos || val.nombres) {
+        const a = extractString(val.apellidos) || "";
+        const n = extractString(val.nombres) || "";
+        if (a && n) return joinWithComma ? `${a}, ${n}` : `${n} ${a}`.trim();
+        return (a || n || null);
+    }
+    return null;
+}
+
 function safeParseInt(val: any): number | null {
     if (val === null || val === undefined) return null;
-    const p = parseInt(String(val));
-    return isNaN(p) ? null : p;
+    const str = String(val).trim().toUpperCase();
+    const p = parseInt(str);
+    if (!isNaN(p)) return p;
+
+    // Spanish text to number mapping (basic)
+    const textNumbers: Record<string, number> = {
+        "UNO": 1, "DOS": 2, "TRES": 3, "CUATRO": 4, "CINCO": 5, "SEIS": 6, "SIETE": 7, "OCHO": 8, "NUEVE": 9, "DIEZ": 10,
+        "ONCE": 11, "DOCE": 12, "TRECE": 13, "CATORCE": 14, "QUINCE": 15, "DIECISEIS": 16, "DIECISIETE": 17, "DIECIOCHO": 18, "DIECINUEVE": 19, "VEINTE": 20,
+        "VEINTIUNO": 21, "VEINTIDOS": 22, "VEINTITRES": 23, "VEINTICUATRO": 24, "VEINTICINCO": 25, "VEINTISEIS": 26, "VEINTISIETE": 27, "VEINTIOCHO": 28, "VEINTINUEVE": 29, "TREINTA": 30,
+        "CUARENTA": 40, "CINCUENTA": 50, "SESENTA": 60, "SETENTA": 70, "OCHENTA": 80, "NOVENTA": 90, "CIEN": 100
+    };
+
+    if (textNumbers[str]) return textNumbers[str];
+
+    // Simple compound handling (e.g., "VEINTI CUATRO" or "SETENTA Y DOS")
+    const parts = str.split(/[\s-yY]+/).filter(Boolean);
+    if (parts.length > 1) {
+        let total = 0;
+        for (const part of parts) {
+            if (textNumbers[part]) total += textNumbers[part];
+        }
+        return total > 0 ? total : null;
+    }
+
+    return null;
 }
 
 function safeParseDate(val: any): string | null {
@@ -68,32 +107,66 @@ export async function POST(req: Request) {
 
         if (folderError) throw new Error(`Error creando carpeta: ${folderError.message}`);
 
-        // --- FLASH PROCESSING: TODO síncron dentro de 300s ---
-        // Flash es tan rápido que podemos procesar todo antes de timeout
+        // --- HYBRID PROCESSING: SYNC for Small, ASYNC for Large ---
+        const isLarge = file.size > 500 * 1024; // 500KB threshold
+
+        if (isLarge) {
+            console.log(`[PIPELINE] 📦 LARGE FILE detected (${file.size} bytes). Routing to BACKGROUND.`);
+
+            // Return immediate response to the client
+            after(async () => {
+                try {
+                    console.log(`[BACKGROUND] Starting extraction for: ${file.name}`);
+                    const extractedText = "[OCR Placeholder for Audit Path]"; // TODO: Implement real OCR if needed
+                    const classification = await classifyDocument(file, extractedText);
+                    const docType = classification?.document_type || 'ESCRITURA';
+
+                    const aiData = await runExtractionPipeline(docType, file, extractedText);
+                    const result = await persistIngestedData(aiData, file, buffer, carpeta.id);
+
+                    await supabaseAdmin.from('carpetas').update({
+                        ingesta_estado: result.success ? 'COMPLETADO' : 'ERROR',
+                        ingesta_paso: result.success
+                            ? `IA: ${result.persistedClients || 0} personas, ${aiData.inmuebles?.length || 0} inmuebles`
+                            : `Error: ${result.error || 'Ver logs'}`,
+                        resumen_ia: result.success ? `${aiData.resumen_acto || 'Extracción Background'}` : null
+                    }).eq('id', carpeta.id);
+
+                    revalidatePath('/carpetas');
+                    revalidatePath('/dashboard');
+                } catch (bgError: any) {
+                    console.error("🔥 BACKGROUND PIPELINE FATAL:", bgError);
+                    await supabaseAdmin.from('carpetas').update({
+                        ingesta_estado: 'ERROR',
+                        ingesta_paso: `Fatal: ${bgError.message}`
+                    }).eq('id', carpeta.id);
+                }
+            });
+
+            return NextResponse.json({
+                success: true,
+                status: 'PROCESSING_BACKGROUND',
+                folderId: carpeta.id,
+                message: "Archivo grande detectado. Procesando en segundo plano."
+            });
+        }
+
+        // --- FLASH SYNC PROCESSING (Small files) ---
         console.log(`[PIPELINE] ⚡ FLASH SYNC PROCESSING: ${file.name} (${file.size} bytes)`);
 
-        // OCR/Text extraction (placeholder for now)
-        let extractedText = "";
-        try {
-            extractedText = "[OCR Placeholder for Audit Path]";
-        } catch (e) { }
-
+        let extractedText = "[OCR Placeholder for Audit Path]";
         const classification = await classifyDocument(file, extractedText);
         const docType = classification?.document_type || 'ESCRITURA';
-        console.log(`[PIPELINE] Document Classified as: ${docType}`);
 
         const aiData = await runExtractionPipeline(docType, file, extractedText);
         const result = await persistIngestedData(aiData, file, buffer, carpeta.id);
 
-        // Update carpeta status with all metadata
         await supabaseAdmin.from('carpetas').update({
             ingesta_estado: result.success ? 'COMPLETADO' : 'ERROR',
             ingesta_paso: result.success
                 ? `IA: ${result.persistedClients || 0} personas, ${aiData.inmuebles?.length || 0} inmuebles`
                 : `Error: ${result.error || 'Ver logs'}`,
-            resumen_ia: result.success
-                ? `${aiData.resumen_acto || 'Extracción Flash'}`
-                : null
+            resumen_ia: result.success ? `${aiData.resumen_acto || 'Extracción Flash'}` : null
         }).eq('id', carpeta.id);
 
         revalidatePath('/carpetas');
@@ -104,13 +177,10 @@ export async function POST(req: Request) {
             status: result.success ? 'COMPLETED' : 'PARTIAL_ERROR',
             folderId: result.folderId,
             extractedData: aiData,
-            error: result.error,
-            db_logs: result.db_logs,
             debug: {
                 clients: aiData.clientes?.length || 0,
-                assets: aiData.inmuebles?.length || 0,
                 persistedClients: result.persistedClients || 0,
-                persistenceError: result.error
+                assets: aiData.inmuebles?.length || 0
             }
         });
 
@@ -191,25 +261,86 @@ function normalizeAIData(raw: any) {
         }
     };
     if (raw.entidades && Array.isArray(raw.entidades)) {
-        normalized.clientes = raw.entidades.map((e: any) => {
+        const allClients: any[] = [];
+        raw.entidades.forEach((e: any) => {
             const d = e.datos || {};
-            return {
-                rol: e.rol || 'VENDEDOR',
-                tipo_persona: e.tipo_persona || 'FISICA',
-                nombre_completo: d.nombre_completo?.valor || 'Desconocido',
-                dni: d.dni?.valor || null,  // ✅ Campo separado
-                cuit: d.cuit_cuil?.valor || null,  // ✅ Campo separado
-                estado_civil: d.estado_civil?.valor || null,
-                nacionalidad: d.nacionalidad?.valor || null,
-                domicilio_real: d.domicilio?.valor || null,
-                fecha_nacimiento: d.fecha_nacimiento?.valor || null,  // ✅ Nuevo
-                datos_conyuge: d.conyuge ? {  // ✅ Nuevo (objeto completo)
-                    nombre_completo: d.conyuge.nombre_completo || null,
-                    dni: d.conyuge.dni || null,
-                    cuit_cuil: d.conyuge.cuit_cuil || null
+            const rawCuit = d.cuit_cuil?.valor?.toString().replace(/\D/g, '') || '';
+            const forcedTipoPersona = (e.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some(p => rawCuit.startsWith(p))) ? 'JURIDICA' : (e.tipo_persona || 'FISICA');
+
+            const isEntity = forcedTipoPersona === 'JURIDICA';
+            const mainClient = {
+                rol: extractString(e.rol) || 'VENDEDOR',
+                tipo_persona: forcedTipoPersona,
+                nombre_completo: isEntity
+                    ? (extractString(d.nombre_completo, false) || extractString(d.razon_social, false) || extractString(d.nombre, false) || 'Desconocido')
+                    : (extractString(d.nombre_completo) || 'Desconocido'),
+                dni: extractString(d.dni) || null,
+                cuit: formatCUIT(extractString(d.cuit_cuil)),
+                estado_civil: extractString(d.estado_civil) || null,
+                nacionalidad: extractString(d.nacionalidad) || null,
+                domicilio_real: (d.domicilio?.valor || d.domicilio) ? { literal: extractString(d.domicilio?.valor || d.domicilio) } : null,
+                fecha_nacimiento: extractString(d.fecha_nacimiento) || null,
+                nombres_padres: extractString(d.nombres_padres) || null,
+                cuit_tipo: (() => {
+                    if (forcedTipoPersona === 'JURIDICA') return 'CUIT';
+
+                    // 1. Prioritize literal text in the CUIT field itself if available
+                    // We check the whole object to capture "C.U.I.L." if it's in a .literal or .texto field
+                    const cuitObjStr = JSON.stringify(d.cuit_cuil || "").toUpperCase();
+                    if (cuitObjStr.includes("C.U.I.L.") || cuitObjStr.includes("CUIL")) return 'CUIL';
+                    if (cuitObjStr.includes("C.U.I.T.") || cuitObjStr.includes("CUIT")) return 'CUIT';
+
+                    // 2. Check if AI already classified it
+                    if (e.cuit_tipo?.toUpperCase() === 'CUIL') return 'CUIL';
+                    if (e.cuit_tipo?.toUpperCase() === 'CUIT') return 'CUIT';
+
+                    // 3. Inference from local profession/profile
+                    const prof = (d.profesion?.valor || "").toUpperCase();
+                    if (prof.includes("EMPLEADO") || prof.includes("ESTUDIANTE") || prof.includes("JUBILADO")) return 'CUIL';
+                    if (prof.includes("COMERCIANTE") || prof.includes("PROFESIONAL") || prof.includes("MONOTRIBUTISTA")) return 'CUIT';
+
+                    // 4. Fallback to global text search
+                    const rawText = (raw.full_text || "").toUpperCase();
+                    if (rawText.includes("C.U.I.L.") || rawText.includes("CUIL")) return 'CUIL';
+
+                    return 'CUIT'; // Default
+                })(),
+                cuit_is_formal: true, // Default for NotiAR
+                datos_conyuge: d.conyuge ? {
+                    nombre: extractString(d.conyuge.nombre_completo || d.conyuge.nombre) || null,
+                    dni: extractString(d.conyuge.dni) || null,
+                    cuit: extractString(d.conyuge.cuit_cuil) || null
                 } : null
             };
+            allClients.push(mainClient);
+
+            // Flatten Representatives (e.g. Norman Giralde)
+            if (e.representacion?.representantes && Array.isArray(e.representacion.representantes)) {
+                e.representacion.representantes.forEach((rep: any) => {
+                    const repNombre = extractString(rep.nombre) || 'Desconocido';
+                    allClients.push({
+                        rol: 'APODERADO/REPRESENTANTE',
+                        caracter: `lo hace en nombre y representación de ${mainClient.nombre_completo}`,
+                        tipo_persona: 'FISICA',
+                        nombre_completo: repNombre,
+                        dni: extractString(rep.dni) || null,
+                        cuit: formatCUIT(extractString(rep.cuit_cuil)),
+                        cuit_tipo: (() => {
+                            const litStr = JSON.stringify(rep.cuit_cuil || "").toUpperCase();
+                            if (litStr.includes("C.U.I.L.") || litStr.includes("CUIL")) return 'CUIL';
+                            if (litStr.includes("C.U.I.T.") || litStr.includes("CUIT")) return 'CUIT';
+                            return 'CUIL'; // Default for natural persons
+                        })(),
+                        cuit_is_formal: true,
+                        nacionalidad: extractString(rep.nacionalidad) || null,
+                        fecha_nacimiento: extractString(rep.fecha_nacimiento) || null,
+                        domicilio_real: (rep.domicilio?.valor || rep.domicilio) ? { literal: extractString(rep.domicilio?.valor || rep.domicilio) } : null,
+                        estado_civil: extractString(rep.estado_civil) || null
+                    });
+                });
+            }
         });
+        normalized.clientes = allClients;
     }
     if (raw.inmuebles && Array.isArray(raw.inmuebles)) {
         normalized.inmuebles = raw.inmuebles.map((i: any) => ({
@@ -227,12 +358,18 @@ function normalizeAIData(raw: any) {
 async function persistIngestedData(aiData: any, file: File, buffer: Buffer, existingFolderId: string) {
     console.log(`[PERSIST] Persisting data for folder ${existingFolderId}...`);
     const { clientes = [], inmuebles = [], resumen_acto, operation_details, numero_escritura } = aiData;
-    const fileName = `${Date.now()}_${file.name}`;
+    const fileName = `documents/${Date.now()}_${file.name}`;
     const db_logs: string[] = [];
     let persistedClients = 0;
+    let publicUrl = null;
+    const conflicts: { type: 'PERSONA' | 'INMUEBLE', id: string, existing: any, extracted: any }[] = [];
 
     try {
-        await supabaseAdmin.storage.from('escrituras_raw').upload(fileName, buffer, { contentType: file.type });
+        const { error: uploadError } = await supabaseAdmin.storage.from('escrituras').upload(fileName, buffer, { contentType: file.type });
+        if (!uploadError) {
+            const { data } = supabaseAdmin.storage.from('escrituras').getPublicUrl(fileName);
+            publicUrl = data.publicUrl;
+        }
     } catch (e) {
         console.warn("[PERSIST] Storage upload failed:", e);
     }
@@ -242,78 +379,194 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     if (inmuebles.length > 0) {
         const primary = inmuebles[0];
-        const { data: asset, error: assetError } = await supabaseAdmin.from('inmuebles').insert({
-            partido_id: primary.partido,
-            nro_partida: primary.partida_inmobiliaria,
-            nomenclatura: primary.nomenclatura,
-            transcripcion_literal: primary.transcripcion_literal,
-            valuacion_fiscal: primary.valuacion_fiscal
-        }).select().single();
+        // --- SMART CHECK: Inmueble ---
+        const { data: existingAsset } = await supabaseAdmin
+            .from('inmuebles')
+            .select('*')
+            .eq('partido_id', primary.partido)
+            .eq('nro_partida', primary.partida_inmobiliaria)
+            .maybeSingle();
 
-        if (assetError) {
-            console.error('[PERSIST] Error creating inmueble:', assetError);
+        if (existingAsset) {
+            // Compare critical fields
+            const hasChanges =
+                existingAsset.nomenclatura !== primary.nomenclatura ||
+                existingAsset.transcripcion_literal !== primary.transcripcion_literal;
+
+            if (hasChanges) {
+                conflicts.push({
+                    type: 'INMUEBLE',
+                    id: `${primary.partido}-${primary.partida_inmobiliaria}`,
+                    existing: existingAsset,
+                    extracted: primary
+                });
+            }
+            assetId = existingAsset.id;
         } else {
-            assetId = asset?.id;
+            const { data: asset, error: assetError } = await supabaseAdmin.from('inmuebles').insert({
+                partido_id: primary.partido,
+                nro_partida: primary.partida_inmobiliaria,
+                nomenclatura: primary.nomenclatura,
+                transcripcion_literal: primary.transcripcion_literal,
+                valuacion_fiscal: primary.valuacion_fiscal
+            }).select().single();
+
+            if (assetError) {
+                console.error('[PERSIST] Error creating inmueble:', assetError);
+            } else {
+                assetId = asset?.id;
+            }
         }
     }
 
     // Build escritura object - FULL v1.1 usando nombres de columna reales
     const escrituraData: any = {
         carpeta_id: folderId,
-        nro_protocolo: numero_escritura ? String(numero_escritura) : null,
+        nro_protocolo: safeParseInt(aiData.numero_escritura),
         fecha_escritura: safeParseDate(aiData.fecha_escritura),
         registro: aiData.registro ? String(aiData.registro) : null,
         notario_interviniente: aiData.notario ? String(aiData.notario) : null,
-        inmueble_princ_id: assetId // Vinculando el inmueble principal
+        inmueble_princ_id: assetId, // Vinculando el inmueble principal
+        pdf_url: publicUrl,
+        analysis_metadata: JSON.parse(JSON.stringify(aiData)) // SANITIZACIÓN FORZADA
     };
 
     const { data: escritura, error: escrituraError } = await supabaseAdmin.from('escrituras').insert(escrituraData).select().single();
 
     if (escrituraError || !escritura) {
-        console.error('[PERSIST] ❌ Error creating escritura (Safety fallback active):', escrituraError);
-        // Fallback: No lanzamos error para que el proceso de personas continúe
-        db_logs.push(`Escritura insert failed: ${escrituraError?.message || 'Unknown'}`);
+        console.error('[PERSIST] ❌ Error creating escritura:', escrituraError);
+        return { success: false, error: `Error creando escritura: ${escrituraError?.message || 'Unknown'}` };
     }
 
     const { data: operacion, error: opError } = await supabaseAdmin.from('operaciones').insert([{
         escritura_id: escritura?.id || null, // Tolerante si escritura falló
         tipo_acto: String(resumen_acto || 'COMPRAVENTA').toUpperCase().substring(0, 100),
         monto_operacion: parseFloat(String(operation_details?.price || 0)) || 0,
-        nro_acto: numero_escritura ? String(numero_escritura) : null
+        nro_acto: aiData.numero_escritura ? String(safeParseInt(aiData.numero_escritura) || aiData.numero_escritura) : null
     }]).select().single();
 
     if (opError) db_logs.push(`Op Error: ${opError.message}`);
 
-
+    const processedParticipants = new Set<string>();
 
     for (const c of clientes) {
-        const dni = normalizeID(c.dni);
-        if (!dni) continue;
-        const { error: pError } = await supabaseAdmin.from('personas').upsert({
-            dni,
-            nombre_completo: toTitleCase(c.nombre_completo),
+        // Fallback: Si no hay DNI (PJ), usar CUIT como ID único en la tabla personas
+        let finalID = normalizeID(c.dni);
+        const cleanCuit = normalizeID(c.cuit);
+
+        if (!finalID && cleanCuit) {
+            console.log(`[PERSIST] Entity ${c.nombre_completo} has no DNI, using CUIT as ID.`);
+            finalID = cleanCuit;
+        }
+
+        if (!finalID) {
+            console.warn(`[PERSIST] Skipping entity ${c.nombre_completo} - NO ID (DNI/CUIT)`);
+            continue;
+        }
+
+        // --- SMART CHECK: Persona ---
+        const { data: existingPerson } = await supabaseAdmin
+            .from('personas')
+            .select('*')
+            .eq('dni', finalID)
+            .maybeSingle();
+
+        const extractedPersona = {
+            dni: finalID,
+            nombre_completo: c.tipo_persona === 'JURIDICA' ? c.nombre_completo : toTitleCase(c.nombre_completo),
             cuit: normalizeID(c.cuit),
+            cuit_tipo: c.cuit_tipo || 'CUIT',
+            cuit_is_formal: c.cuit_is_formal ?? true,
             nacionalidad: c.nacionalidad ? toTitleCase(c.nacionalidad) : null,
             fecha_nacimiento: safeParseDate(c.fecha_nacimiento),
-            domicilio_real: c.domicilio_real ? { literal: c.domicilio_real } : null,
+            domicilio_real: c.domicilio_real,
             estado_civil_detalle: c.estado_civil || null,
+            nombres_padres: c.nombres_padres || null,
+            datos_conyuge: c.datos_conyuge || null
+        };
+
+        if (existingPerson) {
+            // Compare critical fields: address, marital status, full name
+            const addressChanged = existingPerson.domicilio_real?.literal !== extractedPersona.domicilio_real?.literal;
+            const statusChanged = existingPerson.estado_civil_detalle !== extractedPersona.estado_civil_detalle;
+            const nameChanged = existingPerson.nombre_completo !== extractedPersona.nombre_completo;
+
+            if (addressChanged || statusChanged || nameChanged) {
+                conflicts.push({
+                    type: 'PERSONA',
+                    id: finalID,
+                    existing: existingPerson,
+                    extracted: extractedPersona
+                });
+            }
+        }
+
+        const { error: pError } = await supabaseAdmin.from('personas').upsert({
+            ...extractedPersona,
             origen_dato: 'IA_OCR',
             updated_at: new Date().toISOString()
         }, { onConflict: 'dni' });
 
-        if (pError) db_logs.push(`Person Error (${dni}): ${pError.message}`);
+        if (pError) db_logs.push(`Person Error (${finalID}): ${pError.message}`);
         else {
             persistedClients++;
             if (operacion) {
-                await supabaseAdmin.from('participantes_operacion').insert([{
-                    operacion_id: operacion.id,
-                    persona_id: dni,
-                    rol: String(c.rol || 'VENDEDOR').toUpperCase().substring(0, 50)
-                }]);
+                const participantKey = `${operacion.id}-${finalID}`;
+                if (!processedParticipants.has(participantKey)) {
+                    await supabaseAdmin.from('participantes_operacion').insert([{
+                        operacion_id: operacion.id,
+                        persona_id: finalID,
+                        rol: String(c.caracter ? `${c.rol} (${c.caracter})` : c.rol).toUpperCase().substring(0, 150)
+                    }]);
+                    processedParticipants.add(participantKey);
+                } else {
+                    console.log(`[PERSIST] Skipping duplicate participant link for ${finalID} in op ${operacion.id}`);
+                }
             }
         }
     }
-    return { folderId, success: true, persistedClients, db_logs, error: null, fileName };
+
+    // --- STEP: Spouse Symmetry (if Person A has spouse B, ensure B has A) ---
+    for (const c of clientes) {
+        const personId = normalizeID(c.dni || c.cuit);
+        if (!personId) continue;
+
+        if (c.datos_conyuge && (c.datos_conyuge.dni || c.datos_conyuge.cuit)) {
+            const spouseId = normalizeID(c.datos_conyuge.dni || c.datos_conyuge.cuit);
+            if (!spouseId) continue;
+
+            const { data: personData } = await supabaseAdmin.from('personas').select('nombre_completo').eq('dni', personId).single();
+
+            if (personData) {
+                // Update spouse record with personData's info (mirror effect)
+                await supabaseAdmin.from('personas').update({
+                    datos_conyuge: {
+                        nombre: personData.nombre_completo,
+                        dni: personId,
+                        nombre_completo: personData.nombre_completo
+                    }
+                }).eq('dni', spouseId);
+            }
+        }
+    }
+
+    // If there are conflicts, update the folder status and save the conflicts metadata
+    if (conflicts.length > 0) {
+        await supabaseAdmin.from('carpetas').update({
+            ingesta_estado: 'REVISION_REQUERIDA',
+            ingesta_metadata: { conflicts }
+        }).eq('id', folderId);
+    }
+
+    return {
+        folderId,
+        success: true,
+        persistedClients: processedParticipants.size,
+        db_logs,
+        error: null,
+        fileName,
+        hasConflicts: conflicts.length > 0
+    };
 }
 
 export async function GET() { return NextResponse.json({ status: "alive" }); }

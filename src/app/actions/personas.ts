@@ -4,12 +4,14 @@ import { createClient } from "@/lib/supabaseServer";
 import { revalidatePath } from "next/cache";
 import { logAction } from "@/lib/logger";
 
+
 export async function createPersona(formData: {
     nombre_completo: string;
     dni: string;
     email?: string;
-    telefono?: string;
     cuit?: string;
+    cuit_tipo?: string;
+    cuit_is_formal?: boolean;
 }) {
     try {
         const supabase = await createClient();
@@ -24,6 +26,8 @@ export async function createPersona(formData: {
                 nombre_completo: formData.nombre_completo,
                 dni: finalDni,
                 cuit: formData.cuit || null,
+                cuit_tipo: formData.cuit_tipo || 'CUIT',
+                cuit_is_formal: formData.cuit_is_formal ?? true,
                 contacto: {
                     email: formData.email,
                     telefono: formData.telefono
@@ -59,9 +63,10 @@ export async function updatePersona(dni: string, formData: {
     nombre_conyuge?: string;
     domicilio?: string;
     email?: string;
-    telefono?: string;
     dni?: string;
     cuit?: string;
+    cuit_tipo?: string;
+    cuit_is_formal?: boolean;
 }) {
     try {
         const supabase = await createClient();
@@ -71,7 +76,7 @@ export async function updatePersona(dni: string, formData: {
             fecha_nacimiento: formData.fecha_nacimiento || null,
             estado_civil_detalle: formData.estado_civil || null,
             nombres_padres: formData.nombres_padres || null,
-            datos_conyuge: formData.nombre_conyuge ? { nombre: formData.nombre_conyuge } : null,
+            datos_conyuge: formData.nombre_conyuge ? { nombre_completo: formData.nombre_conyuge } : null,
             domicilio_real: formData.domicilio ? { literal: formData.domicilio } : null,
             contacto: {
                 email: formData.email,
@@ -79,6 +84,8 @@ export async function updatePersona(dni: string, formData: {
             },
             dni: formData.dni || dni,
             cuit: formData.cuit || null,
+            cuit_tipo: formData.cuit_tipo || 'CUIT',
+            cuit_is_formal: formData.cuit_is_formal ?? true,
             updated_at: new Date().toISOString()
         };
 

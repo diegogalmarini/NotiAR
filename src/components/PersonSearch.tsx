@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatCUIT, isLegalEntity, formatPersonName } from "@/lib/utils/normalization";
 import { Button } from "@/components/ui/button";
 import {
     Command,
@@ -25,6 +26,8 @@ import { Plus } from "lucide-react";
 interface Person {
     dni: string;
     nombre_completo: string;
+    cuit?: string;
+    tipo_persona?: string;
 }
 
 interface PersonSearchProps {
@@ -100,8 +103,12 @@ export function PersonSearch({ onSelect, open, setOpen }: PersonSearchProps) {
                                 >
                                     <User className="mr-2 h-4 w-4" />
                                     <div className="flex flex-col">
-                                        <span>{person.nombre_completo}</span>
-                                        <span className="text-xs text-muted-foreground">{person.dni}</span>
+                                        <span className="font-medium">{formatPersonName(person.nombre_completo)}</span>
+                                        <span className="text-[10px] text-muted-foreground uppercase">
+                                            {isLegalEntity(person)
+                                                ? `CUIT: ${formatCUIT(person.cuit || person.dni) || "No informado"}`
+                                                : `DNI: ${person.dni || "No informado"}`}
+                                        </span>
                                     </div>
                                 </CommandItem>
                             ))}
