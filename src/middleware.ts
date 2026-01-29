@@ -26,11 +26,8 @@ export async function middleware(request: NextRequest) {
     const isPublicRoute = PUBLIC_ROUTES.includes(pathname) ||
         PUBLIC_ROUTE_PATTERNS.some(pattern => pattern.test(pathname));
 
-    // Initialize response with headers inheritance
     let supabaseResponse = NextResponse.next({
-        request: {
-            headers: new Headers(request.headers),
-        },
+        request,
     });
 
     const supabase = createServerClient(
@@ -58,23 +55,23 @@ export async function middleware(request: NextRequest) {
         return supabaseResponse;
     }
 
+    // IMPORTANT: getUser() triggers a network call to Supabase to validate the session
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-        console.log(`[MIDDLEWARE] Redirecting guest from ${pathname} to /login`);
+        console.warn(`[MIDDLEWARE] NO AUTH found for ${pathname}. Redirecting to /login`);
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         url.searchParams.set('redirectTo', pathname)
 
         const redirectResponse = NextResponse.redirect(url)
-        // Ensure cookies (including the one that just failed/cleared) are carried to redirect
+        // Ensure that any newly cleared session cookies are carried to the login page
         supabaseResponse.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value, c))
         return redirectResponse
     }
 
     const userEmail = user.email || '';
     if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-        console.log(`[MIDDLEWARE] SuperAdmin ${userEmail} allowed to ${pathname}`);
         return supabaseResponse;
     }
 
@@ -85,7 +82,6 @@ export async function middleware(request: NextRequest) {
         .single();
 
     if (!profile || profile.approval_status !== 'approved') {
-        console.log(`[MIDDLEWARE] User ${userEmail} status: ${profile?.approval_status || 'not_found'}`);
         const url = request.nextUrl.clone()
         url.pathname = (profile?.approval_status === 'rejected') ? '/unauthorized' : '/pending-approval'
 

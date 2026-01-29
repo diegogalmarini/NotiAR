@@ -6,10 +6,8 @@ export async function GET(request: NextRequest) {
     const code = requestUrl.searchParams.get('code')
     const redirectTo = requestUrl.searchParams.get('redirectTo') || '/dashboard'
 
-    // GUARANTEED PRODUCTION PROTOCOL & HOST
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-    const proto = request.headers.get('x-forwarded-proto') || 'https';
-    const origin = `${proto}://${host}`;
+    // GUARANTEED PRODUCTION PROTOCOL & HOST FROM REQUEST URL
+    const origin = requestUrl.origin;
 
     if (code) {
         const response = NextResponse.redirect(`${origin}${redirectTo}`)
@@ -22,28 +20,27 @@ export async function GET(request: NextRequest) {
                         return request.cookies.getAll()
                     },
                     setAll(cookiesToSet) {
-                        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-                        cookiesToSet.forEach(({ name, value, options }) =>
+                        cookiesToSet.forEach(({ name, value }) => {
+                            request.cookies.set(name, value)
                             response.cookies.set(name, value, {
-                                ...options,
-                                path: '/', // Ensure visibility
+                                path: '/',
                                 secure: true,
                                 sameSite: 'lax',
                             })
-                        )
+                        })
                     },
                 },
             }
         )
 
         const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-        if (!error && data.session) {
-            console.log(`[CALLBACK] Success for ${data.session.user.email}. Path: ${redirectTo}`);
+        if (!error && data?.session) {
+            console.log(`[CALLBACK] Success. Session created for ${data.session.user.email}`);
             return response
         }
 
-        console.error('[CALLBACK] Exchange failed:', error?.message || 'No session returned');
-        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error?.message || 'Auth exchange failed')}`)
+        console.error('[CALLBACK] Exchange failed:', error?.message || 'No session found');
+        return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error?.message || 'Exchange failed')}`)
     }
 
     return NextResponse.redirect(`${origin}/login`)
