@@ -1,7 +1,6 @@
-import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@/lib/supabaseServer';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import type { CookieOptions } from '@supabase/ssr';
 
 export async function GET(request: NextRequest) {
     const requestUrl = new URL(request.url);
@@ -24,34 +23,7 @@ export async function GET(request: NextRequest) {
     if (code) {
         console.log('[CALLBACK] PKCE flow - exchanging code for session...');
 
-        const response = NextResponse.redirect(`${origin}${redirectTo}`);
-
-        const supabase = createServerClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            {
-                cookies: {
-                    get(name: string) {
-                        return request.cookies.get(name)?.value;
-                    },
-                    set(name: string, value: string, options: CookieOptions) {
-                        response.cookies.set({
-                            name,
-                            value,
-                            ...options,
-                        });
-                    },
-                    remove(name: string, options: CookieOptions) {
-                        response.cookies.set({
-                            name,
-                            value: '',
-                            ...options,
-                        });
-                    },
-                },
-            }
-        );
-
+        const supabase = await createClient();
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
         if (exchangeError) {
@@ -60,7 +32,13 @@ export async function GET(request: NextRequest) {
         }
 
         console.log('[CALLBACK] PKCE session established for user:', data.user?.email);
-        return response;
+
+        // Ensure the redirect is to a relative path to avoid absolute URL issues
+        const finalRedirect = redirectTo.startsWith('http')
+            ? new URL(redirectTo).pathname + new URL(redirectTo).search
+            : redirectTo;
+
+        return NextResponse.redirect(`${origin}${finalRedirect}`);
     }
 
     // No code = Implicit flow (hash-based tokens)
