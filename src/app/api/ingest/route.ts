@@ -465,6 +465,12 @@ function normalizeAIData(raw: any) {
                 } else if (cesionario && looseNameMatch(name, cesionario)) {
                     mainClient.rol = 'CESIONARIO';
                 }
+
+                // EMERGENCY FORCE: If AI gave a different role but the name is an exact match for cedente/cesionario
+                const upperName = name.toUpperCase();
+                if (cedente?.toUpperCase().includes(upperName) || upperName.includes(cedente?.toUpperCase() || "")) {
+                    mainClient.rol = 'CEDENTE';
+                }
             }
 
             // DEDUPLICATION: Avoid adding the same person twice within entities
@@ -656,10 +662,12 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
         }
 
         if (!finalID) {
-            // FALLBACK for CEDENTES or other critical actors without ID in the text
-            if (c.rol === 'CEDENTE' || c.rol === 'PROPIETARIO ANTERIOR') {
-                finalID = `TEMP-${Date.now()}-${c.nombre_completo.substring(0, 5).toUpperCase()}`;
-                console.log(`[PERSIST] Entity ${c.nombre_completo} has no ID, generated fallback: ${finalID}`);
+            // FALLBACK for CEDENTES, FIDEICOMISOS or other critical actors without ID in the text
+            const role = String(c.rol).toUpperCase();
+            const type = String(c.tipo_persona).toUpperCase();
+            if (role === 'CEDENTE' || role === 'PROPIETARIO ANTERIOR' || role === 'VENDEDOR' || role === 'FIDUCIARIA' || type === 'FIDEICOMISO') {
+                finalID = `TEMP-${Date.now()}-${c.nombre_completo.substring(0, 5).toUpperCase().replace(/\W/g, '')}`;
+                console.log(`[PERSIST] Entity ${c.nombre_completo} (Role: ${role}, Type: ${type}) has no ID, generated fallback: ${finalID}`);
             } else {
                 console.warn(`[PERSIST] Skipping entity ${c.nombre_completo} - NO ID (DNI/CUIT)`);
                 continue;
