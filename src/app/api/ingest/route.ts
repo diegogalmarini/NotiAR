@@ -26,29 +26,46 @@ export const maxDuration = 300;
 // Helper for loose name matching (ignoring order and commas)
 function looseNameMatch(n1: string, n2: string): boolean {
     if (!n1 || !n2) return false;
-    const s1 = n1.toUpperCase();
-    const s2 = n2.toUpperCase();
+    const s1 = n1.toUpperCase().replace(/\W/g, " ");
+    const s2 = n2.toUpperCase().replace(/\W/g, " ");
 
-    // CRITICAL for legal entities: If one has FIDEICOMISO and the other doesn't, they are NOT the same.
-    const hasTrust1 = s1.includes("FIDEICOMISO");
-    const hasTrust2 = s2.includes("FIDEICOMISO");
-    if (hasTrust1 !== hasTrust2) return false;
-
-    const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL"];
+    const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS"];
     const getTokens = (s: string) => s
-        .replace(/[,.]/g, " ")
         .split(/\s+/)
         .filter(t => t.length > 2 && !stopWords.includes(t));
 
     const t1 = getTokens(s1);
     const t2 = getTokens(s2);
+
     if (t1.length === 0 || t2.length === 0) return s1.includes(s2) || s2.includes(s1);
+
+    // CRITICAL: Trusts and Trustees are distinct entities.
+    // If one name is mostly about FIDEICOMISO and the other about S.A./SRL, they are different.
+    const isTrust1 = s1.includes("FIDEICOMISO");
+    const isTrust2 = s2.includes("FIDEICOMISO");
+    if (isTrust1 !== isTrust2) return false;
+
+    // Special case for Trusts: They must share the specific identifier (e.g. "G-4")
+    if (isTrust1 && isTrust2) {
+        const trustIds1 = t1.filter(t => t.length <= 5 && /\d/.test(t)); // Match things like G-4
+        const trustIds2 = t2.filter(t => t.length <= 5 && /\d/.test(t));
+        if (trustIds1.length > 0 && trustIds2.length > 0) {
+            if (!trustIds1.some(id => trustIds2.includes(id))) return false;
+        }
+    }
 
     const set2 = new Set(t2);
     const intersection = t1.filter(t => set2.has(t));
     const matchCount = intersection.length;
     const minTokens = Math.min(t1.length, t2.length);
 
+    // Stricter matching for companies and trusts
+    if (isTrust1 || s1.includes(" S A") || s1.includes(" SOCIEDAD") || s2.includes(" S A") || s2.includes(" SOCIEDAD")) {
+        // Companies must share at least 2 tokens (e.g. "SOMAJOFA" + "SRL") or be exact sub-matches
+        return matchCount >= Math.max(2, minTokens);
+    }
+
+    // For persons, 2 tokens (First + Last) usually suffices
     return matchCount >= minTokens && matchCount > 0;
 }
 
@@ -330,12 +347,13 @@ function normalizeAIData(raw: any) {
     // Helper to resolve an entity name from the raw AI object (string or object)
     const resolveName = (src: any): string | null => {
         if (!src) return null;
-        if (typeof src === 'string') return src;
-        return src.nombre || src.nombre_completo || src.valor || null;
+        if (typeof src === 'string') return src.trim();
+        // Use extractString which is already recursive and handles .valor, .nombre, etc.
+        return extractString(src);
     };
 
-    const cedenteName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cedente) || raw.cesion_beneficiario.cedente_nombre : null;
-    const cesionarioName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cesionario) || raw.cesion_beneficiario.cesionario_nombre : null;
+    const cedenteName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cedente) || extractString(raw.cesion_beneficiario.cedente_nombre) : null;
+    const cesionarioName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cesionario) || extractString(raw.cesion_beneficiario.cesionario_nombre) : null;
 
     let allClients: any[] = [];
     if (raw.entidades && Array.isArray(raw.entidades)) {
