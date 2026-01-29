@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
     LayoutDashboard,
     FolderKanban,
@@ -31,9 +31,16 @@ const baseMenuItems = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const router = useRouter();
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
+
+    const handleNavigation = (href: string) => {
+        setIsMobileOpen(false);
+        router.push(href);
+        router.refresh();
+    };
 
     React.useEffect(() => {
         const checkAdmin = async () => {
@@ -108,20 +115,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         {menuItems.map((item) => {
                             const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
                             return (
-                                <Link
+                                <button
                                     key={item.href}
-                                    href={item.href}
+                                    onClick={() => handleNavigation(item.href)}
                                     className={cn(
-                                        "flex items-center gap-3 px-3 py-2 rounded-md transition-colors group",
+                                        "w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors group",
                                         isActive
                                             ? "bg-primary text-primary-foreground shadow-sm"
                                             : "text-slate-600 hover:bg-slate-100"
                                     )}
-                                    onClick={() => setIsMobileOpen(false)}
                                 >
                                     <item.icon size={20} className={cn("shrink-0", isActive ? "" : "group-hover:text-primary")} />
                                     {!isCollapsed && <span className="font-medium whitespace-nowrap">{item.name}</span>}
-                                </Link>
+                                </button>
                             );
                         })}
                     </nav>

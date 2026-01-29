@@ -287,7 +287,8 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
         if (res.success) {
             toast.success("Carpeta eliminada correctamente");
-            router.push("/dashboard");
+            router.push("/carpetas");
+            router.refresh();
         } else {
             toast.error(res.error || "Error al eliminar la carpeta");
         }

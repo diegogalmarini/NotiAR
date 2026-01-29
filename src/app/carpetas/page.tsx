@@ -15,6 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function CarpetasPage() {
     const { data: carpetas, error } = await supabase
         .from("carpetas")
