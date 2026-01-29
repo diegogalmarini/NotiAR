@@ -23,6 +23,19 @@ export const maxDuration = 300;
 
 // --- HELPERS ---
 
+// Helper for loose name matching (ignoring order and commas)
+function looseNameMatch(n1: string, n2: string): boolean {
+    const normalize = (s: string) => (s || "").toUpperCase()
+        .replace(/[,.]/g, "")
+        .split(/\s+/)
+        .filter(t => t.length > 1)
+        .sort()
+        .join(" ");
+    const nom1 = normalize(n1);
+    const nom2 = normalize(n2);
+    return (nom1.includes(nom2) || nom2.includes(nom1)) && nom1.length > 0 && nom2.length > 0;
+}
+
 function extractString(val: any, joinWithComma: boolean = true): string | null {
     if (val === null || val === undefined) return null;
     if (typeof val === 'string') {
@@ -290,15 +303,16 @@ function normalizeAIData(raw: any) {
                 cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || null,
                 cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
                 cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || null,
-                cesionario_dni: src.cesionario?.dni || null,
+                cesionario_dni: (typeof src.cesionario === 'object' ? (src.cesionario?.dni || src.cesionario?.id) : null) || src.cesionario_dni || null,
                 precio_cesion: (src.precio_cesion?.monto || src.precio?.monto || src.precio || null),
                 moneda_cesion: (src.precio_cesion?.moneda || src.moneda || src.precio?.moneda || null),
                 fecha_cesion: src.fecha_cesion || src.fecha || null
             };
         })() : null
     };
+
+    let allClients: any[] = [];
     if (raw.entidades && Array.isArray(raw.entidades)) {
-        const allClients: any[] = [];
         raw.entidades.forEach((e: any) => {
             const d = e.datos || {};
             const rawCuit = d.cuit_cuil?.valor?.toString()?.replace(/\D/g, '') || '';
@@ -334,15 +348,8 @@ function normalizeAIData(raw: any) {
                         const trusteePart = parts.find(p => !p.toUpperCase().includes('FIDEICOMISO')) || "";
 
                         if (fideicomisoPart && trusteePart) {
-                            console.log(`[PIPELINE] Splitting combined entity by parenthesis: Trust="${fideicomisoPart}", Trustee="${trusteePart}"`);
                             rawNombre = fideicomisoPart.trim();
-
-                            // Correctly check if the trustee is already added as a card
-                            const trusteeExists = allClients.some((ent: any) =>
-                                ent.nombre_completo.toUpperCase().includes(trusteePart.toUpperCase())
-                            );
-
-                            if (!trusteeExists) {
+                            if (!allClients.some((ent: any) => looseNameMatch(ent.nombre_completo, trusteePart))) {
                                 allClients.push({
                                     rol: 'FIDUCIARIA',
                                     tipo_persona: 'JURIDICA',
@@ -355,39 +362,39 @@ function normalizeAIData(raw: any) {
                         }
                     }
                 } else {
-                    // Case 2: Concatenated text without parenthesis
                     for (const indicator of trusteeIndicators) {
                         const index = upperNombre.indexOf(indicator);
                         if (index !== -1) {
-                            // Determine if trustee is at start or end
-                            let trusteeName = "";
-                            if (index < 15) { // Trustee at START: "Trustee S.A. Administrado por Fideicomiso..."
-                                // This case is rarer in raw strings but happens
-                                // For now, let's prioritize the most common pattern found in 103.pdf
-                            } else { // Trustee at END: "Fideicomiso G-4 SOMAJOFA S.A."
-                                trusteeName = rawNombre.substring(index).trim();
-                                rawNombre = rawNombre.substring(0, index).trim();
+                            let trusteeName = rawNombre.substring(index).trim();
+                            rawNombre = rawNombre.substring(0, index).trim();
 
-                                if (rawNombre.toUpperCase().endsWith(' POR')) {
-                                    rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
-                                }
-
-                                const trusteeExists = allClients.some((ent: any) =>
-                                    ent.nombre_completo.toUpperCase().includes(trusteeName.toUpperCase())
-                                );
-
-                                if (!trusteeExists) {
-                                    allClients.push({
-                                        rol: 'FIDUCIARIA',
-                                        tipo_persona: 'JURIDICA',
-                                        nombre_completo: trusteeName,
-                                        cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
-                                        cuit_tipo: 'CUIT',
-                                        cuit_is_formal: true
-                                    });
-                                }
-                                break;
+                            // Cleanup trailing vendor names leaked into Trust name
+                            if (rawNombre.toUpperCase().endsWith(' POR')) {
+                                rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
                             }
+
+                            // Further cleanup if the trust name ends with a capitalized word that sounds like part of the trustee
+                            // e.g. "Fideicomiso G-4 SOMAJOFA S.A." -> split at "S.A." -> rawNom="... SOMAJOFA"
+                            const parts = rawNombre.split(/\s+/);
+                            if (parts.length > 2) {
+                                const lastWord = parts[parts.length - 1];
+                                if (lastWord && lastWord === lastWord.toUpperCase() && lastWord.length > 3) {
+                                    trusteeName = lastWord + " " + trusteeName;
+                                    rawNombre = parts.slice(0, -1).join(" ").trim();
+                                }
+                            }
+
+                            if (!allClients.some((ent: any) => looseNameMatch(ent.nombre_completo, trusteeName))) {
+                                allClients.push({
+                                    rol: 'FIDUCIARIA',
+                                    tipo_persona: 'JURIDICA',
+                                    nombre_completo: trusteeName,
+                                    cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
+                                    cuit_tipo: 'CUIT',
+                                    cuit_is_formal: true
+                                });
+                            }
+                            break;
                         }
                     }
                 }
@@ -449,23 +456,27 @@ function normalizeAIData(raw: any) {
 
             // REFINEMENT: If this person is the Cedente or Cesionario mentioned in fiduciary data, use that rol
             if (raw.cesion_beneficiario) {
-                const name = mainClient.nombre_completo.toUpperCase();
-                if (raw.cesion_beneficiario.cedente?.nombre?.toUpperCase().includes(name) ||
-                    name.includes(String(raw.cesion_beneficiario.cedente?.nombre || "").toUpperCase())) {
+                const name = mainClient.nombre_completo;
+                const cedente = raw.cesion_beneficiario.cedente_nombre || raw.cesion_beneficiario.cedente?.nombre;
+                const cesionario = raw.cesion_beneficiario.cesionario_nombre || raw.cesion_beneficiario.cesionario?.nombre;
+
+                if (cedente && looseNameMatch(name, cedente)) {
                     mainClient.rol = 'CEDENTE';
-                } else if (raw.cesion_beneficiario.cesionario?.nombre?.toUpperCase().includes(name) ||
-                    name.includes(String(raw.cesion_beneficiario.cesionario?.nombre || "").toUpperCase())) {
+                } else if (cesionario && looseNameMatch(name, cesionario)) {
                     mainClient.rol = 'CESIONARIO';
                 }
             }
 
-            allClients.push(mainClient);
+            // DEDUPLICATION: Avoid adding the same person twice within entities
+            if (!allClients.some(cl => looseNameMatch(cl.nombre_completo, mainClient.nombre_completo))) {
+                allClients.push(mainClient);
+            }
 
-            // Flatten Representatives (e.g. Norman Giralde)
+            // Flatten Representatives (e.g. Pablo Alejandro Laura)
             if (e.representacion?.representantes && Array.isArray(e.representacion.representantes)) {
                 e.representacion.representantes.forEach((rep: any) => {
                     const repNombre = extractString(rep.nombre) || 'Desconocido';
-                    allClients.push({
+                    const repObj = {
                         rol: 'APODERADO/REPRESENTANTE',
                         caracter: `lo hace en nombre y representación de ${mainClient.nombre_completo}`,
                         tipo_persona: 'FISICA',
@@ -483,7 +494,10 @@ function normalizeAIData(raw: any) {
                         fecha_nacimiento: extractString(rep.fecha_nacimiento) || null,
                         domicilio_real: (rep.domicilio?.valor || rep.domicilio) ? { literal: extractString(rep.domicilio?.valor || rep.domicilio) } : null,
                         estado_civil: extractString(rep.estado_civil) || null
-                    });
+                    };
+                    if (!allClients.some(cl => looseNameMatch(cl.nombre_completo, repNombre))) {
+                        allClients.push(repObj);
+                    }
                 });
             }
         });
@@ -610,7 +624,7 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
     if (aiData.cesion_beneficiario) {
         const { cedente_nombre, cesionario_nombre, cesionario_dni } = aiData.cesion_beneficiario;
 
-        if (cedente_nombre && !clientes.some((cl: any) => cl.nombre_completo.toUpperCase().includes(cedente_nombre.toUpperCase()))) {
+        if (cedente_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, cedente_nombre))) {
             clientes.push({
                 rol: 'CEDENTE',
                 nombre_completo: cedente_nombre,
@@ -620,7 +634,7 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
             });
         }
 
-        if (cesionario_nombre && !clientes.some((cl: any) => cl.nombre_completo.toUpperCase().includes(cesionario_nombre.toUpperCase()))) {
+        if (cesionario_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, cesionario_nombre))) {
             clientes.push({
                 rol: 'CESIONARIO',
                 nombre_completo: cesionario_nombre,
