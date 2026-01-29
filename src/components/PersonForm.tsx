@@ -231,7 +231,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     </Label>
                     <Input
                         required
-                        value={formData.nombre_completo}
+                        value={formData.nombre_completo || ''}
                         onChange={(e) => setFormData({ ...formData, nombre_completo: e.target.value })}
                         placeholder="Ej: BANCO DE GALICIA Y BUENOS AIRES S.A.U."
                         className="font-bold"
@@ -244,7 +244,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <div className="space-y-2">
                         <Label>DNI</Label>
                         <Input
-                            value={formData.dni}
+                            value={formData.dni || ''}
                             onChange={e => setFormData({ ...formData, dni: e.target.value })}
                             placeholder="DNI"
                         />
@@ -272,7 +272,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         </div>
                     </div>
                     <Input
-                        value={formData.cuit}
+                        value={formData.cuit || ''}
                         onChange={e => handleCuitChange(e.target.value)}
                         placeholder={(formData.cuit_tipo || 'CUIT') + " (Sin guiones)"}
                     />
@@ -296,7 +296,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <div className="space-y-2">
                         <Label>Nacionalidad</Label>
                         <Input
-                            value={formData.nacionalidad}
+                            value={formData.nacionalidad || ''}
                             onChange={e => setFormData({ ...formData, nacionalidad: e.target.value })}
                         />
                     </div>
@@ -304,7 +304,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         <Label>Fecha Nacimiento</Label>
                         <Input
                             type="date"
-                            value={formData.fecha_nacimiento}
+                            value={formData.fecha_nacimiento || ''}
                             onChange={e => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
                         />
                     </div>
@@ -323,7 +323,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
             <div className="space-y-2">
                 <Label>{tipoPersona === 'JURIDICA' ? 'Domicilio Legal / Fiscal' : 'Domicilio Real'}</Label>
                 <Input
-                    value={formData.domicilio_real}
+                    value={formData.domicilio_real || ''}
                     onChange={e => setFormData({ ...formData, domicilio_real: e.target.value })}
                     placeholder="Calle, Nro, Ciudad..."
                 />
@@ -334,7 +334,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <Label>Email</Label>
                     <Input
                         type="email"
-                        value={formData.email}
+                        value={formData.email || ''}
                         onChange={e => setFormData({ ...formData, email: e.target.value })}
                         placeholder="email@ejemplo.com"
                     />
@@ -343,7 +343,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                     <Label>Teléfono</Label>
                     <Input
                         type="tel"
-                        value={formData.telefono}
+                        value={formData.telefono || ''}
                         onChange={e => setFormData({ ...formData, telefono: e.target.value })}
                         placeholder="Cod. Área + Número"
                     />
@@ -358,7 +358,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                             <Label>Estado Civil (Detalle)</Label>
                             <Textarea
                                 rows={3}
-                                value={formData.estado}
+                                value={formData.estado || ''}
                                 onChange={e => setFormData({ ...formData, estado: e.target.value })}
                                 placeholder="Ej: Casado en primeras nupcias con..."
                                 className="resize-none"
@@ -367,7 +367,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         <div className="space-y-2">
                             <Label>Filiación (Padres)</Label>
                             <Input
-                                value={formData.padres}
+                                value={formData.padres || ''}
                                 onChange={e => setFormData({ ...formData, padres: e.target.value })}
                                 placeholder="Hijo de [Padre] y de [Madre]"
                             />
@@ -375,7 +375,7 @@ export function PersonForm({ initialData, onSuccess, onCancel }: PersonFormProps
                         <div className="space-y-2">
                             <Label>Cónyuge (Nombre)</Label>
                             <Input
-                                value={formData.conyuge}
+                                value={formData.conyuge || ''}
                                 onChange={e => setFormData({ ...formData, conyuge: e.target.value })}
                                 onBlur={(e) => {
                                     const formatted = formatPersonName(e.target.value);
