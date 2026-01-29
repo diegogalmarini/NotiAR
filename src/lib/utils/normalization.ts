@@ -49,13 +49,9 @@ export function formatPersonName(fullname: string | null | undefined): string {
 
     const parts = fullname.trim().split(/\s+/);
     if (parts.length >= 2) {
-        // "Juan Carlos Perez" -> "Juan Carlos PEREZ"
-        // Solo capitalizamos el ÚLTIMO término si no hay coma, para evitar "Norman ROBERTO Giralde"
-        const last = parts.pop()?.toUpperCase();
+        const last = parts.pop()!.toUpperCase();
         return `${parts.join(" ")} ${last}`;
     }
-
-    return fullname.toUpperCase();
 
     return fullname.toUpperCase();
 }
