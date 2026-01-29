@@ -62,6 +62,12 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
+    // ✅ FIX: Redirect already logged in users away from /login
+    if (user && pathname === '/login') {
+        console.log(`[MW] REDIRECT: User ${user.email} already logged in. Sending to /dashboard`);
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+
     if (!user && !isPublicRoute) {
         console.warn(`[MW] NO USER found for ${pathname}. Redirecting to /login`);
         const url = request.nextUrl.clone()
@@ -69,19 +75,19 @@ export async function middleware(request: NextRequest) {
         url.searchParams.set('redirectTo', pathname)
 
         const redirectResponse = NextResponse.redirect(url)
-        // transfer any cookies (like CSRF or newly cleared ones)
-        supabaseResponse.cookies.getAll().forEach(c => {
-            console.log(`[MW] Propagating cookie to redirect: ${c.name}`);
+
+        // Propagate cookies to the redirect response
+        const respCookies = supabaseResponse.cookies.getAll();
+        console.log(`[MW] Propagating ${respCookies.length} cookies to redirect...`);
+        respCookies.forEach(c => {
+            console.log(`[MW] -> ${c.name}`);
             redirectResponse.cookies.set(c.name, c.value, c);
         });
+
         return redirectResponse
     }
 
     if (user) {
-        if (pathname === '/login') {
-            console.log(`[MW] ALREADY AUTHENTICATED: ${user.email}. Sending to /dashboard`);
-            return NextResponse.redirect(new URL('/dashboard', request.url));
-        }
         console.log(`[MW] AUTH OK: ${user.email} at ${pathname}`);
     }
 
