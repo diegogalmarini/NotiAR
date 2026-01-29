@@ -9,6 +9,7 @@ export async function createPersona(formData: {
     nombre_completo: string;
     dni: string;
     email?: string;
+    telefono?: string;
     cuit?: string;
     cuit_tipo?: string;
     cuit_is_formal?: boolean;
@@ -63,6 +64,7 @@ export async function updatePersona(dni: string, formData: {
     nombre_conyuge?: string;
     domicilio?: string;
     email?: string;
+    telefono?: string;
     dni?: string;
     cuit?: string;
     cuit_tipo?: string;
