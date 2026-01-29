@@ -25,15 +25,24 @@ export const maxDuration = 300;
 
 // Helper for loose name matching (ignoring order and commas)
 function looseNameMatch(n1: string, n2: string): boolean {
-    const normalize = (s: string) => (s || "").toUpperCase()
+    if (!n1 || !n2) return false;
+    const getTokens = (s: string) => (s || "").toUpperCase()
         .replace(/[,.]/g, "")
         .split(/\s+/)
-        .filter(t => t.length > 1)
-        .sort()
-        .join(" ");
-    const nom1 = normalize(n1);
-    const nom2 = normalize(n2);
-    return (nom1.includes(nom2) || nom2.includes(nom1)) && nom1.length > 0 && nom2.length > 0;
+        .filter(t => t.length > 2);
+    const t1 = getTokens(n1);
+    const t2 = getTokens(n2);
+    if (t1.length === 0 || t2.length === 0) return false;
+
+    const set1 = new Set(t1);
+    const set2 = new Set(t2);
+
+    // Match if one set of tokens is a subset of the other or mostly same
+    const intersection = t1.filter(t => set2.has(t));
+    const matchCount = intersection.length;
+    const minTokens = Math.min(t1.length, t2.length);
+
+    return matchCount >= minTokens && matchCount > 0;
 }
 
 function extractString(val: any, joinWithComma: boolean = true): string | null {
@@ -466,10 +475,17 @@ function normalizeAIData(raw: any) {
                     mainClient.rol = 'CESIONARIO';
                 }
 
-                // EMERGENCY FORCE: If AI gave a different role but the name is an exact match for cedente/cesionario
+                // SECONDARY FORCE: Exact substring match for common variations
                 const upperName = name.toUpperCase();
-                if (cedente?.toUpperCase().includes(upperName) || upperName.includes(cedente?.toUpperCase() || "")) {
+                const upperCedente = (typeof cedente === 'string' ? cedente : cedente?.nombre || "").toUpperCase();
+                const upperCesionario = (typeof cesionario === 'string' ? cesionario : cesionario?.nombre || "").toUpperCase();
+
+                if (upperCedente && (upperCedente.includes(upperName) || upperName.includes(upperCedente))) {
+                    console.log(`[PIPELINE] Role force (Cedente): ${upperName} matches ${upperCedente}`);
                     mainClient.rol = 'CEDENTE';
+                } else if (upperCesionario && (upperCesionario.includes(upperName) || upperName.includes(upperCesionario))) {
+                    console.log(`[PIPELINE] Role force (Cesionario): ${upperName} matches ${upperCesionario}`);
+                    mainClient.rol = 'CESIONARIO';
                 }
             }
 
