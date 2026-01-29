@@ -123,7 +123,7 @@ function LoginForm() {
                         />
                     </div>
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? "Iniciando..." : "INICIAR SESIÓN (PRUEBA LOCAL)"}
+                        {loading ? "Iniciando..." : "INICIAR SESIÓN"}
                     </Button>
                 </form>
 
