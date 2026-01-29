@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
     }
 
     // No code = Implicit flow (hash-based tokens)
-    // Redirect to client-side page that will handle hash params
     console.log('[CALLBACK] No code found - redirecting to client handler for implicit flow');
     return NextResponse.redirect(`${origin}/auth/callback-client?redirectTo=${encodeURIComponent(redirectTo)}`);
 }
