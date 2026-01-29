@@ -58,7 +58,8 @@ function LoginForm() {
     };
 
     const handleGoogleLogin = async () => {
-        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\/$/, "");
+        // Use browser origin directly to avoid env mismatches in production
+        const siteUrl = typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, "");
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {

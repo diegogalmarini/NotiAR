@@ -88,10 +88,14 @@ export async function middleware(req: NextRequest) {
     // Redirect to login if not authenticated
     if (!session) {
         console.log('[MIDDLEWARE] No session, redirecting to login');
-        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin).replace(/\/$/, "");
-        const redirectUrl = new URL(`${siteUrl}/login`, req.url);
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = '/login';
         redirectUrl.searchParams.set('redirectTo', pathname);
-        return NextResponse.redirect(redirectUrl);
+
+        // Final response must carry cookie updates (if any from getSession)
+        const redirectResponse = NextResponse.redirect(redirectUrl);
+        response.cookies.getAll().forEach(c => redirectResponse.cookies.set(c.name, c.value));
+        return redirectResponse;
     }
 
     const userEmail = session.user.email || '';
@@ -117,8 +121,11 @@ export async function middleware(req: NextRequest) {
 
         if (profileError || !profile || profile.role !== 'admin' || profile.approval_status !== 'approved') {
             console.log('[MIDDLEWARE] Not an approved admin, blocking admin route:', { profile, error: profileError });
-            const redirectUrl = new URL('/unauthorized', req.url);
-            return NextResponse.redirect(redirectUrl);
+            const redirectUrl = req.nextUrl.clone();
+            redirectUrl.pathname = '/unauthorized';
+            const unauthorizedResponse = NextResponse.redirect(redirectUrl);
+            response.cookies.getAll().forEach(c => unauthorizedResponse.cookies.set(c.name, c.value));
+            return unauthorizedResponse;
         }
 
         console.log('[MIDDLEWARE] Admin role confirmed, allowing access');
@@ -136,15 +143,21 @@ export async function middleware(req: NextRequest) {
     // If profile doesn't exist or error, redirect to pending page
     if (profileError || !profile) {
         console.log('[MIDDLEWARE] Profile not found or error, redirecting to pending');
-        const redirectUrl = new URL('/pending-approval', req.url);
-        return NextResponse.redirect(redirectUrl);
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = '/pending-approval';
+        const pendingResponse = NextResponse.redirect(redirectUrl);
+        response.cookies.getAll().forEach(c => pendingResponse.cookies.set(c.name, c.value));
+        return pendingResponse;
     }
 
     // Check approval status
     if (profile.approval_status !== 'approved') {
         console.log('[MIDDLEWARE] User not approved, status:', profile.approval_status);
-        const redirectUrl = new URL(profile.approval_status === 'rejected' ? '/unauthorized' : '/pending-approval', req.url);
-        return NextResponse.redirect(redirectUrl);
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = profile.approval_status === 'rejected' ? '/unauthorized' : '/pending-approval';
+        const notApprovedResponse = NextResponse.redirect(redirectUrl);
+        response.cookies.getAll().forEach(c => notApprovedResponse.cookies.set(c.name, c.value));
+        return notApprovedResponse;
     }
 
     console.log('[MIDDLEWARE] User approved, allowing access');
