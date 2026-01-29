@@ -26,8 +26,19 @@ export async function createFichaToken(personaId: string) {
 
         if (error) throw error;
 
-        // Build the full URL (In production we should use the actual domain)
-        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        // Build the full URL dynamically or fallback to production
+        let baseUrl = "https://noti-ar.vercel.app";
+        try {
+            const { headers } = await import("next/headers");
+            const headersList = await headers();
+            const host = headersList.get("host");
+            if (host) {
+                const protocol = host.includes("localhost") ? "http" : "https";
+                baseUrl = `${protocol}://${host}`;
+            }
+        } catch (e) {
+            console.warn("Using fallback URL for ficha token");
+        }
         const url = `${baseUrl}/ficha/${token}`;
 
         return { success: true, url };

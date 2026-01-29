@@ -96,7 +96,7 @@ export async function generateFichaLink(personaId: string) {
         if (error) throw error;
 
         // Use the current host from headers for total reliability
-        let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || 'https://noti-ar.vercel.app';
+        let baseUrl = 'https://noti-ar.vercel.app';
 
         try {
             const { headers } = await import('next/headers');
@@ -107,7 +107,7 @@ export async function generateFichaLink(personaId: string) {
                 baseUrl = `${protocol}://${host}`;
             }
         } catch (e) {
-            // Fallback to env vars if headers() fails
+            // Fallback used only if headers fail
             console.warn("Could not get host from headers, using fallback:", baseUrl);
         }
 
