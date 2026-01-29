@@ -128,7 +128,7 @@ export class SkillExecutor {
 5. **FIDEICOMISOS Y CESIONES (CRÍTICO):** En fideicomisos al costo, extrae AMBOS precios:
    - \`precio_construccion\` (ARS, monto bajo).
    - \`precio_cesion\` (USD, monto alto).
-   - Extrae los datos de la cesión en \`cesion_beneficiario\`, identificando al CEDENTE (quien vende el derecho) y al CESIONARIO (quien lo compra).
+   - Extrae los datos de la cesión en \`cesion_beneficiario\`, identificando al CEDENTE (quien vende el derecho) y al CESIONARIO (quien lo compra). **CRÍTICO:** Asegúrate de asignar los roles \`CEDENTE\` y \`CESIONARIO\` en el array de \`entidades\` para estas personas.
 6. **INMUEBLES (TRANSCRIPCIÓN):** El campo 'transcripcion_literal' debe ser UNA COPIA EXACTA, PALABRA POR PALABRA. Comienza desde la ubicación ("UNIDAD FUNCIONAL... que es parte del edificio...") hasta el final de medidas. NO RESUMAS. NO EXTRAIGAS SOLO POLIGONOS.
 7. **FALTANTES:** Busca en todo el documento. Si falta un CUIT, no inventes, pero asegúrate de que no esté en la foja de firmas.
 

@@ -231,10 +231,16 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
                 const isUva = mortgageDetails?.financial_terms?.capital?.currency === 'UVA';
                 const uvaRate = mortgageDetails?.financial_terms?.uva_quoted?.valor || 1;
 
+                // Priority: Use ARS equivalent if available for correct tax calculation
+                const calcPrice = normEntities.operation_details?.equivalente_ars_cesion ||
+                    (isUva ? mortgageDetails?.financial_terms?.capital?.valor : (normEntities.operation_details?.price || 0));
+                const calcCurrency = normEntities.operation_details?.equivalente_ars_cesion ? 'ARS' :
+                    (isUva ? 'UVA' : (normEntities.operation_details?.currency || 'USD'));
+
                 const taxes = await SkillExecutor.execute('notary-tax-calculator', undefined, {
-                    price: isUva ? mortgageDetails?.financial_terms?.capital?.valor : (normEntities.operation_details?.price || 0),
-                    currency: isUva ? 'UVA' : (normEntities.operation_details?.currency || 'USD'),
-                    exchangeRate: isUva ? uvaRate : 1 // Logic will handle USD conversion separately if needed, for UVA we pass the rate here
+                    price: calcPrice,
+                    currency: calcCurrency,
+                    exchangeRate: isUva ? uvaRate : 1
                 });
 
                 const compliance = await SkillExecutor.execute('notary-uif-compliance', undefined, {
@@ -440,6 +446,19 @@ function normalizeAIData(raw: any) {
                     cuit: extractString(d.conyuge.cuit_cuil) || null
                 } : null
             };
+
+            // REFINEMENT: If this person is the Cedente or Cesionario mentioned in fiduciary data, use that rol
+            if (raw.cesion_beneficiario) {
+                const name = mainClient.nombre_completo.toUpperCase();
+                if (raw.cesion_beneficiario.cedente?.nombre?.toUpperCase().includes(name) ||
+                    name.includes(String(raw.cesion_beneficiario.cedente?.nombre || "").toUpperCase())) {
+                    mainClient.rol = 'CEDENTE';
+                } else if (raw.cesion_beneficiario.cesionario?.nombre?.toUpperCase().includes(name) ||
+                    name.includes(String(raw.cesion_beneficiario.cesionario?.nombre || "").toUpperCase())) {
+                    mainClient.rol = 'CESIONARIO';
+                }
+            }
+
             allClients.push(mainClient);
 
             // Flatten Representatives (e.g. Norman Giralde)
