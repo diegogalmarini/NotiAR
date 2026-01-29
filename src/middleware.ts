@@ -27,7 +27,13 @@ export async function middleware(request: NextRequest) {
         PUBLIC_ROUTE_PATTERNS.some(pattern => pattern.test(pathname));
 
     // verbose log for production diagnostics
-    console.log(`[MW] Request: ${pathname} | Cookies: ${request.cookies.getAll().length}`);
+    const allCookies = request.cookies.getAll();
+    console.log(`[MW] Request: ${pathname} | Total Cookies: ${allCookies.length}`);
+    allCookies.forEach(c => {
+        if (c.name.includes('sb-')) {
+            console.log(`[MW] Cookie FOUND: ${c.name} | Length: ${c.value.length}`);
+        }
+    });
 
     let supabaseResponse = NextResponse.next({
         request,
