@@ -1211,7 +1211,7 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
 
                                     {/* Extracted Data */}
                                     <div className="space-y-2">
-                                        <p className="text-[10px] uppercase font-bold text-blue-400">Dato Nuevo (Extraído de {file?.name || 'Documento'})</p>
+                                        <p className="text-[10px] uppercase font-bold text-blue-400">Dato Nuevo (Extraído de Documento Analizado)</p>
                                         <div className="p-3 bg-blue-50/30 border border-blue-200 rounded-lg text-xs ring-2 ring-blue-500/20">
                                             {conflict.type === 'PERSONA' ? (
                                                 <div className="space-y-1">
