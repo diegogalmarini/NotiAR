@@ -60,7 +60,7 @@ export function isLegalEntity(persona: any): boolean {
     if (!persona) return false;
     if (persona.tipo_persona === 'JURIDICA') return true;
 
-    const cuit = (persona.cuit_cuil || persona.cuit)?.toString().replace(/\D/g, '') || '';
+    const cuit = (persona.cuit_cuil || persona.cuit)?.toString()?.replace(/\D/g, '') || '';
     // Argentinian CUIT/CUIL prefixes for legal entities: 30, 33, 34
     return ['30', '33', '34'].some(prefix => cuit.startsWith(prefix));
 }

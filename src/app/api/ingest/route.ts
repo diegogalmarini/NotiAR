@@ -291,7 +291,7 @@ function normalizeAIData(raw: any) {
         const allClients: any[] = [];
         raw.entidades.forEach((e: any) => {
             const d = e.datos || {};
-            const rawCuit = d.cuit_cuil?.valor?.toString().replace(/\D/g, '') || '';
+            const rawCuit = d.cuit_cuil?.valor?.toString()?.replace(/\D/g, '') || '';
 
             // Detect FIDEICOMISO as separate entity type
             const isFideicomiso = e.tipo_entidad === 'FIDEICOMISO' ||
@@ -349,7 +349,7 @@ function normalizeAIData(raw: any) {
             // DEDUPLICATION: If this person is already listed in representatives, skip as separate card
             // unless they are also a principal party (complex case, but usually AI gets confused)
             const isDuplicateOfRep = raw.entidades.some((ent: any) =>
-                ent.representacion?.representantes?.some((r: any) => normalizeID(r.dni) === normalizeID(d.dni))
+                ent.representacion?.representantes?.some((r: any) => normalizeID(String(r.dni || "")) === normalizeID(String(d.dni || "")))
             );
             if (isDuplicateOfRep && e.rol !== 'APODERADO/REPRESENTANTE') {
                 console.log(`[PIPELINE] Skipping entity ${rawNombre} as it is already a representative.`);
