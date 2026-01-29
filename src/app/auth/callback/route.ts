@@ -39,9 +39,6 @@ export async function GET(request: NextRequest) {
                             name,
                             value,
                             ...options,
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
                         });
                     },
                     remove(name: string, options: CookieOptions) {
@@ -49,10 +46,6 @@ export async function GET(request: NextRequest) {
                             name,
                             value: '',
                             ...options,
-                            httpOnly: true,
-                            secure: process.env.NODE_ENV === 'production',
-                            sameSite: 'lax',
-                            maxAge: 0,
                         });
                     },
                 },

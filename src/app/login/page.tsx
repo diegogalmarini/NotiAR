@@ -58,7 +58,7 @@ function LoginForm() {
     };
 
     const handleGoogleLogin = async () => {
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || window.location.origin).replace(/\/$/, "");
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
