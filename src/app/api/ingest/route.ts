@@ -273,16 +273,16 @@ function normalizeAIData(raw: any) {
             tipo_cambio_cesion: raw.cesion_beneficiario?.precio_cesion?.tipo_cambio || raw.precio_cesion?.tipo_cambio || null,
             equivalente_ars_cesion: raw.cesion_beneficiario?.precio_cesion?.equivalente_ars || raw.precio_cesion?.equivalente_ars || null
         },
-        // Beneficiary assignment (fiduciary operations)
-        cesion_beneficiario: (raw.cesion_beneficiario || raw.cesion || raw.transferencia) ? (() => {
-            const src = raw.cesion_beneficiario || raw.cesion || raw.transferencia;
+        // Beneficiary assignment (fiduciary operations) - supporting multiple naming conventions
+        cesion_beneficiario: (raw.cesion || raw.cesion_beneficiario || raw.transferencia) ? (() => {
+            const src = raw.cesion || raw.cesion_beneficiario || raw.transferencia;
             return {
-                cedente_nombre: src.cedente?.nombre || src.cedente || null,
+                cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || src.cedente || null,
                 cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
-                cesionario_nombre: src.cesionario?.nombre || src.cesionario || null,
+                cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || src.cesionario || null,
                 cesionario_dni: src.cesionario?.dni || null,
-                precio_cesion: (src.precio_cesion?.monto || src.precio?.monto || null),
-                moneda_cesion: (src.precio_cesion?.moneda || src.precio?.moneda || null),
+                precio_cesion: (src.precio?.monto || src.precio || src.precio_cesion?.monto || null),
+                moneda_cesion: (src.moneda || src.precio_cesion?.moneda || null),
                 fecha_cesion: src.fecha_cesion || src.fecha || null
             };
         })() : null
@@ -327,9 +327,9 @@ function normalizeAIData(raw: any) {
                             console.log(`[PIPELINE] Splitting combined entity by parenthesis: Trust="${fideicomisoPart}", Trustee="${trusteePart}"`);
                             rawNombre = fideicomisoPart.trim();
 
-                            // Check if trustee exists
-                            const trusteeExists = raw.entidades.some((ent: any) =>
-                                (ent.datos?.nombre_completo || ent.datos?.razon_social || "").toString().toUpperCase().includes(trusteePart.toUpperCase())
+                            // Correctly check if the trustee is already added as a card
+                            const trusteeExists = allClients.some((ent: any) =>
+                                ent.nombre_completo.toUpperCase().includes(trusteePart.toUpperCase())
                             );
 
                             if (!trusteeExists) {
@@ -362,8 +362,8 @@ function normalizeAIData(raw: any) {
                                     rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
                                 }
 
-                                const trusteeExists = raw.entidades.some((ent: any) =>
-                                    (ent.datos?.nombre_completo || ent.datos?.razon_social || "").toString().toUpperCase().includes(trusteeName.toUpperCase())
+                                const trusteeExists = allClients.some((ent: any) =>
+                                    ent.nombre_completo.toUpperCase().includes(trusteeName.toUpperCase())
                                 );
 
                                 if (!trusteeExists) {
@@ -386,7 +386,8 @@ function normalizeAIData(raw: any) {
             // DEDUPLICATION: If this person is already listed in representatives, skip as separate card
             // unless they are also a principal party (complex case, but usually AI gets confused)
             const isDuplicateOfRep = raw.entidades.some((ent: any) =>
-                ent.representacion?.representantes?.some((r: any) => normalizeID(String(r.dni || "")) === normalizeID(String(d.dni || "")))
+                // BUG FIX: Only deduplicate if DNI is actually present to avoid skipping null-DNI entities
+                ent.representacion?.representantes?.some((r: any) => r.dni && d.dni && normalizeID(String(r.dni)) === normalizeID(String(d.dni)))
             );
             if (isDuplicateOfRep && e.rol !== 'APODERADO/REPRESENTANTE') {
                 console.log(`[PIPELINE] Skipping entity ${rawNombre} as it is already a representative.`);

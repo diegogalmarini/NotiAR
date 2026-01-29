@@ -267,26 +267,34 @@ Si NO aparece:
 
 **Regla de Ubicación**: Los datos del Cedente suelen estar en el "Anexo", "Constancia Notarial" o en los "Incisos" de antecedentes. Aunque no firme la escritura actual, es parte de la operación y debe ser extraído.
 
-### 💰 Estructura JSON Estandarizada para Fideicomisos:
-Para asegurar la extracción, usa **SIEMPRE** estos campos en el raíz:
+### 🚨 REGLA DE ORO PARA CESIONES (Fideicomisos):
+Si el texto menciona una "cesión de beneficios" o "cesión de cuotas":
+1. **CEDENTE**: (Ej: Claudio Wagner) **DEBE** aparecer en el array de `entidades` con `rol: "CEDENTE"`.
+2. **CESIONARIO**: (Ej: Juan Moran) **DEBE** aparecer en el array de `entidades` con `rol: "CESIONARIO"` o "COMPRADOR".
+3. **FIDEICOMISO**: **DEBE** aparecer como entidad separada con `tipo_entidad: "FIDEICOMISO"`.
+
+### 💰 Estructura JSON Estandarizada:
+Usa **SIEMPRE** estos campos exactos si hay una cesión:
 
 ```json
 {
   "precio_cesion": { "monto": 23000, "moneda": "USD", "equivalente_ars": 24943500 },
-  "cesion_beneficiario": {
-    "cedente": { "nombre": "Claudio Wagner", "fecha_incorporacion": "2013-06-05" },
-    "cesionario": { "nombre": "Juan Moran", "dni": "34877009" }
+  "cesion": {
+    "cedente": "Claudio Jorge Wagner",
+    "cesionario": "Juan Francisco Moran",
+    "precio": 23000,
+    "moneda": "USD"
   }
 }
 ```
 
-### 🚨 CASO CRÍTICO (Documento 103.pdf):
-Si el texto dice: *"Claudio Jorge Wagner cedió su condición de beneficiario a favor de Juan Francisco Moran"*.
-- **OBLIGATORIO**: Agregar a Claudio Jorge Wagner al array de `entidades` con `rol: "CEDENTE"`.
-- **OBLIGATORIO**: Separar "SOMAJOFA S.A." (Fiduciaria) de "FIDEICOMISO G-4" (Vendedor).
-
-### ❌ NO COMBINAR NOMBRES:
-No devuelvas nombres como "SOMAJOFA S.A. (FIDEICOMISO G-4)". Devuelve dos objetos separados en el array de entidades.
+### 🚨 CASO 103.PDF (Muestra):
+- **Entidades**:
+  - [X] FIDEICOMISO G-4 (Vendedor)
+  - [X] SOMAJOFA S.A. (Fiduciaria)
+  - [X] Claudio Jorge Wagner (Cedente)
+  - [X] Juan Francisco Moran (Cesionario/Comprador)
+  - [X] Pablo Alejandro LAURA (Representante)
 
 ### Búsqueda en Constancias Notariales
 
