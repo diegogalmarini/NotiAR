@@ -4,8 +4,8 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Super admin emails
 const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 
-// Public routes
 const PUBLIC_ROUTES = [
+    '/',
     '/login',
     '/signup',
     '/auth/callback',
@@ -20,10 +20,8 @@ const PUBLIC_ROUTE_PATTERNS = [
 ];
 
 export async function middleware(request: NextRequest) {
-    let response = NextResponse.next({
-        request: {
-            headers: request.headers,
-        },
+    let supabaseResponse = NextResponse.next({
+        request,
     })
 
     const supabase = createServerClient(
@@ -36,13 +34,11 @@ export async function middleware(request: NextRequest) {
                 },
                 setAll(cookiesToSet) {
                     cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
-                    response = NextResponse.next({
-                        request: {
-                            headers: request.headers,
-                        },
+                    supabaseResponse = NextResponse.next({
+                        request,
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
+                        supabaseResponse.cookies.set(name, value, options)
                     )
                 },
             },
@@ -68,7 +64,7 @@ export async function middleware(request: NextRequest) {
     if (user && !isPublicRoute) {
         const userEmail = user.email || '';
         if (SUPER_ADMIN_EMAILS.includes(userEmail)) {
-            return response;
+            return supabaseResponse;
         }
 
         const { data: profile } = await supabase
@@ -84,7 +80,7 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    return response
+    return supabaseResponse
 }
 
 export const config = {
