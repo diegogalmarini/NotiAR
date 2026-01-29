@@ -4,13 +4,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Super admin emails
 const SUPER_ADMIN_EMAILS = ['diegogalmarini@gmail.com'];
 
-// Public routes
 const PUBLIC_ROUTES = [
     '/',
     '/login',
     '/signup',
     '/auth/callback',
-    '/auth/callback-client',
     '/api/ingest',
     '/api/auth-diag',
     '/pending-approval',
