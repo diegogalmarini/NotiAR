@@ -58,12 +58,18 @@ function LoginForm() {
     };
 
     const handleGoogleLogin = async () => {
-        // ALWAYS use browser origin - never use env variables which might be set to localhost
+        // ALWAYS use browser origin to avoid any environmental mismatches
         const siteUrl = window.location.origin;
+
         const { error } = await supabase.auth.signInWithOAuth({
             provider: "google",
             options: {
                 redirectTo: `${siteUrl}/auth/callback?redirectTo=${redirectTo}`,
+                queryParams: {
+                    access_type: 'offline',
+                    prompt: 'consent',
+                },
+                skipBrowserRedirect: false,
             },
         });
 
