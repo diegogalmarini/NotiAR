@@ -327,6 +327,16 @@ function normalizeAIData(raw: any) {
         })() : null
     };
 
+    // Helper to resolve an entity name from the raw AI object (string or object)
+    const resolveName = (src: any): string | null => {
+        if (!src) return null;
+        if (typeof src === 'string') return src;
+        return src.nombre || src.nombre_completo || src.valor || null;
+    };
+
+    const cedenteName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cedente) || raw.cesion_beneficiario.cedente_nombre : null;
+    const cesionarioName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cesionario) || raw.cesion_beneficiario.cesionario_nombre : null;
+
     let allClients: any[] = [];
     if (raw.entidades && Array.isArray(raw.entidades)) {
         raw.entidades.forEach((e: any) => {
@@ -470,31 +480,13 @@ function normalizeAIData(raw: any) {
                 } : null
             };
 
-            // REFINEMENT: If this person is the Cedente or Cesionario mentioned in fiduciary data, use that rol
-            if (raw.cesion_beneficiario) {
-                const name = mainClient.nombre_completo;
-                const cedente = raw.cesion_beneficiario.cedente_nombre || raw.cesion_beneficiario.cedente?.nombre;
-                const cesionario = raw.cesion_beneficiario.cesionario_nombre || raw.cesion_beneficiario.cesionario?.nombre;
-
-                if (cedente && looseNameMatch(name, (typeof cedente === 'string' ? cedente : (cedente.nombre || "")))) {
-                    console.log(`[PIPELINE] Forcing role CEDENTE for ${name}`);
-                    mainClient.rol = 'CEDENTE';
-                } else if (cesionario && looseNameMatch(name, (typeof cesionario === 'string' ? cesionario : (cesionario.nombre || "")))) {
-                    console.log(`[PIPELINE] Forcing role CESIONARIO for ${name}`);
-                    mainClient.rol = 'CESIONARIO';
-                }
-
-                // SECONDARY SUBSTRING FORCE: If looseNameMatch was too strict, fallback to direct inclusion
-                const upperName = name.toUpperCase();
-                const rawCed = (typeof cedente === 'string' ? cedente : (cedente?.nombre || "")).toUpperCase();
-                const rawCes = (typeof cesionario === 'string' ? cesionario : (cesionario?.nombre || "")).toUpperCase();
-
-                if (mainClient.rol !== 'CEDENTE' && rawCed && (rawCed.includes(upperName) || upperName.includes(rawCed))) {
-                    mainClient.rol = 'CEDENTE';
-                }
-                if (mainClient.rol !== 'CESIONARIO' && rawCes && (rawCes.includes(upperName) || upperName.includes(rawCes))) {
-                    mainClient.rol = 'CESIONARIO';
-                }
+            // PHOSPHOR ROLE FORCING: If this person matches Cedente/Cesionario, their role MUST be updated.
+            if (cedenteName && looseNameMatch(mainClient.nombre_completo, cedenteName)) {
+                console.log(`[PIPELINE] 🚨 FORCING Role: ${mainClient.nombre_completo} -> CEDENTE (Match with ${cedenteName})`);
+                mainClient.rol = 'CEDENTE';
+            } else if (cesionarioName && looseNameMatch(mainClient.nombre_completo, cesionarioName)) {
+                console.log(`[PIPELINE] 🚨 FORCING Role: ${mainClient.nombre_completo} -> CESIONARIO (Match with ${cesionarioName})`);
+                mainClient.rol = 'CESIONARIO';
             }
 
             // DEDUPLICATION: Avoid adding the same person twice within entities
@@ -651,10 +643,21 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     const processedParticipants = new Set<string>();
 
-    // --- STEP: Add Actors from Fiduciary Metadata (if missing from entities) ---
+    // --- STEP: Add/Update Actors from Fiduciary Metadata ---
     if (aiData.cesion_beneficiario) {
         const { cedente_nombre, cesionario_nombre, cesionario_dni } = aiData.cesion_beneficiario;
 
+        // Ensure if they already exist in 'clientes', their role is CEDENTE/CESIONARIO
+        for (let cl of clientes) {
+            if (cedente_nombre && looseNameMatch(cl.nombre_completo, cedente_nombre)) {
+                cl.rol = 'CEDENTE';
+            }
+            if (cesionario_nombre && looseNameMatch(cl.nombre_completo, cesionario_nombre)) {
+                cl.rol = 'CESIONARIO';
+            }
+        }
+
+        // Add if missing
         if (cedente_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, cedente_nombre))) {
             clientes.push({
                 rol: 'CEDENTE',
