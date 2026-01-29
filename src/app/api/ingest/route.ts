@@ -26,18 +26,25 @@ export const maxDuration = 300;
 // Helper for loose name matching (ignoring order and commas)
 function looseNameMatch(n1: string, n2: string): boolean {
     if (!n1 || !n2) return false;
-    const getTokens = (s: string) => (s || "").toUpperCase()
-        .replace(/[,.]/g, "")
+    const s1 = n1.toUpperCase();
+    const s2 = n2.toUpperCase();
+
+    // CRITICAL for legal entities: If one has FIDEICOMISO and the other doesn't, they are NOT the same.
+    const hasTrust1 = s1.includes("FIDEICOMISO");
+    const hasTrust2 = s2.includes("FIDEICOMISO");
+    if (hasTrust1 !== hasTrust2) return false;
+
+    const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL"];
+    const getTokens = (s: string) => s
+        .replace(/[,.]/g, " ")
         .split(/\s+/)
-        .filter(t => t.length > 2);
-    const t1 = getTokens(n1);
-    const t2 = getTokens(n2);
-    if (t1.length === 0 || t2.length === 0) return false;
+        .filter(t => t.length > 2 && !stopWords.includes(t));
 
-    const set1 = new Set(t1);
+    const t1 = getTokens(s1);
+    const t2 = getTokens(s2);
+    if (t1.length === 0 || t2.length === 0) return s1.includes(s2) || s2.includes(s1);
+
     const set2 = new Set(t2);
-
-    // Match if one set of tokens is a subset of the other or mostly same
     const intersection = t1.filter(t => set2.has(t));
     const matchCount = intersection.length;
     const minTokens = Math.min(t1.length, t2.length);
@@ -469,22 +476,23 @@ function normalizeAIData(raw: any) {
                 const cedente = raw.cesion_beneficiario.cedente_nombre || raw.cesion_beneficiario.cedente?.nombre;
                 const cesionario = raw.cesion_beneficiario.cesionario_nombre || raw.cesion_beneficiario.cesionario?.nombre;
 
-                if (cedente && looseNameMatch(name, cedente)) {
+                if (cedente && looseNameMatch(name, (typeof cedente === 'string' ? cedente : (cedente.nombre || "")))) {
+                    console.log(`[PIPELINE] Forcing role CEDENTE for ${name}`);
                     mainClient.rol = 'CEDENTE';
-                } else if (cesionario && looseNameMatch(name, cesionario)) {
+                } else if (cesionario && looseNameMatch(name, (typeof cesionario === 'string' ? cesionario : (cesionario.nombre || "")))) {
+                    console.log(`[PIPELINE] Forcing role CESIONARIO for ${name}`);
                     mainClient.rol = 'CESIONARIO';
                 }
 
-                // SECONDARY FORCE: Exact substring match for common variations
+                // SECONDARY SUBSTRING FORCE: If looseNameMatch was too strict, fallback to direct inclusion
                 const upperName = name.toUpperCase();
-                const upperCedente = (typeof cedente === 'string' ? cedente : cedente?.nombre || "").toUpperCase();
-                const upperCesionario = (typeof cesionario === 'string' ? cesionario : cesionario?.nombre || "").toUpperCase();
+                const rawCed = (typeof cedente === 'string' ? cedente : (cedente?.nombre || "")).toUpperCase();
+                const rawCes = (typeof cesionario === 'string' ? cesionario : (cesionario?.nombre || "")).toUpperCase();
 
-                if (upperCedente && (upperCedente.includes(upperName) || upperName.includes(upperCedente))) {
-                    console.log(`[PIPELINE] Role force (Cedente): ${upperName} matches ${upperCedente}`);
+                if (mainClient.rol !== 'CEDENTE' && rawCed && (rawCed.includes(upperName) || upperName.includes(rawCed))) {
                     mainClient.rol = 'CEDENTE';
-                } else if (upperCesionario && (upperCesionario.includes(upperName) || upperName.includes(upperCesionario))) {
-                    console.log(`[PIPELINE] Role force (Cesionario): ${upperName} matches ${upperCesionario}`);
+                }
+                if (mainClient.rol !== 'CESIONARIO' && rawCes && (rawCes.includes(upperName) || upperName.includes(rawCes))) {
                     mainClient.rol = 'CESIONARIO';
                 }
             }
@@ -524,6 +532,7 @@ function normalizeAIData(raw: any) {
             }
         });
         normalized.clientes = allClients;
+        console.log(`[NORMALIZE] Final Clients Count: ${allClients.length}`, allClients.map(c => `${c.nombre_completo} (${c.rol})`));
     }
     if (raw.inmuebles && Array.isArray(raw.inmuebles)) {
         normalized.inmuebles = raw.inmuebles.map((i: any) => ({
