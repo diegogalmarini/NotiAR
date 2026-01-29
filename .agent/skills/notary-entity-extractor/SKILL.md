@@ -2,7 +2,7 @@
 name: notary-entity-extractor
 description: Extractor especializado en escrituras argentinas con manejo de casos edge basados en errores reales del sistema.
 license: Proprietary
-version: 4.0.0 (v1.2.16 - Edge Cases & Real Failures)
+version: 4.1.0 (v1.2.17 - Unión Convivencial Recognition)
 ---
 
 # Notary Entity Extractor - Manual de Casos Edge
@@ -150,7 +150,43 @@ Si NO aparece:
 }
 ```
 
----
+### Caso: "Unión Convivencial Inscripta"
+```
+"soltero, en unión convivencial inscripta con Mercedes Mercatante"
+```
+
+**Marco Legal:** Art. 509-528 CCyC - NO es matrimonio, pero requiere registro oficial.
+
+**Extracción correcta:**
+```json
+{
+  "estado_civil": "Unión Convivencial",
+  "regimen_matrimonial": null,  // No aplica
+  "conviviente": {
+    "nombre_completo": "Mercedes Mercatante",
+    "dni": "34295254",  // Buscar en el documento
+    "cuit_cuil": "27-34295254-8"
+  }
+}
+```
+
+**❌ Incorrecto:**
+```json
+{
+  "estado_civil": "Soltero"  // Pierde info de convivencia
+}
+```
+
+**Regla Crítica:** Si dice "soltero EN unión convivencial" → Devolver **"Unión Convivencial"**, NO "Soltero".
+
+### Valores Permitidos de Estado Civil
+- `"Soltero"` - Sin pareja registrada
+- `"Casado"` - Matrimonio formal
+- `"Divorciado"` - Vínculo disuelto
+- `"Viudo"` - Cónyuge fallecido
+- `"Unión Convivencial"` - Pareja registrada Art. 509 CCyC
+- `"Separado"` - Separación de hecho
+
 
 ## 📆 FECHAS TEXTUALES (Conversión a ISO)
 
@@ -236,6 +272,7 @@ Antes de devolver el JSON, verifica:
 - [ ] ¿Las fechas están en formato ISO (YYYY-MM-DD)?
 - [ ] ¿Las direcciones mantienen "calle ... número ..."?
 - [ ] ¿Extraje a TODOS los comparecientes del documento?
+- [ ] ¿Detecto "Unión Convivencial" en lugar de "Soltero" cuando corresponde?
 
 ---
 
