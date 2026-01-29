@@ -272,24 +272,21 @@ Para asegurar la extracción, usa **SIEMPRE** estos campos en el raíz:
 
 ```json
 {
-  "precio_cesion": {
-    "monto": 23000,
-    "moneda": "USD",
-    "tipo_cambio": 1084.5,
-    "equivalente_ars": 24943500
-  },
-  "precio_construccion": {
-    "monto": 126212.66,
-    "moneda": "ARS"
-  },
+  "precio_cesion": { "monto": 23000, "moneda": "USD", "equivalente_ars": 24943500 },
   "cesion_beneficiario": {
     "cedente": { "nombre": "Claudio Wagner", "fecha_incorporacion": "2013-06-05" },
-    "cesionario": { "nombre": "Juan Moran", "dni": "34877009" },
-    "precio_cesion": { "monto": 23000, "moneda": "USD" },
-    "fecha_cesion": "2025-03-06"
+    "cesionario": { "nombre": "Juan Moran", "dni": "34877009" }
   }
 }
 ```
+
+### 🚨 CASO CRÍTICO (Documento 103.pdf):
+Si el texto dice: *"Claudio Jorge Wagner cedió su condición de beneficiario a favor de Juan Francisco Moran"*.
+- **OBLIGATORIO**: Agregar a Claudio Jorge Wagner al array de `entidades` con `rol: "CEDENTE"`.
+- **OBLIGATORIO**: Separar "SOMAJOFA S.A." (Fiduciaria) de "FIDEICOMISO G-4" (Vendedor).
+
+### ❌ NO COMBINAR NOMBRES:
+No devuelvas nombres como "SOMAJOFA S.A. (FIDEICOMISO G-4)". Devuelve dos objetos separados en el array de entidades.
 
 ### Búsqueda en Constancias Notariales
 

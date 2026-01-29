@@ -312,36 +312,73 @@ function normalizeAIData(raw: any) {
 
             if (isFideicomiso) {
                 // Remove everything after S.A., SRL, or specific trustee indicators to avoid combined cards
+                // Handle both: "Trust (Trustee)" and "Trustee (Trust)"
                 const trusteeIndicators = ['S.A.', 'SRL', 'S.A ', 'SOCIEDAD ANONIMA', 'ADMINISTRADO POR', 'FIDUCIARIA'];
                 const upperNombre = rawNombre.toUpperCase();
-                for (const indicator of trusteeIndicators) {
-                    const index = upperNombre.indexOf(indicator);
-                    if (index > 10) { // Found a trustee name inside the trust name
-                        const trusteeName = rawNombre.substring(index).trim();
-                        rawNombre = rawNombre.substring(0, index).trim();
 
-                        // If it ends with "POR", trim it too
-                        if (rawNombre.toUpperCase().endsWith(' POR')) {
-                            rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
+                // Case 1: "Trustee (FIDEICOMISO ...)"
+                if (upperNombre.includes('(') && upperNombre.includes('FIDEICOMISO')) {
+                    const parts = rawNombre.split(/[\(\)]+/).filter(p => p.trim().length > 3);
+                    if (parts.length >= 2) {
+                        const fideicomisoPart = parts.find(p => p.toUpperCase().includes('FIDEICOMISO')) || "";
+                        const trusteePart = parts.find(p => !p.toUpperCase().includes('FIDEICOMISO')) || "";
+
+                        if (fideicomisoPart && trusteePart) {
+                            console.log(`[PIPELINE] Splitting combined entity by parenthesis: Trust="${fideicomisoPart}", Trustee="${trusteePart}"`);
+                            rawNombre = fideicomisoPart.trim();
+
+                            // Check if trustee exists
+                            const trusteeExists = raw.entidades.some((ent: any) =>
+                                (ent.datos?.nombre_completo || ent.datos?.razon_social || "").toString().toUpperCase().includes(trusteePart.toUpperCase())
+                            );
+
+                            if (!trusteeExists) {
+                                allClients.push({
+                                    rol: 'FIDUCIARIA',
+                                    tipo_persona: 'JURIDICA',
+                                    nombre_completo: trusteePart.trim(),
+                                    cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
+                                    cuit_tipo: 'CUIT',
+                                    cuit_is_formal: true
+                                });
+                            }
                         }
+                    }
+                } else {
+                    // Case 2: Concatenated text without parenthesis
+                    for (const indicator of trusteeIndicators) {
+                        const index = upperNombre.indexOf(indicator);
+                        if (index !== -1) {
+                            // Determine if trustee is at start or end
+                            let trusteeName = "";
+                            if (index < 15) { // Trustee at START: "Trustee S.A. Administrado por Fideicomiso..."
+                                // This case is rarer in raw strings but happens
+                                // For now, let's prioritize the most common pattern found in 103.pdf
+                            } else { // Trustee at END: "Fideicomiso G-4 SOMAJOFA S.A."
+                                trusteeName = rawNombre.substring(index).trim();
+                                rawNombre = rawNombre.substring(0, index).trim();
 
-                        // HEURISTIC: If this trustee isn't already in the entities list, add it!
-                        const trusteeExists = raw.entidades.some((ent: any) =>
-                            (ent.datos?.nombre_completo || ent.datos?.razon_social || "").toString().toUpperCase().includes(trusteeName.toUpperCase())
-                        );
+                                if (rawNombre.toUpperCase().endsWith(' POR')) {
+                                    rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
+                                }
 
-                        if (!trusteeExists) {
-                            console.log(`[PIPELINE] Splitting combined entity: Found Trustee "${trusteeName}" inside Trust name.`);
-                            allClients.push({
-                                rol: 'FIDUCIARIA',
-                                tipo_persona: 'JURIDICA',
-                                nombre_completo: trusteeName,
-                                cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
-                                cuit_tipo: 'CUIT',
-                                cuit_is_formal: true
-                            });
+                                const trusteeExists = raw.entidades.some((ent: any) =>
+                                    (ent.datos?.nombre_completo || ent.datos?.razon_social || "").toString().toUpperCase().includes(trusteeName.toUpperCase())
+                                );
+
+                                if (!trusteeExists) {
+                                    allClients.push({
+                                        rol: 'FIDUCIARIA',
+                                        tipo_persona: 'JURIDICA',
+                                        nombre_completo: trusteeName,
+                                        cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
+                                        cuit_tipo: 'CUIT',
+                                        cuit_is_formal: true
+                                    });
+                                }
+                                break;
+                            }
                         }
-                        break;
                     }
                 }
             }
