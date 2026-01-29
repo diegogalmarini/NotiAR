@@ -1,16 +1,4 @@
-// server-side browser mocks (aggressive force with defineProperty)
-if (typeof globalThis !== 'undefined') {
-    const g = globalThis as any;
-    if (!g.window) Object.defineProperty(g, 'window', { value: g, writable: true, configurable: true });
-    if (!g.location) {
-        Object.defineProperty(g, 'location', {
-            value: { protocol: 'https:', host: 'localhost', href: 'https://localhost/' },
-            writable: true,
-            configurable: true
-        });
-    }
-    if (g.window && !g.window.location) g.window.location = g.location;
-}
+// server-side browser mocks are handled centrally in server-polyfills.ts
 
 import { createClient } from '@supabase/supabase-js';
 

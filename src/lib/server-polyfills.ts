@@ -8,26 +8,33 @@
 if (typeof globalThis !== 'undefined') {
     const g = globalThis as any;
 
-    const locationMock = {
-        protocol: 'http:',
-        host: 'localhost',
-        hostname: 'localhost',
-        href: 'http://localhost/',
-        pathname: '/',
-        search: '',
-        hash: '',
-        assign: () => { },
-        replace: () => { },
-        reload: () => { }
-    };
-
     // Polyfill window/self
     if (!g.window) g.window = g;
     if (!g.self) g.self = g;
 
-    // Polyfill location on both global and window
-    if (!g.location) g.location = locationMock;
-    if (g.window && !g.window.location) g.window.location = locationMock;
+    // DO NOT mock location with 'localhost' in production
+    // This was causing Supabase to generate incorrect redirect URLs.
+    if (!g.location) {
+        // We only provide a minimal location for libraries that crash without it,
+        // but we don't hardcode 'localhost' as the host.
+        Object.defineProperty(g, 'location', {
+            get() {
+                return {
+                    protocol: 'https:',
+                    host: '',
+                    hostname: '',
+                    href: 'https://noti-ar.vercel.app/',
+                    pathname: '/',
+                    search: '',
+                    hash: '',
+                    assign: () => { },
+                    replace: () => { },
+                    reload: () => { }
+                };
+            },
+            configurable: true
+        });
+    }
 
     // Polyfill character encoding (atob/btoa are required by many PDF/Identity libraries)
     if (!g.atob) g.atob = (str: string) => Buffer.from(str, 'base64').toString('binary');
