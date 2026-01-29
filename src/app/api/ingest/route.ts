@@ -213,7 +213,11 @@ async function runExtractionPipeline(docType: string, file: File, extractedText:
         case 'BOLETO_COMPRAVENTA':
         case 'HIPOTECA':
         case 'PRESTAMO':
-            const entities = await SkillExecutor.execute('notary-entity-extractor', file, { text: extractedText });
+            const entities = await SkillExecutor.execute('notary-entity-extractor', file, {
+                text: extractedText,
+                extract_fideicomisos: true,
+                extract_cesiones: true
+            });
             const normEntities = normalizeAIData(entities);
 
             // Special handling for Mortgages
@@ -264,25 +268,25 @@ function normalizeAIData(raw: any) {
         notario: ops.escribano_nombre?.valor || null,
         registro: ops.registro_numero?.valor || null,
         operation_details: {
-            price: raw.cesion_beneficiario?.precio_cesion?.monto || raw.precio_cesion?.monto || ops.precio?.valor || raw.price?.valor || 0,
-            currency: raw.cesion_beneficiario?.precio_cesion?.moneda || raw.precio_cesion?.moneda || ops.precio?.moneda || raw.currency?.valor || 'USD',
+            price: ops.precio_cesion?.monto || raw.cesion_beneficiario?.precio_cesion?.monto || ops.precio?.valor || raw.price?.valor || 0,
+            currency: ops.precio_cesion?.moneda || raw.cesion_beneficiario?.precio_cesion?.moneda || ops.precio?.moneda || raw.currency?.valor || 'USD',
             date: ops.fecha_escritura?.valor || raw.fecha_escritura?.valor,
             // Dual pricing for fiduciary operations
-            precio_construccion: raw.precio_construccion?.monto || null,
-            precio_cesion: raw.cesion_beneficiario?.precio_cesion?.monto || raw.precio_cesion?.monto || null,
-            tipo_cambio_cesion: raw.cesion_beneficiario?.precio_cesion?.tipo_cambio || raw.precio_cesion?.tipo_cambio || null,
-            equivalente_ars_cesion: raw.cesion_beneficiario?.precio_cesion?.equivalente_ars || raw.precio_cesion?.equivalente_ars || null
+            precio_construccion: ops.precio_construccion?.monto || raw.precio_construccion?.monto || null,
+            precio_cesion: ops.precio_cesion?.monto || raw.cesion_beneficiario?.precio_cesion?.monto || null,
+            tipo_cambio_cesion: ops.precio_cesion?.tipo_cambio || raw.cesion_beneficiario?.precio_cesion?.tipo_cambio || null,
+            equivalente_ars_cesion: ops.precio_cesion?.equivalente_ars || raw.cesion_beneficiario?.precio_cesion?.equivalente_ars || null
         },
-        // Beneficiary assignment (fiduciary operations) - supporting multiple naming conventions
-        cesion_beneficiario: (raw.cesion || raw.cesion_beneficiario || raw.transferencia) ? (() => {
-            const src = raw.cesion || raw.cesion_beneficiario || raw.transferencia;
+        // Beneficiary assignment (fiduciary operations)
+        cesion_beneficiario: (raw.cesion_beneficiario || raw.cesion || raw.transferencia) ? (() => {
+            const src = raw.cesion_beneficiario || raw.cesion || raw.transferencia;
             return {
-                cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || src.cedente || null,
+                cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || null,
                 cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
-                cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || src.cesionario || null,
+                cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || null,
                 cesionario_dni: src.cesionario?.dni || null,
-                precio_cesion: (src.precio?.monto || src.precio || src.precio_cesion?.monto || null),
-                moneda_cesion: (src.moneda || src.precio_cesion?.moneda || null),
+                precio_cesion: (src.precio_cesion?.monto || src.precio?.monto || src.precio || null),
+                moneda_cesion: (src.precio_cesion?.moneda || src.moneda || src.precio?.moneda || null),
                 fecha_cesion: src.fecha_cesion || src.fecha || null
             };
         })() : null

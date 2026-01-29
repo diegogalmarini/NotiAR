@@ -52,7 +52,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     },
                     tipo_persona: {
                         type: SchemaType.STRING,
-                        description: "FISICA o JURIDICA"
+                        description: "FISICA, JURIDICA o FIDEICOMISO"
                     },
                     datos: {
                         type: SchemaType.OBJECT,
@@ -252,9 +252,64 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                     type: SchemaType.OBJECT,
                     properties: { valor: { type: SchemaType.STRING }, evidencia: { type: SchemaType.STRING } },
                     required: ["valor", "evidencia"]
+                },
+                precio_construccion: {
+                    type: SchemaType.OBJECT,
+                    description: "Precio de construcción (histórico) en fideicomisos al costo.",
+                    properties: {
+                        monto: { type: SchemaType.NUMBER },
+                        moneda: { type: SchemaType.STRING },
+                        evidencia: { type: SchemaType.STRING }
+                    },
+                    required: ["monto", "moneda", "evidencia"]
+                },
+                precio_cesion: {
+                    type: SchemaType.OBJECT,
+                    description: "Precio de cesión de beneficiario (valor de mercado actual).",
+                    properties: {
+                        monto: { type: SchemaType.NUMBER },
+                        moneda: { type: SchemaType.STRING },
+                        tipo_cambio: { type: SchemaType.NUMBER, nullable: true },
+                        equivalente_ars: { type: SchemaType.NUMBER, nullable: true },
+                        evidencia: { type: SchemaType.STRING }
+                    },
+                    required: ["monto", "moneda", "evidencia"]
                 }
             },
             required: ["precio", "fecha_escritura", "numero_escritura", "tipo_acto", "escribano_nombre", "registro_numero"]
+        },
+        cesion_beneficiario: {
+            type: SchemaType.OBJECT,
+            description: "Detalle de la cesión de derechos fiduciarios / condición de beneficiario.",
+            nullable: true,
+            properties: {
+                cedente: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        nombre: { type: SchemaType.STRING },
+                        fecha_incorporacion: { type: SchemaType.STRING, nullable: true, description: "Fecha de incorporación original (ISO)" }
+                    },
+                    required: ["nombre"]
+                },
+                cesionario: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        nombre: { type: SchemaType.STRING },
+                        dni: { type: SchemaType.STRING, nullable: true }
+                    },
+                    required: ["nombre"]
+                },
+                precio_cesion: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                        monto: { type: SchemaType.NUMBER },
+                        moneda: { type: SchemaType.STRING }
+                    },
+                    required: ["monto", "moneda"]
+                },
+                fecha_cesion: { type: SchemaType.STRING, description: "Fecha de la cesión (ISO)" }
+            },
+            required: ["cedente", "cesionario", "precio_cesion"]
         },
         validacion_sistemica: {
             type: SchemaType.OBJECT,
