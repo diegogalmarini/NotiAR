@@ -15,7 +15,7 @@ if (typeof globalThis !== 'undefined') {
     console.log("[ROUTE] Aggressive Polyfills applied.");
 }
 // Flash v1.2.17 - SCHEMA FIX: Separated DNI/CUIT + Biographical Fields
-import { NextResponse, unstable_after as after } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 import { normalizeID, toTitleCase, formatCUIT } from '@/lib/utils/normalization';
