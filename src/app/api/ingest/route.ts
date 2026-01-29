@@ -181,6 +181,10 @@ export async function POST(req: Request) {
             }
         });
 
+        // ✅ Invalidate cache so new folder appears immediately
+        revalidatePath('/dashboard');
+        revalidatePath('/carpetas');
+
     } catch (error: any) {
         console.error("🔥 FULL INGESTION ERROR:", error);
         return NextResponse.json({
