@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { GoogleAIFileManager } from "@google/generative-ai/server";
-import { getSkillInstruction } from "@/lib/knowledge";
+import { getSkillInstruction, getKnowledgeContext } from "@/lib/knowledge";
 import { calculateNotaryExpenses, TaxCalculationInput } from "@/lib/skills/deterministic/taxCalculator";
 import { planTimeline } from "@/lib/skills/deterministic/timelinePlanner";
 import { DeedDrafter, DraftingContext } from "@/lib/skills/generation/deedDrafter";
@@ -77,12 +77,21 @@ export class SkillExecutor {
         for (const modelName of MODEL_HIERARCHY) {
             try {
                 let filePart = null;
+                // NEW: RAG Context Retrieval
+                let ragContext = "";
+                const queryText = JSON.stringify(contextData);
+                const isFid = queryText.toUpperCase().includes("FIDEICOMISO") || queryText.toUpperCase().includes("CESIÓN");
+                if (isFid) {
+                    console.log("[EXECUTOR] 📚 Fetching Fiduciary RAG Context...");
+                    ragContext = await getKnowledgeContext("Constitución de Fideicomisos y Cesiones de Beneficiario en Argentina", "LEGAL_CONTEXT");
+                }
+
                 if (file && file.size > 2 * 1024 * 1024) {
                     const fileUri = await this.uploadToFileApi(file);
                     filePart = { fileData: { fileUri, mimeType: file.type || "application/pdf" } };
-                    return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, undefined, null, filePart);
+                    return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, undefined, null, filePart, ragContext);
                 }
-                return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, file, null);
+                return await this.runSkillAttempt(modelName, skillSlug, skillDoc, userContext, file, null, null, ragContext);
             } catch (error: any) {
                 console.warn(`[EXECUTOR][RETRY] ${modelName} failed: ${error.message}`);
                 lastError = error;
@@ -99,7 +108,8 @@ export class SkillExecutor {
         userContext: string,
         file?: any,
         correctionFeedback: string | null = null,
-        providedFilePart: any = null
+        providedFilePart: any = null,
+        ragContext: string = ""
     ): Promise<any> {
         // FLASH NO USA THINKING MODE
         const { ACTA_EXTRACCION_PARTES_SCHEMA, NOTARY_MORTGAGE_READER_SCHEMA } = await import("../aiConfig");
@@ -149,6 +159,9 @@ export class SkillExecutor {
         const systemPrompt = `
             ROL: ERES UN EXPERTO ESCRIBANO ARGENTINO EN EXTRACCIÓN DE DATOS (RIGOR NOTARIAL).
             ${fiduciaryKnowledge}
+            
+            ${ragContext ? `📚 CONTEXTO DE LA BASE DE CONOCIMIENTO:\n${ragContext}\n` : ""}
+
             DIRECTRICES:
             1. EXTRACCIÓN EXHAUSTIVA: Debes encontrar a todas las partes intervinientes y los detalles del inmueble.
             2. EVIDENCIA TEXTUAL: Para cada campo, extrae el fragmento exacto que justifica el valor.
