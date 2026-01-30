@@ -283,6 +283,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
             description: "Detalle de la cesión de derechos fiduciarios / condición de beneficiario.",
             nullable: true,
             properties: {
+                fideicomiso_nombre: { type: SchemaType.STRING, description: "Nombre del Fideicomiso (ej: FIDEICOMISO G-4)" },
                 cedente: {
                     type: SchemaType.OBJECT,
                     properties: {

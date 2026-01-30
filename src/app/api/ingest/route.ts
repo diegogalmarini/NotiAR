@@ -333,6 +333,7 @@ function normalizeAIData(raw: any) {
         cesion_beneficiario: (raw.cesion_beneficiario || raw.cesion || raw.transferencia) ? (() => {
             const src = raw.cesion_beneficiario || raw.cesion || raw.transferencia;
             return {
+                fideicomiso_nombre: src.fideicomiso_nombre || src.fideicomiso?.nombre || null,
                 cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || null,
                 cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
                 cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || null,
@@ -663,7 +664,7 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     // --- STEP: Add/Update Actors from Fiduciary Metadata ---
     if (aiData.cesion_beneficiario) {
-        const { cedente_nombre, cesionario_nombre, cesionario_dni } = aiData.cesion_beneficiario;
+        const { cedente_nombre, cesionario_nombre, cesionario_dni, fideicomiso_nombre } = aiData.cesion_beneficiario;
 
         // Ensure if they already exist in 'clientes', their role is CEDENTE/CESIONARIO
         for (let cl of clientes) {
@@ -672,6 +673,10 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
             }
             if (cesionario_nombre && looseNameMatch(cl.nombre_completo, cesionario_nombre)) {
                 cl.rol = 'CESIONARIO';
+            }
+            if (fideicomiso_nombre && looseNameMatch(cl.nombre_completo, fideicomiso_nombre)) {
+                cl.rol = 'VENDEDOR';
+                cl.tipo_persona = 'FIDEICOMISO';
             }
         }
 
@@ -692,6 +697,16 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
                 nombre_completo: cesionario_nombre,
                 dni: cesionario_dni,
                 tipo_persona: 'FISICA',
+                cuit_is_formal: false
+            });
+        }
+
+        if (fideicomiso_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, fideicomiso_nombre))) {
+            clientes.push({
+                rol: 'VENDEDOR',
+                nombre_completo: fideicomiso_nombre,
+                dni: null,
+                tipo_persona: 'FIDEICOMISO',
                 cuit_is_formal: false
             });
         }
