@@ -114,7 +114,15 @@ export class SkillExecutor {
 
         const model = this.genAI.getGenerativeModel(modelConfig);
 
-        // v1.2.16: Critical Rules Injection
+        // v1.3.0: Critical Rules & Knowledge Injection
+        const isFiduciaryDoc = userContext.toUpperCase().includes("FIDEICOMISO") || userContext.toUpperCase().includes("CESIÓN");
+        const fiduciaryKnowledge = isFiduciaryDoc ? `
+📘 CONOCIMIENTO EXPERTO (FIDEICOMISOS):
+1. **FIDEICOMISO vs FIDUCIARIA:** Son identidades separadas. Si dice "FIDEICOMISO G-4 administrado por SOMAJOFA S.A.", extrae DOS entidades. SOMAJOFA S.A. tiene rol "FIDUCIARIA".
+2. **CEDENTE y CESIONARIO:** En una cesión de beneficios, el dueño original es el **CEDENTE** y el nuevo es el **CESIONARIO**. Estos roles tienen prioridad absoluta sobre Vendedor/Comprador.
+3. **DOBLE PRECIO:** El precio de construcción (ARS) es histórico. El precio de cesión (USD) es el real de mercado. Extrae ambos en 'operation_details'.
+` : '';
+
         const criticalRules = skillSlug === 'notary-entity-extractor' ? `
 
 ⚠️ REGLAS DE ORO (CRÍTICAS PARA EL ÉXITO):
@@ -140,7 +148,7 @@ export class SkillExecutor {
 
         const systemPrompt = `
             ROL: ERES UN EXPERTO ESCRIBANO ARGENTINO EN EXTRACCIÓN DE DATOS (RIGOR NOTARIAL).
-            
+            ${fiduciaryKnowledge}
             DIRECTRICES:
             1. EXTRACCIÓN EXHAUSTIVA: Debes encontrar a todas las partes intervinientes y los detalles del inmueble.
             2. EVIDENCIA TEXTUAL: Para cada campo, extrae el fragmento exacto que justifica el valor.

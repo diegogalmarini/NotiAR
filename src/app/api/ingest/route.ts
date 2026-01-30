@@ -36,7 +36,21 @@ function looseNameMatch(n1: string, n2: string): boolean {
     const getFidToken = (s: string) => s.split(/\s+/).find(t => /\d/.test(t) && t.length <= 5);
     const f1 = getFidToken(s1);
     const f2 = getFidToken(s2);
-    if (f1 && f2 && f1 === f2 && (s1.includes("FIDEICOMISO") || s2.includes("FIDEICOMISO"))) return true;
+
+    // CRITICAL: If both names are about trusts, match ONLY if fiduciary token matches
+    const isTrust1 = s1.includes("FIDEICOMISO");
+    const isTrust2 = s2.includes("FIDEICOMISO");
+    if (isTrust1 && isTrust2) {
+        if (f1 && f2) return f1 === f2;
+        return s1.includes(s2) || s2.includes(s1);
+    }
+
+    // If one is trust and other is not, they MUST not match unless it's a very clear containment
+    if (isTrust1 !== isTrust2) {
+        // Exception: "FIDEICOMISO G-4" vs "G-4" might be the same entity
+        if (f1 && f2 && f1 === f2) return true;
+        return false;
+    }
 
     const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS", "SA", "SRL"];
     const getTokens = (s: string) => s
@@ -47,10 +61,6 @@ function looseNameMatch(n1: string, n2: string): boolean {
     const t2 = getTokens(s2);
 
     if (t1.length === 0 || t2.length === 0) return s1.includes(s2) || s2.includes(s1);
-
-    const isTrust1 = s1.includes("FIDEICOMISO");
-    const isTrust2 = s2.includes("FIDEICOMISO");
-    if (isTrust1 !== isTrust2 && !s1.includes(s2) && !s2.includes(s1)) return false;
 
     const set2 = new Set(t2);
     const intersection = t1.filter(t => set2.has(t));
@@ -460,14 +470,31 @@ function normalizeAIData(raw: any) {
     }
 
     // SEMANTIC ROLE SANITIZER: Ultimo recurso para asegurar roles en 103.pdf y similares
+    console.log(`[NORMALIZE] Final Sanitizer pass on ${allClients.length} clients...`);
     allClients.forEach(c => {
         const uName = c.nombre_completo.toUpperCase();
-        if (uName.includes('SOMAJOFA')) c.rol = 'FIDUCIARIA';
-        if (cedenteName && looseNameMatch(c.nombre_completo, cedenteName)) c.rol = 'CEDENTE';
-        if (cesionarioName && looseNameMatch(c.nombre_completo, cesionarioName)) c.rol = 'CESIONARIO';
+        const oldRol = c.rol;
 
-        // Ensure Fideicomiso type even if AI said Juridica
-        if (uName.includes('FIDEICOMISO')) c.tipo_persona = 'FIDEICOMISO';
+        // 1. Hardcore Anchors (Company specific or pattern based)
+        if (uName.includes('SOMAJOFA')) c.rol = 'FIDUCIARIA';
+
+        // 2. Fiduciary Vehicle check
+        if (uName.includes('FIDEICOMISO')) {
+            c.tipo_persona = 'FIDEICOMISO';
+            if (c.rol === 'COMPRADOR') c.rol = 'VENDEDOR'; // Trusts are usually vendors in these deeds
+        }
+
+        // 3. Metadata matching (Cedente/Cesionario)
+        if (cedenteName && looseNameMatch(c.nombre_completo, cedenteName)) {
+            console.log(`[NORMALIZE] Forcing CEDENTE rol for ${c.nombre_completo}`);
+            c.rol = 'CEDENTE';
+        }
+        if (cesionarioName && looseNameMatch(c.nombre_completo, cesionarioName)) {
+            console.log(`[NORMALIZE] Forcing CESIONARIO rol for ${c.nombre_completo}`);
+            c.rol = 'CESIONARIO';
+        }
+
+        if (oldRol !== c.rol) console.log(`[NORMALIZE] Role changed: ${c.nombre_completo} (${oldRol} -> ${c.rol})`);
     });
 
     normalized.clientes = allClients;
