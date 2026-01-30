@@ -373,7 +373,7 @@ function normalizeAIData(raw: any) {
         if (existingIdx !== -1) {
             // MERGE: Keep stronger roles and combine data
             const existing = allClients[existingIdx];
-            const rolePriority: Record<string, number> = { 'CEDENTE': 10, 'CESIONARIO': 10, 'FIDUCIARIA': 9, 'VENDEDOR': 5, 'COMPRADOR': 5, 'APODERADO/REPRESENTANTE': 1 };
+            const rolePriority: Record<string, number> = { 'CEDENTE': 10, 'CESIONARIO': 10, 'ACREEDOR': 9, 'FIDUCIARIA': 9, 'DEUDOR': 8, 'VENDEDOR': 5, 'COMPRADOR': 5, 'APODERADO/REPRESENTANTE': 1 };
 
             if ((rolePriority[newCl.rol] || 0) > (rolePriority[existing.rol] || 0)) {
                 existing.rol = newCl.rol;
@@ -477,6 +477,7 @@ function normalizeAIData(raw: any) {
 
         // 1. Hardcore Anchors (Company specific or pattern based)
         if (uName.includes('SOMAJOFA')) c.rol = 'FIDUCIARIA';
+        if (uName.includes('BANCO') || uName.includes('NACION AR')) c.rol = 'ACREEDOR';
 
         // 2. Fiduciary Vehicle check
         if (uName.includes('FIDEICOMISO')) {

@@ -81,9 +81,14 @@ export class SkillExecutor {
                 let ragContext = "";
                 const queryText = JSON.stringify(contextData);
                 const isFid = queryText.toUpperCase().includes("FIDEICOMISO") || queryText.toUpperCase().includes("CESIÓN");
+                const isHipo = queryText.toUpperCase().includes("HIPOTECA") || queryText.toUpperCase().includes("MUTUO") || queryText.toUpperCase().includes("CREDITO");
+
                 if (isFid) {
                     console.log("[EXECUTOR] 📚 Fetching Fiduciary RAG Context...");
                     ragContext = await getKnowledgeContext("Constitución de Fideicomisos y Cesiones de Beneficiario en Argentina", "LEGAL_CONTEXT");
+                } else if (isHipo) {
+                    console.log("[EXECUTOR] 📚 Fetching Mortgage RAG Context...");
+                    ragContext = await getKnowledgeContext("Hipotecas, Créditos UVA y Sistema Francés en Argentina", "LEGAL_CONTEXT");
                 }
 
                 if (file && file.size > 2 * 1024 * 1024) {
@@ -126,11 +131,18 @@ export class SkillExecutor {
 
         // v1.3.0: Critical Rules & Knowledge Injection
         const isFiduciaryDoc = userContext.toUpperCase().includes("FIDEICOMISO") || userContext.toUpperCase().includes("CESIÓN");
+        const isMortgageDoc = userContext.toUpperCase().includes("HIPOTECA") || userContext.toUpperCase().includes("MUTUO");
+
         const fiduciaryKnowledge = isFiduciaryDoc ? `
 📘 CONOCIMIENTO EXPERTO (FIDEICOMISOS):
 1. **FIDEICOMISO vs FIDUCIARIA:** Son identidades separadas. Si dice "FIDEICOMISO G-4 administrado por SOMAJOFA S.A.", extrae DOS entidades. SOMAJOFA S.A. tiene rol "FIDUCIARIA".
 2. **CEDENTE y CESIONARIO:** En una cesión de beneficios, el dueño original es el **CEDENTE** y el nuevo es el **CESIONARIO**. Estos roles tienen prioridad absoluta sobre Vendedor/Comprador.
 3. **DOBLE PRECIO:** El precio de construcción (ARS) es histórico. El precio de cesión (USD) es el real de mercado. Extrae ambos en 'operation_details'.
+` : isMortgageDoc ? `
+📘 CONOCIMIENTO EXPERTO (HIPOTECAS):
+1. **ACREEDOR vs DEUDOR:** El Banco (ej: BNA) es siempre el **ACREEDOR**. El cliente es el **DEUDOR**.
+2. **UVA y PESOS:** Las hipotecas modernas suelen expresar el monto en PESOS y su equivalente en UVAs. Extrae ambos.
+3. **SISTEMA DE AMORTIZACIÓN:** Lo más común es 'FRANCES'. Si dice UVA, busca el Coeficiente de Estabilización de Referencia (CER).
 ` : '';
 
         const criticalRules = skillSlug === 'notary-entity-extractor' ? `
