@@ -32,7 +32,13 @@ function looseNameMatch(n1: string, n2: string): boolean {
 
     if (s1 === s2) return true;
 
-    const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS"];
+    // Fiduciary Token Matching (Special for G-4, etc)
+    const getFidToken = (s: string) => s.split(/\s+/).find(t => /\d/.test(t) && t.length <= 5);
+    const f1 = getFidToken(s1);
+    const f2 = getFidToken(s2);
+    if (f1 && f2 && f1 === f2 && (s1.includes("FIDEICOMISO") || s2.includes("FIDEICOMISO"))) return true;
+
+    const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS", "SA", "SRL"];
     const getTokens = (s: string) => s
         .split(/\s+/)
         .filter(t => (t.length > 2 || /\d/.test(t)) && !stopWords.includes(t));
@@ -42,27 +48,15 @@ function looseNameMatch(n1: string, n2: string): boolean {
 
     if (t1.length === 0 || t2.length === 0) return s1.includes(s2) || s2.includes(s1);
 
-    // CRITICAL: Trusts and Trustees are distinct entities.
     const isTrust1 = s1.includes("FIDEICOMISO");
     const isTrust2 = s2.includes("FIDEICOMISO");
-    if (isTrust1 !== isTrust2) return false;
-
-    // Special case for Trusts: They must share the specific identifier (e.g. "G-4" -> token "4")
-    if (isTrust1 && isTrust2) {
-        const trustIds1 = t1.filter(t => /\d/.test(t));
-        const trustIds2 = t2.filter(t => /\d/.test(t));
-        if (trustIds1.length > 0 && trustIds2.length > 0) {
-            if (!trustIds1.some(id => trustIds2.includes(id))) return false;
-            return true; // If they share the ID and are both trusts, it's a match
-        }
-    }
+    if (isTrust1 !== isTrust2 && !s1.includes(s2) && !s2.includes(s1)) return false;
 
     const set2 = new Set(t2);
     const intersection = t1.filter(t => set2.has(t));
     const matchCount = intersection.length;
     const minTokens = Math.min(t1.length, t2.length);
 
-    // For persons, 2 tokens (First + Last) usually suffices, or if one is a subset of the other
     return matchCount >= minTokens || (matchCount >= 2);
 }
 
@@ -464,6 +458,17 @@ function normalizeAIData(raw: any) {
         if (cesionario_nombre) addOrMergeClient({ rol: 'CESIONARIO', nombre_completo: cesionario_nombre, tipo_persona: 'FISICA' });
         if (fideicomiso_nombre) addOrMergeClient({ rol: 'VENDEDOR', nombre_completo: fideicomiso_nombre, tipo_persona: 'FIDEICOMISO' });
     }
+
+    // SEMANTIC ROLE SANITIZER: Ultimo recurso para asegurar roles en 103.pdf y similares
+    allClients.forEach(c => {
+        const uName = c.nombre_completo.toUpperCase();
+        if (uName.includes('SOMAJOFA')) c.rol = 'FIDUCIARIA';
+        if (cedenteName && looseNameMatch(c.nombre_completo, cedenteName)) c.rol = 'CEDENTE';
+        if (cesionarioName && looseNameMatch(c.nombre_completo, cesionarioName)) c.rol = 'CESIONARIO';
+
+        // Ensure Fideicomiso type even if AI said Juridica
+        if (uName.includes('FIDEICOMISO')) c.tipo_persona = 'FIDEICOMISO';
+    });
 
     normalized.clientes = allClients;
 

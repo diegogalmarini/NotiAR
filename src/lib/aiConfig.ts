@@ -48,7 +48,7 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
                 properties: {
                     rol: {
                         type: SchemaType.STRING,
-                        description: "VENDEDOR, COMPRADOR, ACREEDOR (Banco), DEUDOR, FIADOR. Si es apoderado, usar el rol de la entidad principal."
+                        description: "VENDEDOR, COMPRADOR, CEDENTE, CESIONARIO, FIDUCIARIA, ACREEDOR (Banco), DEUDOR, FIADOR. Si es apoderado, usar 'APODERADO/REPRESENTANTE'."
                     },
                     tipo_persona: {
                         type: SchemaType.STRING,
