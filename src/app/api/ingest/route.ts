@@ -32,7 +32,7 @@ function looseNameMatch(n1: string, n2: string): boolean {
     const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS"];
     const getTokens = (s: string) => s
         .split(/\s+/)
-        .filter(t => t.length > 2 && !stopWords.includes(t));
+        .filter(t => (t.length > 2 || /\d/.test(t)) && !stopWords.includes(t));
 
     const t1 = getTokens(s1);
     const t2 = getTokens(s2);
@@ -59,14 +59,8 @@ function looseNameMatch(n1: string, n2: string): boolean {
     const matchCount = intersection.length;
     const minTokens = Math.min(t1.length, t2.length);
 
-    // Stricter matching for companies and trusts
-    if (isTrust1 || s1.includes(" S A") || s1.includes(" SOCIEDAD") || s2.includes(" S A") || s2.includes(" SOCIEDAD")) {
-        // Companies must share at least 2 tokens (e.g. "SOMAJOFA" + "SRL") or be exact sub-matches
-        return matchCount >= Math.max(2, minTokens);
-    }
-
-    // For persons, 2 tokens (First + Last) usually suffices
-    return matchCount >= minTokens && matchCount > 0;
+    // For persons, 2 tokens (First + Last) usually suffices, or all if short
+    return matchCount >= minTokens || (matchCount >= 2 && minTokens >= 2);
 }
 
 function extractString(val: any, joinWithComma: boolean = true): string | null {
@@ -509,7 +503,19 @@ function normalizeAIData(raw: any) {
             }
 
             // DEDUPLICATION: Avoid adding the same person twice within entities
-            if (!allClients.some(cl => looseNameMatch(cl.nombre_completo, mainClient.nombre_completo))) {
+            // Stricter check: name AND (dni or cuit) if available
+            const isDuplicate = allClients.some(cl => {
+                const nameMatches = looseNameMatch(cl.nombre_completo, mainClient.nombre_completo);
+                if (!nameMatches) return false;
+
+                // If both have DNI/CUIT and they differ, they are distinct people (e.g. father/son)
+                if (cl.dni && mainClient.dni && cl.dni !== mainClient.dni) return false;
+                if (cl.cuit && mainClient.cuit && cl.cuit !== mainClient.cuit) return false;
+
+                return true;
+            });
+
+            if (!isDuplicate) {
                 allClients.push(mainClient);
             }
 
