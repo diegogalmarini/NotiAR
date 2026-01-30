@@ -284,7 +284,6 @@ export const ACTA_EXTRACCION_PARTES_SCHEMA: any = {
             nullable: true,
             properties: {
                 fideicomiso_nombre: { type: SchemaType.STRING, description: "Nombre del Fideicomiso (ej: FIDEICOMISO G-4)" },
-                fiduciaria_nombre: { type: SchemaType.STRING, description: "Nombre de la Fiduciaria/Empresa Administradora (ej: SOMAJOFA S.A.)" },
                 cedente: {
                     type: SchemaType.OBJECT,
                     properties: {

@@ -62,25 +62,22 @@ export default function FolderWorkspace({ initialData }: { initialData: any }) {
     }, [initialData]);
 
     const getRoleBadgeStyle = (rol?: string) => {
-        if (rol?.includes('VENDEDOR') || rol?.includes('CEDENTE')) return "bg-amber-100 text-amber-700 border-amber-200";
+        if (rol?.includes('VENDEDOR')) return "bg-amber-100 text-amber-700 border-amber-200";
         if (rol?.includes('ACREEDOR')) return "bg-blue-100 text-blue-700 border-blue-200";
         if (rol?.includes('DEUDOR')) return "bg-purple-100 text-purple-700 border-purple-200";
         if (rol?.includes('FIADOR')) return "bg-slate-100 text-slate-700 border-slate-200";
         if (rol?.includes('CONYUGE')) return "bg-pink-100 text-pink-700 border-pink-200";
         if (rol?.includes('APODERADO')) return "bg-slate-100 text-slate-600 border-slate-200";
-        if (rol?.includes('CESIONARIO')) return "bg-emerald-100 text-emerald-700 border-emerald-200";
         return "bg-emerald-100 text-emerald-700 border-emerald-200";
     };
 
     const getRoleLabel = (rol?: string) => {
         if (rol?.includes('VENDEDOR')) return 'VENDEDOR / TRANSMITENTE';
-        if (rol?.includes('CEDENTE')) return 'CEDENTE (TRANSMITENTE)';
         if (rol?.includes('ACREEDOR')) return 'ACREEDOR HIPOTECARIO';
         if (rol?.includes('DEUDOR')) return 'DEUDOR / MUTUARIO';
         if (rol?.includes('FIADOR')) return 'FIADOR / GARANTE';
         if (rol?.includes('CONYUGE')) return 'CÓNYUGE ASINTIENTE';
         if (rol?.includes('APODERADO')) return 'APODERADO';
-        if (rol?.includes('CESIONARIO')) return 'CESIONARIO (ADQUIRENTE)';
         return 'COMPRADOR / ADQUIRENTE';
     };
 

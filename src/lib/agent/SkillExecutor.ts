@@ -129,12 +129,8 @@ export class SkillExecutor {
    - \`precio_construccion\` (ARS, monto bajo).
    - \`precio_cesion\` (USD, monto alto).
    - Extrae los datos de la cesión en \`cesion_beneficiario\`, identificando al CEDENTE (quien vende el derecho) y al CESIONARIO (quien lo compra). **CRÍTICO:** Asegúrate de asignar los roles \`CEDENTE\` y \`CESIONARIO\` en el array de \`entidades\` para estas personas.
-6. **FIDUCIARIA ≠ FIDEICOMISO (CRÍTICO):** La "Fiduciaria" (ej: SOMAJOFA S.A.) es la empresa que administra, y el "Fideicomiso" (ej: FIDEICOMISO G-4) es el vehículo. SON DOS ENTIDADES DISTINTAS.
-   - Extrae a la empresa como \`JURIDICA\` (Rol: FIDUCIARIA o VENDEDOR).
-   - Extrae al fideicomiso como \`FIDEICOMISO\` (Rol: VEHICULO o VENDEDOR).
-   - Si una persona actúa "en representación del Fideicomiso G-4 administrado por Empresa X", esa persona es representante de la EMPRESA X, no del fideicomiso directamente.
-7. **INMUEBLES (TRANSCRIPCIÓN):** El campo 'transcripcion_literal' debe ser UNA COPIA EXACTA, PALABRA POR PALABRA. Comienza desde la ubicación ("UNIDAD FUNCIONAL... que es parte del edificio...") hasta el final de medidas. NO RESUMAS. NO EXTRAIGAS SOLO POLIGONOS.
-8. **FALTANTES:** Busca en todo el documento. Si falta un CUIT, no inventes, pero asegúrate de que no esté en la foja de firmas.
+6. **INMUEBLES (TRANSCRIPCIÓN):** El campo 'transcripcion_literal' debe ser UNA COPIA EXACTA, PALABRA POR PALABRA. Comienza desde la ubicación ("UNIDAD FUNCIONAL... que es parte del edificio...") hasta el final de medidas. NO RESUMAS. NO EXTRAIGAS SOLO POLIGONOS.
+7. **FALTANTES:** Busca en todo el documento. Si falta un CUIT, no inventes, pero asegúrate de que no esté en la foja de firmas.
 
 
 ` : '';

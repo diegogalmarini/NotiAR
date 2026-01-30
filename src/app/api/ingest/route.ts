@@ -26,8 +26,11 @@ export const maxDuration = 300;
 // Helper for loose name matching (ignoring order and commas)
 function looseNameMatch(n1: string, n2: string): boolean {
     if (!n1 || !n2) return false;
-    const s1 = n1.toUpperCase().replace(/\W/g, " ");
-    const s2 = n2.toUpperCase().replace(/\W/g, " ");
+    const clean = (s: string) => s.toUpperCase().replace(/\W/g, " ").trim();
+    const s1 = clean(n1);
+    const s2 = clean(n2);
+
+    if (s1 === s2) return true;
 
     const stopWords = ["SOCIEDAD", "ANONIMA", "ADMINISTRADO", "POR", "FIDUCIARIA", "DE", "LA", "EL", "LOS", "LAS"];
     const getTokens = (s: string) => s
@@ -40,17 +43,17 @@ function looseNameMatch(n1: string, n2: string): boolean {
     if (t1.length === 0 || t2.length === 0) return s1.includes(s2) || s2.includes(s1);
 
     // CRITICAL: Trusts and Trustees are distinct entities.
-    // If one name is mostly about FIDEICOMISO and the other about S.A./SRL, they are different.
     const isTrust1 = s1.includes("FIDEICOMISO");
     const isTrust2 = s2.includes("FIDEICOMISO");
     if (isTrust1 !== isTrust2) return false;
 
-    // Special case for Trusts: They must share the specific identifier (e.g. "G-4")
+    // Special case for Trusts: They must share the specific identifier (e.g. "G-4" -> token "4")
     if (isTrust1 && isTrust2) {
-        const trustIds1 = t1.filter(t => t.length <= 5 && /\d/.test(t)); // Match things like G-4
-        const trustIds2 = t2.filter(t => t.length <= 5 && /\d/.test(t));
+        const trustIds1 = t1.filter(t => /\d/.test(t));
+        const trustIds2 = t2.filter(t => /\d/.test(t));
         if (trustIds1.length > 0 && trustIds2.length > 0) {
             if (!trustIds1.some(id => trustIds2.includes(id))) return false;
+            return true; // If they share the ID and are both trusts, it's a match
         }
     }
 
@@ -59,8 +62,8 @@ function looseNameMatch(n1: string, n2: string): boolean {
     const matchCount = intersection.length;
     const minTokens = Math.min(t1.length, t2.length);
 
-    // For persons, 2 tokens (First + Last) usually suffices, or all if short
-    return matchCount >= minTokens || (matchCount >= 2 && minTokens >= 2);
+    // For persons, 2 tokens (First + Last) usually suffices, or if one is a subset of the other
+    return matchCount >= minTokens || (matchCount >= 2);
 }
 
 function extractString(val: any, joinWithComma: boolean = true): string | null {
@@ -328,7 +331,6 @@ function normalizeAIData(raw: any) {
             const src = raw.cesion_beneficiario || raw.cesion || raw.transferencia;
             return {
                 fideicomiso_nombre: src.fideicomiso_nombre || src.fideicomiso?.nombre || null,
-                fiduciaria_nombre: src.fiduciaria_nombre || src.fiduciaria?.nombre || src.administradora_nombre || null,
                 cedente_nombre: (typeof src.cedente === 'string' ? src.cedente : src.cedente?.nombre) || null,
                 cedente_fecha_incorporacion: src.cedente?.fecha_incorporacion || null,
                 cesionario_nombre: (typeof src.cesionario === 'string' ? src.cesionario : src.cesionario?.nombre) || null,
@@ -352,103 +354,67 @@ function normalizeAIData(raw: any) {
     const cesionarioName = raw.cesion_beneficiario ? resolveName(raw.cesion_beneficiario.cesionario) || extractString(raw.cesion_beneficiario.cesionario_nombre) : null;
 
     let allClients: any[] = [];
+
+    // Helper to add or merge client to prevent duplicates and role loss
+    const addOrMergeClient = (newCl: any) => {
+        const existingIdx = allClients.findIndex(cl => {
+            const nameMatch = looseNameMatch(cl.nombre_completo, newCl.nombre_completo);
+            if (!nameMatch) return false;
+            // DNI/CUIT Conflict check
+            if (cl.dni && newCl.dni && cl.dni !== newCl.dni) return false;
+            if (cl.cuit && newCl.cuit && cl.cuit !== newCl.cuit) return false;
+            return true;
+        });
+
+        if (existingIdx !== -1) {
+            // MERGE: Keep stronger roles and combine data
+            const existing = allClients[existingIdx];
+            const rolePriority: Record<string, number> = { 'CEDENTE': 10, 'CESIONARIO': 10, 'FIDUCIARIA': 9, 'VENDEDOR': 5, 'COMPRADOR': 5, 'APODERADO/REPRESENTANTE': 1 };
+
+            if ((rolePriority[newCl.rol] || 0) > (rolePriority[existing.rol] || 0)) {
+                existing.rol = newCl.rol;
+            }
+            existing.dni = existing.dni || newCl.dni;
+            existing.cuit = existing.cuit || newCl.cuit;
+            existing.domicilio_real = existing.domicilio_real || newCl.domicilio_real;
+            existing.estado_civil = existing.estado_civil || newCl.estado_civil;
+            existing.conyuge = existing.conyuge || newCl.conyuge;
+        } else {
+            allClients.push(newCl);
+        }
+    };
+
     if (raw.entidades && Array.isArray(raw.entidades)) {
         raw.entidades.forEach((e: any) => {
             const d = e.datos || {};
             const rawCuit = d.cuit_cuil?.valor?.toString()?.replace(/\D/g, '') || '';
 
-            // Detect FIDEICOMISO as separate entity type
             const isFideicomiso = e.tipo_entidad === 'FIDEICOMISO' ||
                 (d.nombre_completo?.toString() || d.razon_social?.toString() || d.nombre?.toString() || '').toUpperCase().includes('FIDEICOMISO');
 
-            const forcedTipoPersona = isFideicomiso
-                ? 'FIDEICOMISO'
-                : (e.tipo_persona === 'JURIDICA' || ['30', '33', '34'].some(p => rawCuit.startsWith(p)))
-                    ? 'JURIDICA'
-                    : (e.tipo_persona || 'FISICA');
-
-            const isEntity = forcedTipoPersona === 'JURIDICA' || forcedTipoPersona === 'FIDEICOMISO';
-
-            // CLEANING: If it's a Fideicomiso, remove the "administrado por..." or "fiduciaria..." part from the name if concatenated
-            let rawNombre = isEntity
-                ? (extractString(d.nombre_completo, false) || extractString(d.razon_social, false) || extractString(d.nombre, false) || 'Desconocido')
+            const forcedTipoPersona = isFideicomiso ? 'FIDEICOMISO' : (e.tipo_persona || (['30', '33', '34'].some(p => rawCuit.startsWith(p)) ? 'JURIDICA' : 'FISICA'));
+            let rawNombre = isFideicomiso
+                ? (extractString(d.nombre_completo, false) || extractString(d.razon_social, false) || 'Desconocido')
                 : (extractString(d.nombre_completo) || 'Desconocido');
 
+            // Handle combined Fideicomiso + Fiduciaria names
             if (isFideicomiso) {
-                // Remove everything after S.A., SRL, or specific trustee indicators to avoid combined cards
-                // Handle both: "Trust (Trustee)" and "Trustee (Trust)"
-                const trusteeIndicators = ['S.A.', 'SRL', 'S.A ', 'SOCIEDAD ANONIMA', 'ADMINISTRADO POR', 'FIDUCIARIA'];
+                const trusteeIndicators = ['S.A.', 'SRL', 'SOCIEDAD ANONIMA', 'ADMINISTRADO POR', 'FIDUCIARIA'];
                 const upperNombre = rawNombre.toUpperCase();
-
-                // Case 1: "Trustee (FIDEICOMISO ...)"
-                if (upperNombre.includes('(') && upperNombre.includes('FIDEICOMISO')) {
-                    const parts = rawNombre.split(/[\(\)]+/).filter(p => p.trim().length > 3);
-                    if (parts.length >= 2) {
-                        const fideicomisoPart = parts.find(p => p.toUpperCase().includes('FIDEICOMISO')) || "";
-                        const trusteePart = parts.find(p => !p.toUpperCase().includes('FIDEICOMISO')) || "";
-
-                        if (fideicomisoPart && trusteePart) {
-                            rawNombre = fideicomisoPart.trim();
-                            if (!allClients.some((ent: any) => looseNameMatch(ent.nombre_completo, trusteePart))) {
-                                allClients.push({
-                                    rol: 'FIDUCIARIA',
-                                    tipo_persona: 'JURIDICA',
-                                    nombre_completo: trusteePart.trim(),
-                                    cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
-                                    cuit_tipo: 'CUIT',
-                                    cuit_is_formal: true
-                                });
-                            }
-                        }
-                    }
-                } else {
-                    for (const indicator of trusteeIndicators) {
-                        const index = upperNombre.indexOf(indicator);
-                        if (index !== -1) {
-                            let trusteeName = rawNombre.substring(index).trim();
-                            rawNombre = rawNombre.substring(0, index).trim();
-
-                            // Cleanup trailing vendor names leaked into Trust name
-                            if (rawNombre.toUpperCase().endsWith(' POR')) {
-                                rawNombre = rawNombre.substring(0, rawNombre.length - 4).trim();
-                            }
-
-                            // Further cleanup if the trust name ends with a capitalized word that sounds like part of the trustee
-                            // e.g. "Fideicomiso G-4 SOMAJOFA S.A." -> split at "S.A." -> rawNom="... SOMAJOFA"
-                            const parts = rawNombre.split(/\s+/);
-                            if (parts.length > 2) {
-                                const lastWord = parts[parts.length - 1];
-                                if (lastWord && lastWord === lastWord.toUpperCase() && lastWord.length > 3) {
-                                    trusteeName = lastWord + " " + trusteeName;
-                                    rawNombre = parts.slice(0, -1).join(" ").trim();
-                                }
-                            }
-
-                            if (!allClients.some((ent: any) => looseNameMatch(ent.nombre_completo, trusteeName))) {
-                                allClients.push({
-                                    rol: 'FIDUCIARIA',
-                                    tipo_persona: 'JURIDICA',
-                                    nombre_completo: trusteeName,
-                                    cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit)),
-                                    cuit_tipo: 'CUIT',
-                                    cuit_is_formal: true
-                                });
-                            }
-                            break;
-                        }
+                for (const ind of trusteeIndicators) {
+                    const idx = upperNombre.indexOf(ind);
+                    if (idx !== -1) {
+                        const trusteePart = rawNombre.substring(idx).trim();
+                        rawNombre = rawNombre.substring(0, idx).trim();
+                        addOrMergeClient({
+                            rol: 'FIDUCIARIA',
+                            tipo_persona: 'JURIDICA',
+                            nombre_completo: trusteePart,
+                            cuit: formatCUIT(extractString(d.cuit_fiduciaria || raw.fideicomiso?.fiduciaria?.cuit))
+                        });
+                        break;
                     }
                 }
-            }
-
-            // DEDUPLICATION: If this person is already listed in representatives, skip as separate card
-            // unless they are also a principal party (complex case, but usually AI gets confused)
-            const isDuplicateOfRep = raw.entidades.some((ent: any) =>
-                // BUG FIX: Only deduplicate if DNI is actually present to avoid skipping null-DNI entities
-                ent.representacion?.representantes?.some((r: any) => r.dni && d.dni && normalizeID(String(r.dni)) === normalizeID(String(d.dni)))
-            );
-            if (isDuplicateOfRep && e.rol !== 'APODERADO/REPRESENTANTE') {
-                console.log(`[PIPELINE] Skipping entity ${rawNombre} as it is already a representative.`);
-                return;
             }
 
             const mainClient = {
@@ -457,36 +423,12 @@ function normalizeAIData(raw: any) {
                 nombre_completo: rawNombre,
                 dni: extractString(d.dni) || null,
                 cuit: formatCUIT(extractString(d.cuit_cuil)),
+                cuit_tipo: e.cuit_tipo?.toUpperCase() || 'CUIT',
                 estado_civil: extractString(d.estado_civil) || null,
                 nacionalidad: extractString(d.nacionalidad) || null,
-                domicilio_real: (d.domicilio?.valor || d.domicilio) ? { literal: extractString(d.domicilio?.valor || d.domicilio) } : null,
                 fecha_nacimiento: extractString(d.fecha_nacimiento) || null,
                 nombres_padres: extractString(d.nombres_padres) || null,
-                cuit_tipo: (() => {
-                    if (forcedTipoPersona === 'JURIDICA') return 'CUIT';
-
-                    // 1. Prioritize literal text in the CUIT field itself if available
-                    // We check the whole object to capture "C.U.I.L." if it's in a .literal or .texto field
-                    const cuitObjStr = JSON.stringify(d.cuit_cuil || "").toUpperCase();
-                    if (cuitObjStr.includes("C.U.I.L.") || cuitObjStr.includes("CUIL")) return 'CUIL';
-                    if (cuitObjStr.includes("C.U.I.T.") || cuitObjStr.includes("CUIT")) return 'CUIT';
-
-                    // 2. Check if AI already classified it
-                    if (e.cuit_tipo?.toUpperCase() === 'CUIL') return 'CUIL';
-                    if (e.cuit_tipo?.toUpperCase() === 'CUIT') return 'CUIT';
-
-                    // 3. Inference from local profession/profile
-                    const prof = (d.profesion?.valor || "").toUpperCase();
-                    if (prof.includes("EMPLEADO") || prof.includes("ESTUDIANTE") || prof.includes("JUBILADO")) return 'CUIL';
-                    if (prof.includes("COMERCIANTE") || prof.includes("PROFESIONAL") || prof.includes("MONOTRIBUTISTA")) return 'CUIT';
-
-                    // 4. Fallback to global text search
-                    const rawText = (raw.full_text || "").toUpperCase();
-                    if (rawText.includes("C.U.I.L.") || rawText.includes("CUIL")) return 'CUIL';
-
-                    return 'CUIT'; // Default
-                })(),
-                cuit_is_formal: true, // Default for NotiAR
+                domicilio_real: (d.domicilio?.valor || d.domicilio) ? { literal: extractString(d.domicilio?.valor || d.domicilio) } : null,
                 datos_conyuge: d.conyuge ? {
                     nombre: extractString(d.conyuge.nombre_completo || d.conyuge.nombre) || null,
                     dni: extractString(d.conyuge.dni) || null,
@@ -494,71 +436,44 @@ function normalizeAIData(raw: any) {
                 } : null
             };
 
-            // PHOSPHOR ROLE FORCING: If this person matches Cedente/Cesionario, their role MUST be updated.
-            if (cedenteName && looseNameMatch(mainClient.nombre_completo, cedenteName)) {
-                console.log(`[PIPELINE] 🚨 FORCING Role: ${mainClient.nombre_completo} -> CEDENTE (Match with ${cedenteName})`);
-                mainClient.rol = 'CEDENTE';
-            } else if (cesionarioName && looseNameMatch(mainClient.nombre_completo, cesionarioName)) {
-                console.log(`[PIPELINE] 🚨 FORCING Role: ${mainClient.nombre_completo} -> CESIONARIO (Match with ${cesionarioName})`);
-                mainClient.rol = 'CESIONARIO';
-            }
+            // Force Role check
+            if (cedenteName && looseNameMatch(mainClient.nombre_completo, cedenteName)) mainClient.rol = 'CEDENTE';
+            else if (cesionarioName && looseNameMatch(mainClient.nombre_completo, cesionarioName)) mainClient.rol = 'CESIONARIO';
 
-            // DEDUPLICATION: Avoid adding the same person twice within entities
-            // Stricter check: name AND (dni or cuit) if available
-            const isDuplicate = allClients.some(cl => {
-                const nameMatches = looseNameMatch(cl.nombre_completo, mainClient.nombre_completo);
-                if (!nameMatches) return false;
+            addOrMergeClient(mainClient);
 
-                // If both have DNI/CUIT and they differ, they are distinct people (e.g. father/son)
-                if (cl.dni && mainClient.dni && cl.dni !== mainClient.dni) return false;
-                if (cl.cuit && mainClient.cuit && cl.cuit !== mainClient.cuit) return false;
-
-                return true;
-            });
-
-            if (!isDuplicate) {
-                allClients.push(mainClient);
-            }
-
-            // Flatten Representatives (e.g. Pablo Alejandro Laura)
-            if (e.representacion?.representantes && Array.isArray(e.representacion.representantes)) {
+            // Representatives
+            if (e.representacion?.representantes) {
                 e.representacion.representantes.forEach((rep: any) => {
-                    const repNombre = extractString(rep.nombre) || 'Desconocido';
-                    const repObj = {
+                    addOrMergeClient({
                         rol: 'APODERADO/REPRESENTANTE',
-                        caracter: `lo hace en nombre y representación de ${mainClient.nombre_completo}`,
-                        tipo_persona: 'FISICA',
-                        nombre_completo: repNombre,
-                        dni: extractString(rep.dni) || null,
-                        cuit: formatCUIT(extractString(rep.cuit_cuil)),
-                        cuit_tipo: (() => {
-                            const litStr = JSON.stringify(rep.cuit_cuil || "").toUpperCase();
-                            if (litStr.includes("C.U.I.L.") || litStr.includes("CUIL")) return 'CUIL';
-                            if (litStr.includes("C.U.I.T.") || litStr.includes("CUIT")) return 'CUIT';
-                            return 'CUIL'; // Default for natural persons
-                        })(),
-                        cuit_is_formal: true,
-                        nacionalidad: extractString(rep.nacionalidad) || null,
-                        fecha_nacimiento: extractString(rep.fecha_nacimiento) || null,
-                        domicilio_real: (rep.domicilio?.valor || rep.domicilio) ? { literal: extractString(rep.domicilio?.valor || rep.domicilio) } : null,
-                        estado_civil: extractString(rep.estado_civil) || null
-                    };
-                    if (!allClients.some(cl => looseNameMatch(cl.nombre_completo, repNombre))) {
-                        allClients.push(repObj);
-                    }
+                        caracter: `en representación de ${mainClient.nombre_completo}`,
+                        nombre_completo: extractString(rep.nombre),
+                        dni: extractString(rep.dni),
+                        tipo_persona: 'FISICA'
+                    });
                 });
             }
         });
-        normalized.clientes = allClients;
-        console.log(`[NORMALIZE] Final Clients Count: ${allClients.length}`, allClients.map(c => `${c.nombre_completo} (${c.rol})`));
     }
+
+    // Final RESCUE logic inside normalization to ensure canonical list
+    if (normalized.cesion_beneficiario) {
+        const { cedente_nombre, cesionario_nombre, fideicomiso_nombre } = normalized.cesion_beneficiario;
+        if (cedente_nombre) addOrMergeClient({ rol: 'CEDENTE', nombre_completo: cedente_nombre, tipo_persona: 'FISICA' });
+        if (cesionario_nombre) addOrMergeClient({ rol: 'CESIONARIO', nombre_completo: cesionario_nombre, tipo_persona: 'FISICA' });
+        if (fideicomiso_nombre) addOrMergeClient({ rol: 'VENDEDOR', nombre_completo: fideicomiso_nombre, tipo_persona: 'FIDEICOMISO' });
+    }
+
+    normalized.clientes = allClients;
+
     if (raw.inmuebles && Array.isArray(raw.inmuebles)) {
         normalized.inmuebles = raw.inmuebles.map((i: any) => ({
-            partido: i.partido?.valor || 'BAHIA BLANCA',
-            partida_inmobiliaria: i.partida_inmobiliaria?.valor,
-            nomenclatura: i.nomenclatura?.valor,
-            transcripcion_literal: i.transcripcion_literal?.valor,
-            valuacion_fiscal: i.valuacion_fiscal?.valor || 0
+            partido: i.partido?.valor || i.partido || 'BAHIA BLANCA',
+            partida_inmobiliaria: i.partida_inmobiliaria?.valor || i.partida_inmobiliaria,
+            nomenclatura: i.nomenclatura?.valor || i.nomenclatura,
+            transcripcion_literal: i.transcripcion_literal?.valor || i.transcripcion_literal,
+            valuacion_fiscal: i.valuacion_fiscal?.valor || i.valuacion_fiscal || 0
         }));
     }
     return normalized;
@@ -669,76 +584,12 @@ async function persistIngestedData(aiData: any, file: File, buffer: Buffer, exis
 
     const processedParticipants = new Set<string>();
 
-    // --- STEP: Add/Update Actors from Fiduciary Metadata ---
-    if (aiData.cesion_beneficiario) {
-        const { cedente_nombre, cesionario_nombre, cesionario_dni, fideicomiso_nombre, fiduciaria_nombre } = aiData.cesion_beneficiario;
-
-        // Ensure if they already exist in 'clientes', their role is CEDENTE/CESIONARIO
-        for (let cl of clientes) {
-            if (cedente_nombre && looseNameMatch(cl.nombre_completo, cedente_nombre)) {
-                cl.rol = 'CEDENTE';
-            }
-            if (cesionario_nombre && looseNameMatch(cl.nombre_completo, cesionario_nombre)) {
-                cl.rol = 'CESIONARIO';
-            }
-            if (fideicomiso_nombre && looseNameMatch(cl.nombre_completo, fideicomiso_nombre)) {
-                cl.rol = 'VENDEDOR';
-                cl.tipo_persona = 'FIDEICOMISO';
-            }
-            if (fiduciaria_nombre && looseNameMatch(cl.nombre_completo, fiduciaria_nombre)) {
-                cl.rol = 'FIDUCIARIA';
-            }
-        }
-
-        // Add if missing
-        if (cedente_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, cedente_nombre))) {
-            clientes.push({
-                rol: 'CEDENTE',
-                nombre_completo: cedente_nombre,
-                dni: null,
-                tipo_persona: 'FISICA',
-                cuit_is_formal: false
-            });
-        }
-
-        if (cesionario_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, cesionario_nombre))) {
-            clientes.push({
-                rol: 'CESIONARIO',
-                nombre_completo: cesionario_nombre,
-                dni: cesionario_dni,
-                tipo_persona: 'FISICA',
-                cuit_is_formal: false
-            });
-        }
-
-        if (fideicomiso_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, fideicomiso_nombre))) {
-            clientes.push({
-                rol: 'VENDEDOR',
-                nombre_completo: fideicomiso_nombre,
-                dni: null,
-                tipo_persona: 'FIDEICOMISO',
-                cuit_is_formal: false
-            });
-        }
-
-        if (fiduciaria_nombre && !clientes.some((cl: any) => looseNameMatch(cl.nombre_completo, fiduciaria_nombre))) {
-            clientes.push({
-                rol: 'FIDUCIARIA',
-                nombre_completo: fiduciaria_nombre,
-                dni: null,
-                tipo_persona: 'JURIDICA',
-                cuit_is_formal: false
-            });
-        }
-    }
-
+    // Participants are now fully normalized in allClients
     for (const c of clientes) {
-        // Fallback: Si no hay DNI (PJ), usar CUIT como ID único en la tabla personas
         let finalID = normalizeID(c.dni);
         const cleanCuit = normalizeID(c.cuit);
 
         if (!finalID && cleanCuit) {
-            console.log(`[PERSIST] Entity ${c.nombre_completo} has no DNI, using CUIT as ID.`);
             finalID = cleanCuit;
         }
 
