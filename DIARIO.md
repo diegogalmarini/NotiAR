@@ -22,6 +22,21 @@ Este documento registra los hitos alcanzados y las funcionalidades que han sido 
 - **Estado:** Estable / No tocar.
 - **Logro:** Apellidos siempre en MAYÚSCULAS (incluyendo cónyuges). Soporte para apellidos compuestos.
 
+### 5. Especialización en Fideicomisos y Cesiones ✅
+- **Estado:** Estable / No tocar.
+- **Logro:** Extracción de roles complejos (Cedente, Cesionario, Fiduciaria) y doble precio (ARS histórico / USD mercado).
+- **Componente:** `normalizeAIData` + Sanitizador Semántico.
+
+### 6. Hipotecas UVA y Créditos Bancarios ✅
+- **Estado:** Estable / No tocar.
+- **Logro:** Extracción de condiciones financieras BNA (TNA, UVA, Plazo). Priorización de roles Acreedor/Deudor.
+- **Componente:** `notary-mortgage-reader`.
+
+### 7. Motor de Inteligencia RAG (La Biblia) ✅
+- **Estado:** Estable / No tocar.
+- **Logro:** Conexión del cerebro AI con base de conocimiento legal dinámica. Búsqueda semántica para inyectar expertiz en tiempo real.
+- **Componente:** `SkillExecutor` + `RAG (Supabase Vector)`.
+
 ---
 
 ## Próximos Desafíos
